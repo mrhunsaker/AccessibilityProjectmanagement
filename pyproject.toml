@@ -1,0 +1,100 @@
+[project]
+name = "accessible-materials-project-management"
+version = "2026.5.6"
+description = "Project management and inventory TUI for a braille/3-D printing production environment"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [
+    { name = "Michael Ryan Hunsaker, M.Ed., Ph.D.", email = "github@mail.hunsakerweb.com" },
+]
+keywords = ["braille", "3d-printing", "inventory", "tui", "project-management"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Scheduling",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "textual>=0.80.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+    "textual-dev>=0.80.0",   # includes textual devtools / live reload
+    "ruff>=0.4.0",
+    "mypy>=1.9",
+]
+
+[project.scripts]
+accessibility-manager = "accessibility_mrg.app:main"
+
+[project.urls]
+Homepage     = "https://github.com/mrhunsaker/braille-maker-studio"
+Issues       = "https://github.com/mrhunsaker/braille-maker-studio/issues"
+Changelog    = "https://github.com/mrhunsaker/braille-maker-studio/RELEASING.md"
+
+# ── uv ────────────────────────────────────────────────────────────────────────
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+    "textual-dev>=0.80.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9",
+]
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["accessibility_mgr"]
+
+# ── Ruff (linting / formatting) ───────────────────────────────────────────────
+[tool.ruff]
+line-length    = 99
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long — handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["braille_mgr"]
+
+# ── Mypy ──────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version         = "3.11"
+strict                 = false
+ignore_missing_imports = true
+warn_unused_ignores    = true
+warn_return_any        = true
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths    = ["tests"]
