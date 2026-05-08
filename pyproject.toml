@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
+    "pytest>=9.0.3",
     "pytest-asyncio>=0.23",
     "textual-dev>=0.80.0",   # includes textual devtools / live reload
     "ruff>=0.4.0",
@@ -48,7 +48,7 @@ Changelog    = "https://github.com/mrhunsaker/braille-maker-studio/RELEASING.md"
 # ── uv ────────────────────────────────────────────────────────────────────────
 [tool.uv]
 dev-dependencies = [
-    "pytest>=7.0",
+    "pytest>=9.0.3",
     "pytest-asyncio>=0.23",
     "textual-dev>=0.80.0",
     "ruff>=0.4.0",
