@@ -1,8 +1,7 @@
 """Main NiceGUI entrypoint for the Accessibility Project Manager.
 
-This module replaces the placeholder implementation with a functional
-application shell that mirrors the original TUI workflow while integrating
-all available NiceGUI pages in the repository.
+This module provides the primary NiceGUI application shell for accessibility
+production management workflows.
 """
 
 from __future__ import annotations
@@ -17,7 +16,6 @@ from db.database import init_db
 
 APP_TITLE = "Accessibility Project Manager"
 
-# Ordered to roughly match the original TUI navigation.
 PAGE_DEFINITIONS = [
     {
         "name": "Dashboard",
@@ -25,6 +23,13 @@ PAGE_DEFINITIONS = [
         "module": "ui.dashboard",
         "function": "dashboard_page",
         "description": "Studio overview and active work summary",
+    },
+    {
+        "name": "Asset Registry",
+        "icon": "account_tree",
+        "module": "ui.assets",
+        "function": "assets_page",
+        "description": "Metadata-rich digital and physical asset tracking",
     },
     {
         "name": "Inventory",
@@ -72,7 +77,7 @@ PAGE_DEFINITIONS = [
 
 
 def load_page_handler(module_name: str, function_name: str) -> Callable | None:
-    """Load a page renderer if the module exists in the repo."""
+    """Load a page renderer if the module exists."""
 
     try:
         module = import_module(module_name)
@@ -103,7 +108,7 @@ ui.colors(
 
 
 def render_page(content: ui.column, page: dict) -> None:
-    """Render a page function regardless of its expected signature."""
+    """Render a page function regardless of signature."""
 
     content.clear()
 
@@ -131,18 +136,18 @@ def render_page(content: ui.column, page: dict) -> None:
 
 @ui.page("/")
 def index() -> None:
+    """Render the main application shell."""
+
     ui.page_title(APP_TITLE)
 
     with ui.row().classes("w-full no-wrap"):
         with ui.column().classes(
-            "h-screen w-72 bg-slate-900 text-white p-4 gap-1 shadow-xl"
+            "h-screen w-80 bg-slate-900 text-white p-4 gap-1 shadow-xl"
         ):
             ui.label(APP_TITLE).classes("text-2xl font-bold")
-            ui.label("Braille & Maker Studio Workflow").classes(
+            ui.label("Accessibility Production Management").classes(
                 "text-xs text-slate-300 mb-4"
             )
-
-            content = ui.column().classes("w-full")
 
             for page in PAGES:
                 ui.button(
@@ -156,13 +161,27 @@ def index() -> None:
             ui.separator().classes("my-4 bg-slate-700")
 
             with ui.card().classes("bg-slate-800 text-white w-full"):
-                ui.label("Production Areas").classes("font-semibold")
+                ui.label("Managed Workflows").classes("font-semibold")
                 ui.markdown(
                     """
                     - Braille Production
-                    - Large Print / eBraille
-                    - 3-D Print Fabrication
-                    - Inventory & Supplies
+                    - eBraille / Large Print
+                    - Tactile Graphics
+                    - 3-D Printing
+                    - Metadata Preservation
+                    - Assistive Technology Fabrication
+                    """
+                )
+
+            with ui.card().classes("bg-slate-800 text-white w-full"):
+                ui.label("Metadata Architecture").classes("font-semibold")
+                ui.markdown(
+                    """
+                    - Asset lineage tracking
+                    - Workflow provenance
+                    - Preservation metadata
+                    - Revision history
+                    - Derivative relationships
                     """
                 )
 
@@ -174,12 +193,15 @@ def index() -> None:
                     with ui.column().classes("gap-0"):
                         ui.label(APP_TITLE).classes("text-lg font-semibold")
                         ui.label(
-                            "Accessible project tracking and inventory management"
+                            "Metadata-rich accessibility workflow orchestration"
                         ).classes("text-xs text-slate-500")
 
                     with ui.row().classes("items-center gap-2"):
-                        ui.badge("NiceGUI Frontend").classes(
+                        ui.badge("NiceGUI UI").classes(
                             "bg-blue-100 text-blue-700"
+                        )
+                        ui.badge("METS-Inspired Metadata").classes(
+                            "bg-purple-100 text-purple-700"
                         )
                         ui.badge("SQLite Backend").classes(
                             "bg-green-100 text-green-700"
