@@ -18,6 +18,12 @@ The format loosely follows Keep a Changelog principles.
 - Graceful handling for incomplete UI modules
 - Application-wide color/theme configuration
 - Header/status display components
+- Architecture and workflow audit documentation
+- LLM remediation prompt specification (`prompt.json`)
+- Asset Registry NiceGUI page
+- Metadata workflow visibility dashboard
+- METS-inspired asset management concepts
+- Metadata lineage planning documentation
 
 ## Changed
 
@@ -26,6 +32,8 @@ The format loosely follows Keep a Changelog principles.
 - Updated README to document NiceGUI migration strategy
 - Updated repository structure documentation
 - Clarified technology stack and workflow functionality
+- Expanded application shell to include metadata-oriented workflows
+- Expanded project scope toward preservation-oriented accessibility production
 
 ## Planned
 
@@ -35,3 +43,7 @@ The format loosely follows Keep a Changelog principles.
 - Authentication support
 - Accessibility auditing improvements
 - Multi-user operation support
+- Full metadata lineage tracking
+- Asset version graph visualization
+- Preservation export tooling
+- Workflow automation pipelines
