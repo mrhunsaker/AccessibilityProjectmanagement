@@ -1,47 +1,26 @@
-"""Asset and metadata registry UI.
-
-Provides visibility into tracked digital and physical assets, metadata events,
-and workflow lineage concepts.
-"""
+"""Asset and metadata registry UI with CRUD functionality."""
 
 from __future__ import annotations
 
-import sqlite3
-from pathlib import Path
-
 from nicegui import ui
 
-DB_PATH = Path(__file__).parent.parent / "project_manager.db"
+from services.assets_service import AssetService
 
-
-def _fetch_summary() -> dict:
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-
-    tables = {
-        "file_objects": "SELECT COUNT(*) FROM file_object",
-        "metadata_events": "SELECT COUNT(*) FROM metadata_event",
-        "job_metadata": "SELECT COUNT(*) FROM job_metadata",
-        "structural_nodes": "SELECT COUNT(*) FROM structural_map_node",
-    }
-
-    results = {}
-
-    for key, query in tables.items():
-        try:
-            cur.execute(query)
-            results[key] = cur.fetchone()[0]
-        except sqlite3.Error:
-            results[key] = 0
-
-    conn.close()
-    return results
+ASSET_TYPES = [
+    "BRF",
+    "PEF",
+    "EPUB",
+    "DAISY",
+    "STL",
+    "3MF",
+    "GCODE",
+    "PDF",
+    "DOCX",
+]
 
 
 def assets_page() -> None:
-    """Render metadata and asset management overview page."""
-
-    summary = _fetch_summary()
+    """Render metadata and asset management UI."""
 
     ui.label("Asset Registry & Metadata Workflows").classes(
         "text-2xl font-bold"
@@ -49,88 +28,100 @@ def assets_page() -> None:
 
     ui.markdown(
         """
-        This subsystem tracks digital and physical accessibility-production
-        assets across their complete workflow lifecycle.
-
-        The architecture is inspired by:
-
-        - METS
-        - PREMIS
-        - OCR-D workspace models
-        - Digital preservation systems
+        Track digital and physical accessibility-production assets along with
+        metadata, workflow events, and derivative lineage.
         """
     )
 
-    with ui.row().classes("w-full gap-4"):
-        for label, value in [
-            ("Tracked Assets", summary["file_objects"]),
-            ("Metadata Events", summary["metadata_events"]),
-            ("Metadata Records", summary["job_metadata"]),
-            ("Structural Nodes", summary["structural_nodes"]),
-        ]:
-            with ui.card().classes("p-4 min-w-52"):
-                ui.label(label).classes("text-sm text-slate-500")
-                ui.label(str(value)).classes("text-3xl font-bold")
+    with ui.row().classes("w-full gap-4 items-start"):
+        with ui.card().classes("w-full max-w-xl"):
+            ui.label("Create Project").classes("text-lg font-semibold")
 
-    with ui.card().classes("w-full"):
-        ui.label("Tracked Asset Types").classes("text-lg font-semibold")
+            project_title = ui.input("Project Title")
+            project_description = ui.textarea("Description")
 
-        ui.markdown(
-            """
-            - OCR outputs
-            - Corrected text
-            - BRF / BRL files
-            - PEF files
-            - EPUB packages
-            - DAISY exports
-            - STL / 3MF / STEP assets
-            - G-code derivatives
-            - Embossed braille copies
-            - Tactile graphics
-            - Accessibility fabrication objects
-            """
-        )
+            def create_project():
+                AssetService.create_project(
+                    project_title.value,
+                    project_description.value,
+                )
+                ui.notify("Project created")
+                refresh_projects()
 
-    with ui.card().classes("w-full"):
-        ui.label("Metadata Capture Goals").classes("text-lg font-semibold")
+            ui.button("Create Project", on_click=create_project)
 
-        with ui.grid(columns=2).classes("w-full gap-4"):
-            with ui.column():
-                ui.label("Descriptive Metadata").classes("font-medium")
-                ui.markdown(
-                    """
-                    - Title
-                    - Subject
-                    - Language
-                    - Accessibility need
-                    - Requestor
-                    - Keywords
-                    """
+        with ui.card().classes("w-full max-w-xl"):
+            ui.label("Register Asset").classes("text-lg font-semibold")
+
+            asset_name = ui.input("Asset Name")
+            asset_type = ui.select(ASSET_TYPES, value="BRF")
+            asset_path = ui.input("File Path")
+
+            def create_asset():
+                AssetService.create_asset(
+                    asset_name.value,
+                    asset_type.value,
+                    asset_path.value,
+                )
+                ui.notify("Asset registered")
+                refresh_assets()
+
+            ui.button("Register Asset", on_click=create_asset)
+
+    projects_container = ui.column().classes("w-full")
+    assets_container = ui.column().classes("w-full")
+
+    def refresh_projects():
+        projects_container.clear()
+
+        with projects_container:
+            with ui.card().classes("w-full"):
+                ui.label("Projects").classes("text-lg font-semibold")
+
+                for project in AssetService.list_projects():
+                    with ui.row().classes(
+                        "w-full justify-between border-b pb-2"
+                    ):
+                        with ui.column():
+                            ui.label(project.title).classes("font-semibold")
+                            ui.label(project.description).classes(
+                                "text-sm text-slate-500"
+                            )
+
+    def refresh_assets():
+        assets_container.clear()
+
+        with assets_container:
+            with ui.card().classes("w-full"):
+                ui.label("Tracked Assets").classes(
+                    "text-lg font-semibold"
                 )
 
-            with ui.column():
-                ui.label("Technical Metadata").classes("font-medium")
-                ui.markdown(
-                    """
-                    - OCR engine
-                    - Translation engine
-                    - Embosser settings
-                    - Slicer profiles
-                    - File formats
-                    - Validation reports
-                    """
-                )
+                for asset in AssetService.list_assets():
+                    with ui.card().classes("w-full"):
+                        ui.label(asset.name).classes("font-semibold")
+                        ui.label(asset.asset_type).classes(
+                            "text-sm text-blue-600"
+                        )
+                        ui.label(asset.path).classes(
+                            "text-xs text-slate-500"
+                        )
 
-    with ui.expansion("Planned Metadata and Lineage Features"):
-        ui.markdown(
-            """
-            - Asset version graphing
-            - Parent/child derivative visualization
-            - Workflow replay history
-            - Preservation exports
-            - Automated checksum validation
-            - Operator audit trails
-            - File validation pipelines
-            - Metadata schema templates
-            """
-        )
+                        metadata_key = ui.input("Metadata Key")
+                        metadata_value = ui.input("Metadata Value")
+
+                        def add_metadata(asset_id=asset.id):
+                            AssetService.add_metadata(
+                                asset_id,
+                                metadata_key.value,
+                                metadata_value.value,
+                            )
+                            ui.notify("Metadata added")
+
+                        ui.button(
+                            "Add Metadata",
+                            on_click=add_metadata,
+                        )
+
+    refresh_projects()
+    refresh_assets()
