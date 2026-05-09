@@ -1,21 +1,14 @@
 #!/usr/bin/env bash
-# Launcher for Braille & Maker Studio Project Manager
-set -e
+# Launcher for Accessibility Materials Project Manager
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Check Python
-if ! command -v python3 &>/dev/null; then
-    echo "ERROR: python3 not found. Please install Python 3.9+."
+if ! command -v uv &>/dev/null; then
+    echo "ERROR: 'uv' not found. Install it from https://docs.astral.sh/uv/"
     exit 1
 fi
 
-# Check/install textual
-if ! python3 -c "import textual" &>/dev/null; then
-    echo "Installing required library: textual..."
-    pip install textual --break-system-packages -q
-fi
-
-echo "Starting Braille & Maker Studio..."
-cd "$SCRIPT_DIR"
-exec python3 app.py "$@"
+echo "Starting Accessibility Materials Project Manager..."
+exec uv run AccessMan "$@"

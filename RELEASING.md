@@ -8,11 +8,11 @@ This document describes how to cut a new release of Braille & Maker Studio.
 
 This project follows [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`):
 
-| Increment | When |
-|-----------|------|
+| Increment | When                                                            |
+| --------- | --------------------------------------------------------------- |
 | `MAJOR`   | Breaking change to the DB schema, file layout, or CLI interface |
-| `MINOR`   | New feature added in a backward-compatible way |
-| `PATCH`   | Bug fix or documentation update |
+| `MINOR`   | New feature added in a backward-compatible way                  |
+| `PATCH`   | Bug fix or documentation update                                 |
 
 The authoritative version lives in **`pyproject.toml`** under `[project] version`.
 
@@ -86,7 +86,7 @@ release changes the schema:
 
 Example migration note format:
 
-```markdown
+````markdown
 ### Migration
 
 Run before first launch of vX.Y.Z:
@@ -94,12 +94,12 @@ Run before first launch of vX.Y.Z:
 ```bash
 uv run python scripts/migrate_X_Y_Z.py
 ```
+````
 
 Or manually in sqlite3:
 
 ```sql
 ALTER TABLE filament ADD COLUMN supplier TEXT;
-```
 ```
 
 ---
@@ -114,6 +114,7 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+
 - Initial project scaffold: TUI application with six inventory/workflow panels
 - SQLite database with tables for filament, braille paper, electronics,
   printers, print jobs, braille jobs, and LP/eBraille jobs
@@ -126,16 +127,33 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `pyproject.toml` configured for `uv`, `ruff`, `mypy`, and `pytest`
 
 ### Changed
+
 - *(nothing yet)*
 
 ### Fixed
+
 - *(nothing yet)*
 
 ### Removed
+
 - *(nothing yet)*
 
 ---
 
-## [0.1.0] — TBD
+## [2026.5.6] — 2026-05-06
 
-*Initial release.*
+### Added
+
+- Initial project scaffold: TUI application with six inventory/workflow panels
+- SQLite database with tables for filament, braille paper, electronics, printers, print jobs, braille jobs, and LP/eBraille jobs
+- BambuLabs P1S and Sovol SV08 Max pre-seeded as printer options
+- Automatic filament gram deduction when a print job is logged
+- Print file indexing: attached .3mf/.stl files copied to prints_files/ and recorded in the database
+- Progress tracking with visual bar (#.. 3/5 style) for braille and LP/eBraille jobs
+- run.sh (Linux/macOS) and run.bat (Windows) launcher scripts
+- pyproject.toml configured for uv, ruff, mypy, and pytest
+- Console script entry point: uv run AccessMan
+- Dynamic material categories and workflow steps tables for user-extensible options
+- Admin panel for managing material categories, workflow steps, and printers
+
+```

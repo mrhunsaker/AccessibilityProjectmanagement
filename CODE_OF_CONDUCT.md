@@ -48,7 +48,7 @@ officially representing the project in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by opening a private issue or contacting the maintainers directly.
+reported by opening a private GitHub issue or emailing `github@mail.hunsakerweb.com`.
 All complaints will be reviewed and investigated promptly and fairly.
 
 Maintainers who do not follow or enforce the Code of Conduct in good faith may

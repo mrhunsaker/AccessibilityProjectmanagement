@@ -9,7 +9,7 @@ A terminal-based (TUI) project management and inventory app for a braille /
 
 | Requirement | Version                    |
 | ----------- | -------------------------- |
-| Python      | 3.11 +                     |
+| Python      | 3.9 +                      |
 | textual     | auto-installed by launcher |
 
 ---
@@ -19,21 +19,21 @@ A terminal-based (TUI) project management and inventory app for a braille /
 ### Linux / macOS
 
 ```bash
-chmod +x run.sh
-./run.sh
+chmod +x accessibility_mgr/run.sh
+./accessibility_mgr/run.sh
 ```
 
 ### Windows
 
-```
+```batch
 run.bat
 ```
 
 ### Manual (any platform)
 
 ```bash
-pip install textual
-python app.py
+uv sync --group dev
+uv run AccessMan
 ```
 
 ---
@@ -155,8 +155,8 @@ sqlite3 project_manager.db "SELECT * FROM filament;"
 
 ## File Structure
 
-```
-braille_mgr/
+```text
+accessibility_mgr/
 ├── app.py              ← Main TUI application
 ├── run.sh              ← Linux/macOS launcher
 ├── run.bat             ← Windows launcher

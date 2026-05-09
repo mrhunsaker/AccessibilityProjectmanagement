@@ -1,20 +1,14 @@
 @echo off
-REM Launcher for Braille & Maker Studio — Windows
+REM Launcher for Accessibility Materials Project Manager - Windows
 cd /d "%~dp0"
 
-python --version >nul 2>&1
+where uv >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Python not found. Please install Python 3.9+ from python.org
+    echo ERROR: 'uv' not found. Install it from https://docs.astral.sh/uv/
     pause
     exit /b 1
 )
 
-python -c "import textual" >nul 2>&1
-if errorlevel 1 (
-    echo Installing required library: textual...
-    pip install textual -q
-)
-
-echo Starting Braille ^& Maker Studio...
-python app.py
+echo Starting Accessibility Materials Project Manager...
+uv run AccessMan
 pause

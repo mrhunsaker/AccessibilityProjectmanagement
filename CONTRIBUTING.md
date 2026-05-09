@@ -1,4 +1,4 @@
-# Contributing to Braille & Maker Studio
+# Contributing to Accessibility Materials Project Management
 
 Thank you for taking the time to contribute! This document explains how to get
 the project running locally, how to submit changes, and what the review process
@@ -30,22 +30,22 @@ looks like.
 
 ```bash
 # Clone the repository
-git clone https://github.com/youruser/braille-maker-studio.git
-cd braille-maker-studio
+git clone https://github.com/mrhunsaker/accessible-materials-manager.git
+cd accessible-materials-manager
 
 # Create a virtual environment and install all dependencies (including dev extras)
-uv sync --extra dev
+uv sync --group dev
 
 # Run the app
-uv run braille-studio
+uv run AccessMan
 # or directly:
-uv run python braille_mgr/app.py
+uv run python accessibility_mgr/app.py
 ```
 
 ### Textual live-reload (during UI development)
 
 ```bash
-uv run textual run --dev braille_mgr/app.py
+uv run textual run --dev accessibility_mgr/app.py
 ```
 
 This enables the Textual devtools panel for live CSS editing and event inspection.
@@ -55,30 +55,32 @@ This enables the Textual devtools panel for live CSS editing and event inspectio
 ## Development Workflow
 
 1. **Fork** the repository and create a branch from `main`:
+
    ```bash
    git checkout -b feat/my-feature
    ```
+
 2. Make your changes, keeping commits small and focused.
 3. Run lint and tests before pushing (see below).
 4. Open a Pull Request against `main`.
 
 Branch naming conventions:
 
-| Prefix | Use for |
-|--------|---------|
-| `feat/` | New features |
-| `fix/` | Bug fixes |
-| `docs/` | Documentation only |
+| Prefix      | Use for                                    |
+| ----------- | ------------------------------------------ |
+| `feat/`     | New features                               |
+| `fix/`      | Bug fixes                                  |
+| `docs/`     | Documentation only                         |
 | `refactor/` | Code restructuring without behavior change |
-| `chore/` | Tooling, CI, dependency updates |
+| `chore/`    | Tooling, CI, dependency updates            |
 
 ---
 
 ## Project Structure
 
-```
+```text
 .                          ← repo root (pyproject.toml lives here)
-└── braille_mgr/
+└── accessibility_mgr/
     ├── app.py             ← Textual TUI entry point
     ├── db/
     │   ├── schema.py      ← SQLite schema & connection helper
@@ -111,7 +113,7 @@ uv run ruff format .
 Type annotations are encouraged for all new public functions. Run mypy with:
 
 ```bash
-uv run mypy braille_mgr/
+uv run mypy accessibility_mgr/
 ```
 
 Key style rules (see also `STYLE.md`):

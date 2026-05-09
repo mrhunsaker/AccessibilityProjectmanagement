@@ -4,10 +4,10 @@
 
 Only the latest release on the `main` branch receives security fixes.
 
-| Version | Supported |
-|---------|-----------|
-| latest (`main`) | ✅ Yes |
-| older tags      | ❌ No  |
+| Version         | Supported |
+| --------------- | --------- |
+| latest (`main`) | ✅ Yes    |
+| older tags      | ❌ No     |
 
 ---
 
@@ -40,8 +40,7 @@ Instead, report them privately by one of these methods:
 
 1. **GitHub private vulnerability reporting** (preferred):  
    Go to the repository → Security → "Report a vulnerability"
-2. **Email**: send details to `security@example.com` (replace with your actual
-   address before publishing)
+2. **Email**: send details to `github@mail.hunsakerweb.com`
 
 Include:
 
@@ -58,9 +57,11 @@ notes unless they request anonymity.
 ## Best Practices for Users
 
 - Keep your Python environment and dependencies up to date:
+
   ```bash
   uv sync --upgrade
   ```
+
 - Back up `project_manager.db` regularly — it contains all your inventory and
   job data.
 - Do not place the `project_manager.db` file in a publicly accessible location
