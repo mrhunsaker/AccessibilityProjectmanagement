@@ -1,0 +1,40 @@
+{
+  "project": {
+    "name": "Accessibility Project Manager",
+    "architecture_goal": "Metadata-rich accessibility production and preservation workflow platform",
+    "frontend": "NiceGUI",
+    "backend": "Python + SQLAlchemy + SQLite"
+  },
+  "implementation_phases": [
+    {
+      "phase": 1,
+      "name": "Workflow Execution Engine",
+      "priority": "critical"
+    },
+    {
+      "phase": 2,
+      "name": "File Ingestion Subsystem",
+      "priority": "critical"
+    },
+    {
+      "phase": 3,
+      "name": "Asset Lineage Graphing",
+      "priority": "high"
+    },
+    {
+      "phase": 4,
+      "name": "Metadata Schema System",
+      "priority": "high"
+    },
+    {
+      "phase": 5,
+      "name": "Search and Indexing",
+      "priority": "medium"
+    },
+    {
+      "phase": 6,
+      "name": "Authentication and RBAC",
+      "priority": "medium"
+    }
+  ]
+}
