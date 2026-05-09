@@ -93,6 +93,7 @@ class AssetService:
             stage=stage,
             operator=operator,
             notes=notes,
+            completed=True,
         )
 
         session.add(event)
@@ -101,3 +102,18 @@ class AssetService:
         session.close()
 
         return event
+
+    @staticmethod
+    def get_workflow_history(asset_id: int) -> list[WorkflowEvent]:
+        session = SessionLocal()
+
+        results = (
+            session.query(WorkflowEvent)
+            .filter(WorkflowEvent.asset_id == asset_id)
+            .order_by(WorkflowEvent.created_at.desc())
+            .all()
+        )
+
+        session.close()
+
+        return results
