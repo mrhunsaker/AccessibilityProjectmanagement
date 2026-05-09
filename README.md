@@ -1,108 +1,90 @@
-# Braille & Maker Studio — Project Manager
+# Accessibility Project Manager
 
-A terminal-based (TUI) project management and inventory app for a braille /
-3-D printing production environment.
+Accessibility Project Manager is a Python-based production management system
+for accessibility-focused maker and transcription workflows.
 
----
+The application combines:
 
-## Requirements
+- Braille production tracking
+- Large print and eBraille workflow management
+- 3-D print job management
+- Inventory and materials tracking
+- SQLite-backed operational records
+- NiceGUI web frontend
 
-| Requirement | Version                    |
-| ----------- | -------------------------- |
-| Python      | 3.9 +                      |
-| textual     | auto-installed by launcher |
-
----
-
-## Quick Start
-
-### Linux / macOS
-
-```bash
-chmod +x accessibility_mgr/run.sh
-./accessibility_mgr/run.sh
-```
-
-### Windows
-
-```batch
-run.bat
-```
-
-### Manual (any platform)
-
-```bash
-uv sync --group dev
-uv run AccessMan
-```
+The project originally started as a Textual TUI application and is now being
+migrated into a modular NiceGUI interface while preserving the original
+workflow model.
 
 ---
 
-## Navigation
+# Core Features
 
-The left sidebar contains six sections. Click or press the button to switch.
+## Dashboard
 
-| Shortcut | Action                         |
-| -------- | ------------------------------ |
-| `Q`      | Quit                           |
-| `Ctrl+R` | Refresh current table          |
-| `↑ ↓`    | Move cursor in tables          |
-| `Tab`    | Move between fields in dialogs |
-| `Enter`  | Activate focused button        |
+The dashboard provides operational visibility across the studio:
+
+- Active braille jobs
+- LP/eBraille jobs
+- Recent print jobs
+- Inventory alerts
+- Low filament warnings
+- Urgent production items
+- Workflow completion status
 
 ---
 
-## Sections
+## Inventory Management
 
-### 🧵 Filament
+Tracks production materials and consumables.
 
-Tracks 3-D printer filament stock.
+### Filament
 
-| Field    | Description                                                            |
-| -------- | ---------------------------------------------------------------------- |
-| Brand    | Manufacturer (Bambu, Hatchbox, …)                                      |
-| Color    | Color name                                                             |
-| Type     | PLA, PETG, ABS, TPU, …                                                 |
-| Diameter | 1.75 mm or 2.85 mm                                                     |
-| Qty (g)  | Grams remaining — automatically decremented when a print job is logged |
+Tracks 3-D printer filament inventory.
 
-### 📄 Braille Paper
+Supported metadata includes:
 
-Tracks paper and label supplies.
+- Brand
+- Color
+- Filament type
+- Diameter
+- Remaining grams
 
-- **Sheet Feed 11.5×11** — standard braille sheet
-- **Sheet Feed 8.5×11**
-- **Pin Feed 11.5×11**
-- **Pin Feed Labels 8.5×11**
-- **Generic Label** — enter size and type (removable, permanent, etc.)
+Filament quantities are automatically decremented when print jobs are logged.
 
-### ⚡ Electronics
+### Braille Paper
 
-Tracks all electronics components.
+Tracks:
 
-Categories: TRRS Trinkey / Micro:bit boards, Microswitches, Wire, Mono Jacks,
-Bolts/Nuts, Hex Screws, Solder, Other.
+- Sheet feed paper
+- Pin feed paper
+- Label stock
+- Specialty braille media
 
-Each item stores brand, spec (size/gauge/resistance), quantity, and unit (pcs, m, g, roll, ft).
+### Electronics
 
-### 🖨️ 3-D Print Jobs
+Tracks electronics and assembly components used in accessibility hardware
+projects.
 
-Logs every print run.
+Examples include:
 
-- Choose printer: **BambuLabs P1S** or **Sovol SV08 Max**
-- Select filament from inventory (quantity auto-deducted on save)
-- Record grams used, success/failure, and failure reason
-- Optionally attach a `.3mf` / `.stl` / `.gcode` file — it is copied into the
-  `prints_files/` folder and indexed in the database
-- Click **📁 Open Files Folder** to browse all indexed print files
+- Microcontrollers
+- TRRS components
+- Wiring
+- Switches
+- Fasteners
+- Solder
+- Connectors
 
-### ⠿ Braille Jobs
+---
 
-Tracks braille transcription work.
+# Production Workflow Tracking
 
-Types: Literary · Math · Science · Music
+## Braille Jobs
 
-Steps (check off as completed):
+Tracks multi-stage braille production workflows.
+
+Workflow stages:
 
 1. Digitized
 2. Formatted
@@ -110,60 +92,154 @@ Steps (check off as completed):
 4. Proofread
 5. Delivered
 
-Progress is shown as a visual bar: `███░░ 3/5`
+Supports:
 
-### 🔠 LP / eBraille Jobs
+- Job priorities
+- Progress tracking
+- Workflow completion metrics
+- Job categorization
 
-Tracks large print and eBraille production.
+Supported categories include:
 
-Steps:
+- Literary
+- Math
+- Science
+- Music
+
+---
+
+## LP / eBraille Jobs
+
+Tracks large-print and electronic braille production.
+
+Workflow stages:
 
 1. Digitized
 2. Formatted
-3. eBraille / Converted to Large Print
+3. Converted
 4. Proofread
 5. Delivered
 
 ---
 
-## Database
+## 3-D Print Jobs
 
-- File: `project_manager.db` (SQLite, created automatically on first run)
-- Print files: `prints_files/` folder (created automatically)
-- Schema uses `PRAGMA foreign_keys = ON` and `journal_mode = WAL` for safety
+Tracks fabrication and printer usage.
 
-### Tables
+Features include:
 
-| Table             | Purpose                                  |
-| ----------------- | ---------------------------------------- |
-| `filament`        | Filament inventory                       |
-| `braille_paper`   | Paper & label supplies                   |
-| `electronics`     | Electronics components                   |
-| `printer`         | Printer reference (seeded automatically) |
-| `print_job`       | 3-D print log                            |
-| `braille_job`     | Braille transcription tracking           |
-| `lp_ebraille_job` | Large print / eBraille tracking          |
+- Printer selection
+- Filament usage logging
+- Success/failure tracking
+- Failure reason tracking
+- Linked print files
+- Print history
 
-You can query or back up the database with any SQLite tool:
+Supported print file types:
+
+- `.3mf`
+- `.stl`
+- `.gcode`
+
+Print assets are stored in the `prints_files/` directory.
+
+---
+
+# Technology Stack
+
+| Component | Technology |
+|---|---|
+| Frontend | NiceGUI |
+| Original UI | Textual |
+| Database | SQLite |
+| Language | Python 3.9+ |
+| Package Management | uv |
+
+---
+
+# Running the Application
+
+## Install Dependencies
 
 ```bash
-sqlite3 project_manager.db ".tables"
-sqlite3 project_manager.db "SELECT * FROM filament;"
+uv sync
 ```
 
 ---
 
-## File Structure
+## Run the NiceGUI Frontend
+
+```bash
+uv run python accessibility_mgr/app.py
+```
+
+The application launches a local NiceGUI web server.
+
+---
+
+# Database
+
+The application automatically initializes a SQLite database on startup.
+
+Default database:
+
+```text
+project_manager.db
+```
+
+The database uses:
+
+- WAL journaling
+- Foreign key enforcement
+- Structured relational tables
+
+---
+
+# Repository Structure
 
 ```text
 accessibility_mgr/
-├── app.py              ← Main TUI application
-├── run.sh              ← Linux/macOS launcher
-├── run.bat             ← Windows launcher
-├── README.md           ← This file
+├── app.py                # NiceGUI frontend entrypoint
+├── appTUI.py             # Original Textual TUI application
 ├── db/
-│   ├── __init__.py
-│   ├── schema.py       ← DB init & connection
-│   └── queries.py      ← All data access functions
-└── prints_files/       ← Auto-created; stores indexed print files
+│   ├── database.py       # Database initialization
+│   ├── queries.py        # Data access layer
+│   └── schema.py         # Schema definitions
+├── ui/
+│   ├── dashboard.py
+│   ├── inventory.py
+│   ├── categories.py
+│   ├── print_jobs.py
+│   ├── braille_jobs.py
+│   ├── lp_jobs.py
+│   └── transactions.py
+└── prints_files/
 ```
+
+---
+
+# Current Status
+
+The NiceGUI frontend is under active development and is replacing the original
+terminal interface incrementally.
+
+Current priorities:
+
+- Complete migration of TUI workflows into NiceGUI
+- Expand CRUD interfaces
+- Improve accessibility compliance
+- Add reporting and analytics
+- Add authentication and multi-user support
+
+---
+
+# Accessibility Goals
+
+This project is designed for accessibility-focused production environments and
+prioritizes:
+
+- Keyboard accessibility
+- High-contrast interfaces
+- Screen-reader compatibility
+- Efficient operator workflows
+- Reduced operational friction for adaptive production teams
