@@ -28,6 +28,13 @@ PAGE_DEFINITIONS = [
         "description": "Metadata-rich digital and physical asset tracking",
     },
     {
+        "name": "Asset Detail",
+        "icon": "description",
+        "module": "ui.asset_detail",
+        "function": "asset_detail_page",
+        "description": "Detailed workflow and provenance inspection",
+    },
+    {
         "name": "Braille Workflow",
         "icon": "article",
         "module": "ui.workflow_braille",
@@ -137,21 +144,6 @@ def index() -> None:
                     on_click=lambda p=page: render_page(content_area, p),
                 ).props("flat align=left").classes(
                     "w-full justify-start text-left"
-                )
-
-            ui.separator().classes("bg-slate-700 my-4")
-
-            with ui.card().classes("bg-slate-800 text-white w-full"):
-                ui.label("Workflow Domains").classes("font-semibold")
-                ui.markdown(
-                    """
-                    - Braille Production
-                    - Accessible Documents
-                    - eBraille
-                    - Tactile Graphics
-                    - 3D Fabrication
-                    - Metadata Preservation
-                    """
                 )
 
         with ui.column().classes("flex-1 h-screen overflow-auto bg-slate-50"):
