@@ -62,6 +62,13 @@ PAGE_DEFINITIONS = [
         "function": "lineage_page",
         "description": "Derivative lineage and provenance visualization",
     },
+    {
+        "name": "Search",
+        "icon": "search",
+        "module": "ui.search",
+        "function": "search_page",
+        "description": "Search assets and metadata",
+    },
 ]
 
 
