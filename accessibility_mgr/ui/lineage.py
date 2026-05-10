@@ -1,50 +1,27 @@
-"""Lineage and provenance visualization UI."""
-
 from nicegui import ui
 
-
-LINEAGE_EXAMPLES = [
-    "Source PDF → OCR TXT → Corrected TXT → BRF → Embossed Braille",
-    "CAD Source → STL → Slicer Project → G-code → Printed Object",
-    "DOCX → EPUB → DAISY → Accessible Delivery Package",
-]
+from services.assets_service import AssetService
 
 
 def lineage_page() -> None:
-    """Render lineage visualization planning interface."""
-
-    ui.label("Lineage & Provenance Visualization").classes(
-        "text-2xl font-bold"
-    )
+    ui.label("Asset Lineage Viewer").classes("text-2xl font-bold")
 
     ui.markdown(
         """
-        This subsystem is intended to visualize derivative relationships,
-        workflow provenance, and preservation-oriented lineage tracking.
+        Visualize derivative relationships and workflow provenance chains.
         """
     )
 
-    with ui.card().classes("w-full"):
-        ui.label("Example Derivative Chains").classes(
-            "text-lg font-semibold"
-        )
+    assets = AssetService.list_assets()
 
-        for chain in LINEAGE_EXAMPLES:
-            ui.label(chain).classes("font-mono text-sm")
+    with ui.column().classes("w-full gap-4"):
+        for asset in assets:
+            with ui.card().classes("w-full"):
+                ui.label(asset.name).classes("text-lg font-semibold")
+                ui.label(asset.asset_type).classes("text-sm text-slate-500")
+                ui.label(asset.path).classes("text-xs text-slate-400")
 
-    with ui.card().classes("w-full"):
-        ui.label("Planned Visualization Features").classes(
-            "text-lg font-semibold"
-        )
-
-        ui.markdown(
-            """
-            - Asset graph visualization
-            - Parent/child relationship trees
-            - Provenance timelines
-            - Revision comparison
-            - Workflow replay
-            - Preservation exports
-            - Delivery history tracking
-            """
-        )
+                if asset.parent_id:
+                    ui.label(f"Derived From Asset ID: {asset.parent_id}")
+                else:
+                    ui.label("Root Asset")
