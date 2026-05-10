@@ -14,6 +14,21 @@ def lineage_page() -> None:
 
     assets = AssetService.list_assets()
 
+    with ui.card().classes("w-full"):
+        ui.label("Provenance Graph").classes("text-lg font-semibold")
+
+        mermaid = "graph TD\n"
+
+        for asset in assets:
+            mermaid += f"A{asset.id}[{asset.name}]\n"
+
+            if asset.parent_id:
+                mermaid += (
+                    f"A{asset.parent_id} --> A{asset.id}\n"
+                )
+
+        ui.mermaid(mermaid)
+
     with ui.column().classes("w-full gap-4"):
         for asset in assets:
             with ui.card().classes("w-full"):
