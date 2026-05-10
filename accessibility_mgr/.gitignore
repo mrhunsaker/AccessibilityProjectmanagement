@@ -1,0 +1,11 @@
+# Secrets
+secrets/
+.secrets
+.env
+*.key
+*.pem
+
+# Runtime
+*.db
+__pycache__/
+*.pyc
