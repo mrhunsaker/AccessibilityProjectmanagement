@@ -30,6 +30,7 @@ class AssetService:
         asset_type: str,
         path: str = "",
         project_id: int | None = None,
+        parent_id: int | None = None,
     ) -> Asset:
         session = SessionLocal()
 
@@ -38,6 +39,7 @@ class AssetService:
             asset_type=asset_type,
             path=path,
             project_id=project_id,
+            parent_id=parent_id,
         )
 
         session.add(asset)
