@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from nicegui import ui
 
-import db.queries as Q
-from services.qa_service import QAService, QATool
-from ui.components import notify_error, notify_success, section_header
+from ..db import queries as Q
+from ..services.qa_service import QAService, QATool
+from .components import notify_error, notify_success, section_header
 
 
 def _tool_card(tool: QATool, result_area: ui.element) -> None:

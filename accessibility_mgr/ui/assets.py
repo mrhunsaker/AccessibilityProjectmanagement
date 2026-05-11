@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from services.assets_service import AssetService
+from ..services.assets_service import AssetService
 
 ASSET_TYPES = [
     "BRF",

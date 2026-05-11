@@ -2,14 +2,16 @@
 Inventory panels: Filament, Paper, Electronics, and 3-D Print Jobs.
 """
 
+"""Legacy inventory UI module retained for documentation and compatibility."""
+
 from __future__ import annotations
 
 from typing import Optional
 
 from nicegui import ui
 
-import db.queries as Q
-from ui.components import (
+from ..db import queries as Q
+from ..ui.components import (
     confirm_dialog, notify_error, notify_success, section_header,
 )
 

@@ -1,6 +1,6 @@
 from nicegui import ui
-from db.database import SessionLocal
-from models.inventory import Category
+from ..db.database import SessionLocal
+from ..models.inventory import Category
 
 def categories_page():
     db = SessionLocal()

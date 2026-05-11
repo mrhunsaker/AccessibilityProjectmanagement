@@ -1,3 +1,5 @@
+"""Production device registry used by the legacy workflow helpers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

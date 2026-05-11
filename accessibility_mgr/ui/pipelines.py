@@ -11,9 +11,9 @@ import threading
 
 from nicegui import ui
 
-import db.queries as Q
-from services.pipeline_service import PipelineService, WorkflowPipeline
-from ui.components import notify_error, notify_success, section_header
+from ..db import queries as Q
+from ..services.pipeline_service import PipelineService, WorkflowPipeline
+from .components import notify_error, notify_success, section_header
 
 
 def _pipeline_card(pipeline: WorkflowPipeline, result_area: ui.element) -> None:

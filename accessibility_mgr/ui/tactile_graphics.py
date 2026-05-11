@@ -6,8 +6,8 @@ from typing import Optional
 
 from nicegui import ui
 
-import db.queries as Q
-from ui.components import confirm_dialog, notify_success, priority_badge, progress_bar, section_header, status_chip
+from ..db import queries as Q
+from .components import confirm_dialog, notify_success, priority_badge, progress_bar, section_header, status_chip
 
 _STEPS = ["designed", "produced", "qa_reviewed", "delivered"]
 _STEP_LABELS = {

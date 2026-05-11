@@ -1,7 +1,7 @@
 from nicegui import ui
 
-from services.assets_service import AssetService
-from services.workflow_engine import WorkflowEngine
+from ..services.assets_service import AssetService
+from ..services.workflow_engine import WorkflowEngine
 
 PRINT_STAGES = [
     "cad_ingestion",

@@ -27,6 +27,7 @@ classifiers = [
 dependencies = [
     "nicegui>=1.4.0",
     "textual>=0.80.0",
+    "sqlalchemy>=2.0.0",
 ]
 
 [project.scripts]

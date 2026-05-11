@@ -6,8 +6,8 @@ from typing import Any
 
 from nicegui import ui
 
-import db.queries as Q
-from ui.components import PRIORITY_COLORS, section_header
+from ..db import queries as Q
+from .components import PRIORITY_COLORS, section_header
 
 
 def _stat_card(label: str, value: Any, color: str = "blue", icon: str = "") -> None:

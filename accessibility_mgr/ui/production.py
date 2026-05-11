@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.production_service import ProductionService
+from ..services.production_service import ProductionService
 
 
 def production_page() -> None:

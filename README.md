@@ -18,7 +18,7 @@ workflow model.
 
 ---
 
-# Core Features
+## Core Features
 
 ## Dashboard
 
@@ -78,7 +78,7 @@ Examples include:
 
 ---
 
-# Production Workflow Tracking
+## Production Workflow Tracking
 
 ## Braille Jobs
 
@@ -164,7 +164,7 @@ Print assets are stored in the `prints_files/` directory.
 
 ---
 
-# Technology Stack
+## Technology Stack
 
 | Component          | Technology  |
 | ------------------ | ----------- |
@@ -176,7 +176,7 @@ Print assets are stored in the `prints_files/` directory.
 
 ---
 
-# Running the Application
+## Running the Application
 
 ## System Dependencies
 
@@ -306,11 +306,11 @@ The application launches a local NiceGUI web server.
 
 ---
 
-# Documentation Site
+## Documentation Site
 
 The project documentation is generated with MkDocs and published to:
 
-https://mrhunsaker.github.io/AccessibilityProjectmanagement
+<https://mrhunsaker.github.io/AccessibilityProjectmanagement>
 
 To preview or build the documentation locally:
 
@@ -325,7 +325,7 @@ modules under `accessibility_mgr/`.
 
 ---
 
-# Database
+## Database
 
 The application automatically initializes a SQLite database on startup.
 
@@ -343,7 +343,7 @@ The database uses:
 
 ---
 
-# Repository Structure
+## Repository Structure
 
 ```text
 accessibility_mgr/
@@ -366,7 +366,7 @@ accessibility_mgr/
 
 ---
 
-# Current Status
+## Current Status
 
 The NiceGUI frontend is under active development and is replacing the original
 terminal interface incrementally.
@@ -381,7 +381,7 @@ Current priorities:
 
 ---
 
-# Accessibility Goals
+## Accessibility Goals
 
 This project is designed for accessibility-focused production environments and
 prioritizes:

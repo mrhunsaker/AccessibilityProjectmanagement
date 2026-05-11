@@ -12,8 +12,8 @@ import shlex
 from dataclasses import dataclass, field
 from typing import Optional
 
-import db.queries as Q
-from services.execution_service import ExecutionResult, ExecutionService
+from ..db import queries as Q
+from .execution_service import ExecutionResult, ExecutionService
 
 
 @dataclass

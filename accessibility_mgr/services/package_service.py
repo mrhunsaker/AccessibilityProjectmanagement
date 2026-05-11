@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from services.assets_service import AssetService
+from .assets_service import AssetService
 
 
 class PackageService:

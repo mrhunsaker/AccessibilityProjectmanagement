@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.schema_governance_service import (
+from ..services.schema_governance_service import (
     SchemaGovernanceService,
 )
 

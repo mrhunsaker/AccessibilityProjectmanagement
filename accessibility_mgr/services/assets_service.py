@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from db.database import SessionLocal
-from models.assets import Asset, AssetMetadata, Project, WorkflowEvent
+from ..db.database import SessionLocal
+from ..models.assets import Asset, AssetMetadata, Project, WorkflowEvent
 
 
 class AssetService:

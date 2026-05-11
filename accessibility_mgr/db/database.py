@@ -10,12 +10,12 @@ Base = declarative_base()
 
 
 def init_db():
-    from models.assets import (
+    from ..models.assets import (
         Asset,
         AssetMetadata,
         Project,
         WorkflowEvent,
     )
-    from models.inventory import Category, InventoryItem, InventoryTransaction
+    from ..models.inventory import Category, InventoryItem, InventoryTransaction
 
     Base.metadata.create_all(bind=engine)

@@ -1,7 +1,7 @@
 from nicegui import ui
-from ui.inventory import inventory_page
-from ui.dashboard import dashboard_page
-from ui.categories import categories_page
+from .inventory import inventory_page
+from .dashboard import dashboard_page
+from .categories import categories_page
 
 def build_layout():
     with ui.row().classes('w-full no-wrap'):

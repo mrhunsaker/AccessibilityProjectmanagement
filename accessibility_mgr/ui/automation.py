@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.automation_service import AutomationService
+from ..services.automation_service import AutomationService
 
 
 def automation_page() -> None:

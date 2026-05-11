@@ -1,3 +1,5 @@
+"""Automation integration catalogue for accessibility production tooling."""
+
 from __future__ import annotations
 
 

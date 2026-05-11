@@ -7,8 +7,8 @@ from typing import Optional
 
 from nicegui import ui
 
-import db.queries as Q
-from ui.components import confirm_dialog, notify_error, notify_success, section_header
+from ..db import queries as Q
+from .components import confirm_dialog, notify_error, notify_success, section_header
 
 
 def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:

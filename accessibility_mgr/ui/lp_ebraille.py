@@ -8,8 +8,8 @@ from typing import Optional
 
 from nicegui import ui
 
-import db.queries as Q
-from ui.components import (
+from ..db import queries as Q
+from .components import (
     OUTCOME_COLORS,
     confirm_dialog,
     file_use_badge,

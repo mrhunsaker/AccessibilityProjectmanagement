@@ -1,5 +1,5 @@
-from db.database import SessionLocal
-from models.inventory import InventoryItem, InventoryTransaction
+from ..db.database import SessionLocal
+from ..models.inventory import InventoryItem, InventoryTransaction
 
 class InventoryService:
 

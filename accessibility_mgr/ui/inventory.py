@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.inventory_service import InventoryService
+from ..services.inventory_service import InventoryService
 
 
 def inventory_page() -> None:

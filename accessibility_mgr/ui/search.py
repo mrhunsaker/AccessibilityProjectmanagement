@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from nicegui import ui
 
-import db.queries as Q
-from ui.components import section_header
+from ..db import queries as Q
+from .components import section_header
 
 
 def _match(text: str, query: str) -> bool:

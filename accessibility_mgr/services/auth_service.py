@@ -1,3 +1,5 @@
+"""Authentication helpers for the lightweight UI user switcher."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

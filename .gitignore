@@ -1,37 +1,85 @@
-# Database
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+.vscode-test/
+.idea/
+*.swp
+*.swo
+*.orig
+*.bak
+*.tmp
+
+# Python bytecode and virtual environments
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+.Python
+.venv/
+.envrc
+.python-version
+
+# Python packaging and build output
+build/
+dist/
+site/
+*.egg-info/
+pip-wheel-metadata/
+wheelhouse/
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.tox/
+.nox/
+.hypothesis/
+.cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.dmypy.json
+.ipynb_checkpoints/
+
+# Dependency / environment managers
+.uv/
+poetry.lock
+Pipfile.lock
+
+# Database and app runtime data
 *.db
 *.db-wal
 *.db-shm
-
-# Runtime artefacts
 accessibility_manager.db
+project_manager.db
 prints_files/
 job_files/
 uploads/
 ace-report/
 exports/
+logs/
+tmp/
+temp/
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-.venv/
-.uv/
-
-# Secrets
-secrets/
-.secrets
+# Local configuration and secrets
+tools.ini
 .env
+.env.*
+.secrets
+secrets/
 *.key
 *.pem
+*.p12
 
-# Editor
-.vscode/
-.idea/
-*.swp
-*.swo
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

@@ -12,7 +12,7 @@ import hashlib
 from pathlib import Path
 from typing import Any, Optional
 
-import db.queries as Q
+from ..db import queries as Q
 
 
 class PreservationService:

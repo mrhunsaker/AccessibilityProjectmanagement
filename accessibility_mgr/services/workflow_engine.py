@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from models.assets import WorkflowEvent
-from services.assets_service import AssetService
+from ..models.assets import WorkflowEvent
+from .assets_service import AssetService
 
 
 VALID_WORKFLOWS = {

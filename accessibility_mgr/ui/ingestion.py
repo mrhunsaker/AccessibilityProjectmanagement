@@ -11,8 +11,8 @@ from pathlib import Path
 
 from nicegui import events, ui
 
-import db.queries as Q
-from ui.components import notify_error, notify_success, section_header
+from ..db import queries as Q
+from .components import notify_error, notify_success, section_header
 
 SUPPORTED_TYPES = [
     "DOCX", "PDF", "EPUB", "BRF", "PEF", "TXT", "HTML",

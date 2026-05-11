@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.assets_service import AssetService
+from ..services.assets_service import AssetService
 
 
 def asset_detail_page() -> None:

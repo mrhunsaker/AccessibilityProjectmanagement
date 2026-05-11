@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.auth_service import AuthService
+from ..services.auth_service import AuthService
 
 
 def authentication_page() -> None:
