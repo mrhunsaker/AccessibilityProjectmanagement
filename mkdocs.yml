@@ -1,0 +1,70 @@
+site_name: Accessibility Project Management
+site_description: Accessibility-focused production management for braille, large print, eBraille, tactile graphics, and 3-D printing workflows.
+site_url: https://mrhunsaker.github.io/AccessibilityProjectmanagement/
+repo_url: https://github.com/mrhunsaker/AccessibilityProjectmanagement
+repo_name: AccessibilityProjectmanagement
+edit_uri: blob/main/
+
+nav:
+  - Home: index.md
+  - Overview: overview.md
+  - Reference:
+      - Application: reference/app.md
+      - Database: reference/database.md
+      - Services: reference/services.md
+      - UI: reference/ui.md
+      - Models: reference/models.md
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+    - search.share
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - .
+          options:
+            show_root_heading: true
+            show_root_toc_entry: false
+            show_signature_annotations: true
+            members_order: source
+            merge_init_into_class: true
+            filters:
+              - "!^_"
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables

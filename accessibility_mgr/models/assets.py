@@ -9,6 +9,8 @@ from db.database import Base
 
 
 class Project(Base):
+    """A production project grouping related accessibility assets."""
+
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -23,6 +25,8 @@ class Project(Base):
 
 
 class Asset(Base):
+    """A file or deliverable associated with a project."""
+
     __tablename__ = "assets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -45,6 +49,8 @@ class Asset(Base):
 
 
 class AssetMetadata(Base):
+    """A key/value metadata record attached to an asset."""
+
     __tablename__ = "asset_metadata"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -60,6 +66,8 @@ class AssetMetadata(Base):
 
 
 class WorkflowEvent(Base):
+    """A recorded workflow action for an asset."""
+
     __tablename__ = "workflow_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

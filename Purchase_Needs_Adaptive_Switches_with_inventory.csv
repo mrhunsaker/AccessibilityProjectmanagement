@@ -1,0 +1,61 @@
+Category,Product,Cost,URL,Notes,TYPE,BRAND,COLOR,QUANTITY
+Control Interfaces,TRRS Trinkey,$9.95/ea,https://www.adafruit.com/product/5954,[https://learn.adafruit.com/adafruit-trrs-trinkey](https://learn.adafruit.com/adafruit-trrs-trinkey),,,,
+Control Interfaces,TRRS Trinkey,$9.95/ea,https://www.adafruit.com/product/5954](https://www.adafruit.com/product/5954,[https://learn.adafruit.com/adafruit-trrs-trinkey](https://learn.adafruit.com/adafruit-trrs-trinkey),,,,
+Control Interfaces,Snap-on Enclosure for Adafruit TRRS Trinkey,$2.50,https://www.adafruit.com/product/5981,nan,,,,
+Control Interfaces,Snap-on Enclosure for Adafruit TRRS Trinkey,$2.50,https://www.adafruit.com/product/5981](https://www.adafruit.com/product/5981,nan,,,,
+Control Interfaces,"3.5mm (1/8"") Stereo Audio Plug Terminal Block",$2.50,https://www.adafruit.com/product/2790,nan,,,,
+Control Interfaces,"3.5mm (1/8"") Stereo Audio Plug Terminal Block",$2.50,https://www.adafruit.com/product/2790](https://www.adafruit.com/product/2790,nan,,,,
+Control Interfaces,"3.5mm (1/8"") 4-Pole (TRRS) Audio Plug Terminal Block",$2.50,https://www.adafruit.com/product/2914,nan,,,,
+Control Interfaces,"3.5mm (1/8"") 4-Pole (TRRS) Audio Plug Terminal Block",$2.50,https://www.adafruit.com/product/2914](https://www.adafruit.com/product/2914,nan,,,,
+Control Interfaces,micro:bit Go,$19.99,https://www.digikey.com/en/products/detail/okdo/MICRO-BIT-GO/22121532,Provides Bluetooth along with 2 switch pads,,,,
+Control Interfaces,micro:bit Go,$19.99,https://www.digikey.com/en/products/detail/okdo/MICRO-BIT-GO/22121532](https://www.digikey.com/en/products/detail/okdo/MICRO-BIT-GO/22121532,Tap+ Switch,,,,
+Control Interfaces,"APDS9960 Proximity, Gesture, RGB, and Ambient Light Sensor",$9.99 / 2,https://www.amazon.com/HiLetgo-APDS-9960-Recognition-Direction-Proximity/dp/B01NACU412/ref=sr_1_2,nan,,,,
+Control Interfaces,"APDS9960 Proximity, Gesture, RGB, and Ambient Light Sensor",$9.99 / 2,https://www.amazon.com/HiLetgo-APDS-9960-Recognition-Direction-Proximity/dp/B01NACU412/ref=sr_1_2](https://www.amazon.com/HiLetgo-APDS-9960-Recognition-Direction-Proximity/dp/B01NACU412/ref=sr_1_2,nan,,,,
+Control Interfaces,"Adafruit APDS9960 Proximity, Light, RGB, and Gesture Sensor - STEMMA QT / Qwiic",$7.50,https://www.adafruit.com/product/3595,nan,,,,
+Control Interfaces,"Adafruit APDS9960 Proximity, Light, RGB, and Gesture Sensor - STEMMA QT / Qwiic",$7.50,https://www.adafruit.com/product/3595](https://www.adafruit.com/product/3595,nan,,,,
+Control Interfaces,Sparkfun,$3.99,https://www.sparkfun.com/sparkfun-rgb-and-gesture-sensor-apds-9960.html](https://www.sparkfun.com/sparkfun-rgb-and-gesture-sensor-apds-9960.html,nan,,,,
+Control Interfaces,ESP32 DevKit C 32E,$10.00,https://www.digikey.com/en/products/detail/espressif-systems/ESP32-DEVKITC-32E/12091810,nan,,,,
+Control Interfaces,ESP32 DevKit C 32E,$10.00,https://www.digikey.com/en/products/detail/espressif-systems/ESP32-DEVKITC-32E/12091810](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-DEVKITC-32E/12091810,nan,,,,
+Software,Circuit Python for TRSS Trinkey,free,https://circuitpython.org/board/adafruit_trrs_trinkey_m0/,[https://github.com/adafruit/circuitpython](https://github.com/adafruit/circuitpython),,,,
+Software,Circuit Python for TRSS Trinkey,free,https://circuitpython.org/board/adafruit_trrs_trinkey_m0/](https://circuitpython.org/board/adafruit_trrs_trinkey_m0/,[https://github.com/adafruit/circuitpython](https://github.com/adafruit/circuitpython),,,,
+Software,Circuit Python Libraries,free,https://circuitpython.org/libraries,[https://github.com/adafruit/Adafruit\_CircuitPython\_Bundle/releases/latest](https://github.com/adafruit/Adafruit_CircuitPython_Bundle/releases/latest),,,,
+Software,Circuit Python Libraries,free,https://circuitpython.org/libraries](https://circuitpython.org/libraries,[https://github.com/adafruit/Adafruit\_CircuitPython\_Bundle/releases/latest](https://github.com/adafruit/Adafruit_CircuitPython_Bundle/releases/latest),,,,
+Software,Arduino IDE,Free,https://docs.arduino.cc/software/ide-v2/tutorials/getting-started/ide-v2-downloading-and-installing,nan,,,,
+Mono Jacks,MJ-3502,$20.96/10,https://www.digikey.ca/en/products/detail/same-sky-formerly-cui-devices/MJ-3502/281321,for MMC60,,,,
+Mono Jacks,MJ-3502,$20.96/10,https://www.digikey.ca/en/products/detail/same-sky-formerly-cui-devices/MJ-3502/281321](https://www.digikey.ca/en/products/detail/same-sky-formerly-cui-devices/MJ-3502/281321,for MMC60,,,,
+Mono Jacks,a12062600ux0366,$8.69/10,https://www.amazon.com/gp/product/B008SNZUYC?ie=UTF8&psc=1,for Volksswitch v4,,,,
+Mono Jacks,a12062600ux0366,$8.69/10,https://www.amazon.com/gp/product/B008SNZUYC?ie=UTF8&psc=1](https://www.amazon.com/gp/product/B008SNZUYC?ie=UTF8&psc=1,for Volksswitch v4,,,,
+Switches,6mm 2 Pin Panel PCB Momentary Tactile Tact Push Button Switch,$6.99/10,https://www.amazon.com/MakerSpot-Momentary-Tactile-Breadboard-Friendly/dp/B06XT3FLVM,for Volksswitch v4,,,,
+Switches,6mm 2 Pin Panel PCB Momentary Tactile Tact Push Button Switch,$6.99/10,https://www.amazon.com/MakerSpot-Momentary-Tactile-Breadboard-Friendly/dp/B06XT3FLVM](https://www.amazon.com/MakerSpot-Momentary-Tactile-Breadboard-Friendly/dp/B06XT3FLVM,for Volksswitch v4,,,,
+Switches,b3f-5050,$2.91/10,https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/B3F-5050/368377,MMC60,,,,
+Switches,b3f-5050,$2.91/10,https://www.servocity.com/spdt-standard-miniature-snap-action-micro-switch,Interact Switch,,,,
+Switches,b3f-5050,$2.91/10,https://www.sparkfun.com/products/13639,MMC60,,,,
+Switches,b3f-5050,$2.91/10,https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/B3F-5050/368377](https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/B3F-5050/368377,MMC60,,,,
+Switches,b3f-5050,$2.91/10,https://www.mouser.com/ProductDetail/Omron-Electronics/SS-5-F-3?qs=sGAEpiMZZMumBvQ1hY%2ffBbrJe0jS1aFzFhqrNGpN450%3d,MMC60,,,,
+Switches,b3f-5050,$2.91/10,https://www.servocity.com/spdt-standard-miniature-snap-action-micro-switch](https://www.servocity.com/spdt-standard-miniature-snap-action-micro-switch,MMC60,,,,
+Switches,b3f-5050,$2.91/10,https://www.sparkfun.com/products/13639](https://www.sparkfun.com/products/13639,MMC60,,,,
+Switches,ss-3gp,$8.02/10,https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/SS-3GP/664724,Raindrop Switch,,,,
+Switches,ss-3gp,$8.02/10,https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/SS-3GP/664724](https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/SS-3GP/664724,Unibody Switch,,,,
+Inventory,,,,,ABS,Elegoo,Red,1
+Inventory,,,,,PETG,Splice3d,Orange,1
+Inventory,,,,,PETG,Sovol,Blue-White,1
+Inventory,,,,,PETG,Sovol,Blue,1
+Inventory,,,,,PETG,Sovol,Purple-White,1
+Inventory,,,,,PETG,Sovol,Red,1
+Inventory,,,,,PLA,Sovol,Matte Rainbow,1
+Inventory,,,,,PLA,Sovol,Silk Candy,1
+Inventory,,,,,PLA,Sovol,Black,3
+Inventory,,,,,PLA,Sovol,White,1
+Inventory,,,,,PLA,Xtellar,White,2
+Inventory,,,,,SUPPORT_MATERIAL,BambuLab,Clear,2
+Inventory,,,,,PLA,Splice3d,Lively Yellow,12
+Inventory,,,,,PLA,Splice3d,Spring Green,11
+Inventory,,,,,PLA,Splice3d,Poppy Red,4
+Inventory,,,,,PLA,Splice3d,Fluorescent Orange,3
+Inventory,,,,,PLA,Splice3d,Sky Blue,3
+Inventory,,,,,PLA,Splice3d,Hot Magenta,7
+Inventory,,,,,PLA,Splice3d,Black,10
+Inventory,,,,,PLA,Splice3d,White,13
+Inventory,,,,TPU spool mentioned: GEEETech transparent Blue,TPU,GEEETech,Transparent Blue,
+Inventory,Sheet Feed (box of 500),,,Braille paper,BRAILLE_PAPER,APH,,14
+Inventory,Pin Feed Braille Paper (1000 sheets),,,Braille paper,BRAILLE_PAPER,APH,,5

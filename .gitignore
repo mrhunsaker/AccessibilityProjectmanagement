@@ -1,0 +1,37 @@
+# Database
+*.db
+*.db-wal
+*.db-shm
+
+# Runtime artefacts
+accessibility_manager.db
+prints_files/
+job_files/
+uploads/
+ace-report/
+exports/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+.uv/
+
+# Secrets
+secrets/
+.secrets
+.env
+*.key
+*.pem
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

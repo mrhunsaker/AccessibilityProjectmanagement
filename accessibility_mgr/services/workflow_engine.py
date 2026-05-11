@@ -1,3 +1,5 @@
+"""Workflow orchestration helpers for legacy asset workflows."""
+
 from __future__ import annotations
 
 from models.assets import WorkflowEvent
@@ -26,8 +28,11 @@ VALID_WORKFLOWS = {
 
 
 class WorkflowEngine:
+    """Validate workflow transitions and record completed stages."""
+
     @staticmethod
     def validate_transition(workflow_type: str, stage: str) -> bool:
+        """Return True when a stage is valid for the given workflow type."""
         stages = VALID_WORKFLOWS.get(workflow_type, [])
         return stage in stages
 
@@ -39,6 +44,7 @@ class WorkflowEngine:
         operator: str = "",
         notes: str = "",
     ) -> WorkflowEvent:
+        """Record a workflow event after validating the requested stage."""
         if not WorkflowEngine.validate_transition(workflow_type, stage):
             raise ValueError(f"Invalid workflow stage: {stage}")
 
