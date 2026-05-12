@@ -1,3 +1,6 @@
+"""Metadata schema service module.
+
+"""
 from __future__ import annotations
 
 
@@ -9,8 +12,26 @@ REQUIRED_METADATA = {
 
 
 class MetadataSchemaService:
+    """Service for validating required metadata fields by asset type."""
+
     @staticmethod
     def validate(asset_type: str, metadata: dict) -> tuple[bool, list[str]]:
+        """Validate.
+        
+        Parameters
+        ----------
+        asset_type : Any
+            asset_type parameter.
+        
+        metadata : Any
+            metadata parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         errors = []
 
         required = REQUIRED_METADATA.get(asset_type, [])

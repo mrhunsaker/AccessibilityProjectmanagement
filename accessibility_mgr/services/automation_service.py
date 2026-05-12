@@ -15,6 +15,16 @@ AUTOMATION_TOOLS = {
 
 
 class AutomationService:
+    """Service for listing external automation integrations."""
+
     @staticmethod
     def list_integrations():
+        """List integrations.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return AUTOMATION_TOOLS

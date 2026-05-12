@@ -41,6 +41,14 @@ def assets_page() -> None:
             project_description = ui.textarea("Description")
 
             def create_project():
+                """Create project.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 AssetService.create_project(
                     project_title.value,
                     project_description.value,
@@ -58,6 +66,14 @@ def assets_page() -> None:
             asset_path = ui.input("File Path")
 
             def create_asset():
+                """Create asset.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 AssetService.create_asset(
                     asset_name.value,
                     asset_type.value,
@@ -72,6 +88,14 @@ def assets_page() -> None:
     assets_container = ui.column().classes("w-full")
 
     def refresh_projects():
+        """Refresh projects.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         projects_container.clear()
 
         with projects_container:
@@ -89,6 +113,14 @@ def assets_page() -> None:
                             )
 
     def refresh_assets():
+        """Refresh assets.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         assets_container.clear()
 
         with assets_container:
@@ -111,6 +143,19 @@ def assets_page() -> None:
                         metadata_value = ui.input("Metadata Value")
 
                         def add_metadata(asset_id=asset.id):
+                            """Add metadata.
+                            
+                            Parameters
+                            ----------
+                            asset_id : Any
+                                asset_id parameter.
+                            
+                            Returns
+                            -------
+                            Any
+                                Function result.
+                            
+                            """
                             AssetService.add_metadata(
                                 asset_id,
                                 metadata_key.value,

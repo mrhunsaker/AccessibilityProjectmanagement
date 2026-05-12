@@ -58,7 +58,138 @@ def ingestion_page(content_area: ui.element) -> None:
                     "Format Version", placeholder="e.g. 2.0"
                 ).classes("w-full")
 
-                # Optional job linkage
+                # ── Artifact / project metadata ───────────────────────────────
+                ui.separator().classes("my-3")
+                ui.label("Artifact Location (required)").classes(
+                    "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                )
+                ui.label(
+                    "The file will be copied to artifacts/<Project Title>/ and named "
+                    "using the fields below (e.g. FrAn_LegacyJr_Grade7_Science.brf)."
+                ).classes("text-xs text-slate-400 mb-1")
+                project_title_inp = ui.input(
+                    "Project Title*", placeholder="e.g. Spring 2026 Braille Production"
+                ).classes("w-full")
+                student_inp = ui.input(
+                    "Student Initials",
+                    placeholder="e.g. FrAn  (First two of first + first two of last)",
+                ).classes("w-full")
+                school_inp = ui.input(
+                    "School Name",
+                    placeholder="e.g. LegacyJr  (abbreviated, no spaces)",
+                ).classes("w-full")
+                grade_inp = ui.input(
+                    "Grade Level",
+                    placeholder="e.g. 7",
+                ).classes("w-full")
+                subject_inp = ui.input(
+                    "Subject",
+                    placeholder="e.g. Science",
+                ).classes("w-full")
+                ui.separator().classes("my-3")
+                ui.label("Tools & Processes").classes(
+                    "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                )
+                ui.label(
+                    'Record the tool(s) and process(es) applied at this step — '
+                    'e.g. tool: "brailleblaster", process: "digitize".  '
+                    'Multiple tools and processes are allowed.'
+                ).classes("text-xs text-slate-400 mb-1")
+
+                tool_rows: list[dict] = []
+                proc_rows: list[dict] = []
+
+                ui.label("Tools").classes("text-xs font-medium text-slate-500 mt-1")
+                tool_col = ui.column().classes("w-full gap-1")
+
+                def _add_tool() -> None:
+                    """ add tool.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
+                    with tool_col:
+                        with ui.row().classes("w-full gap-1 items-center") as row:
+                            inp = ui.input(placeholder='e.g. brailleblaster').classes(
+                                "flex-1 text-sm"
+                            )
+                            ref: dict = {"inp": inp, "row": row}
+                            tool_rows.append(ref)
+                            def _rm_tool(r=ref) -> None:
+                                """ rm tool.
+                                
+                                Parameters
+                                ----------
+                                r : Any
+                                    r parameter.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
+                                r["row"].delete()
+                                if r in tool_rows:
+                                    tool_rows.remove(r)
+                            ui.button(icon="close", on_click=_rm_tool).props(
+                                "flat dense round size=xs"
+                            ).classes("text-slate-400")
+
+                ui.button("+ Add Tool", on_click=_add_tool).props("flat dense").classes(
+                    "text-xs text-indigo-600 self-start mt-1"
+                )
+                _add_tool()
+
+                ui.label("Processes").classes("text-xs font-medium text-slate-500 mt-2")
+                proc_col = ui.column().classes("w-full gap-1")
+
+                def _add_proc() -> None:
+                    """ add proc.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
+                    with proc_col:
+                        with ui.row().classes("w-full gap-1 items-center") as row:
+                            inp = ui.input(
+                                placeholder='e.g. digitize  (one process per row)'
+                            ).classes("flex-1 text-sm")
+                            ref = {"inp": inp, "row": row}
+                            proc_rows.append(ref)
+                            def _rm_proc(r=ref) -> None:
+                                """ rm proc.
+                                
+                                Parameters
+                                ----------
+                                r : Any
+                                    r parameter.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
+                                r["row"].delete()
+                                if r in proc_rows:
+                                    proc_rows.remove(r)
+                            ui.button(icon="close", on_click=_rm_proc).props(
+                                "flat dense round size=xs"
+                            ).classes("text-slate-400")
+
+                ui.button("+ Add Process", on_click=_add_proc).props("flat dense").classes(
+                    "text-xs text-indigo-600 self-start mt-1"
+                )
+                _add_proc()
+
+                ui.separator().classes("my-3")
                 ui.label("Link to Job (optional)").classes(
                     "text-xs font-semibold text-slate-500 uppercase tracking-wider mt-2"
                 )
@@ -74,6 +205,14 @@ def ingestion_page(content_area: ui.element) -> None:
                 result_card: list[ui.element] = []
 
                 def _ingest() -> None:
+                    """ ingest.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     src = path_inp.value.strip()
                     if not src:
                         notify_error("File path is required")
@@ -81,18 +220,35 @@ def ingestion_page(content_area: ui.element) -> None:
                     if not Path(src).exists():
                         notify_error(f"File not found: {src}")
                         return
+                    if not project_title_inp.value.strip():
+                        notify_error("Project Title is required for artifact storage")
+                        return
 
                     for el in result_card:
                         el.delete()
                     result_card.clear()
 
                     try:
+                        _tools = [r["inp"].value.strip() for r in tool_rows if r["inp"].value.strip()]
+                        _procs = [r["inp"].value.strip() for r in proc_rows if r["inp"].value.strip()]
+                        _extra: dict = {}
+                        if _tools:
+                            _extra["tools"] = _tools
+                        if _procs:
+                            _extra["processes"] = _procs
+
                         file_id = Q.ingest_file(
                             source_path=src,
                             file_use=use_sel.value,
                             format_name=fmt_sel.value,
                             format_version=ver_inp.value.strip(),
                             encoding=enc_inp.value.strip(),
+                            project_title=project_title_inp.value.strip(),
+                            student_initials=student_inp.value.strip(),
+                            school_name=school_inp.value.strip(),
+                            grade_level=grade_inp.value.strip(),
+                            subject=subject_inp.value.strip(),
+                            extra_metadata=_extra or None,
                         )
 
                         jtype = job_type_sel.value
@@ -126,6 +282,7 @@ def ingestion_page(content_area: ui.element) -> None:
                                     ("SHA-256", fo.get("checksum_sha256", "—")),
                                     ("MIME", fo.get("mime_type", "—")),
                                     ("Use", fo.get("file_use", "—")),
+                                    ("Stored at", fo.get("stored_path", "—")),
                                 ]:
                                     with ui.row().classes("gap-2"):
                                         ui.label(f"{label}:").classes(
@@ -146,8 +303,8 @@ def ingestion_page(content_area: ui.element) -> None:
             with ui.card().classes("flex-1 min-w-80 p-5 rounded-xl border border-slate-200"):
                 ui.label("Upload File").classes("font-semibold text-slate-700 mb-1")
                 ui.label(
-                    "Upload a file from your browser. It will be saved to the job_files/ "
-                    "directory and registered with a checksum."
+                    "Upload a file from your browser. It will be staged temporarily then "
+                    "moved into artifacts/<Project Title>/ with the filename convention below."
                 ).classes("text-sm text-slate-400 mb-3")
 
                 upload_fmt = ui.select(
@@ -157,19 +314,182 @@ def ingestion_page(content_area: ui.element) -> None:
                     FILE_USES, label="File Use", value="ORIGINAL"
                 ).classes("w-full")
 
+                # ── Artifact metadata ────────────────────────────────────────
+                ui.separator().classes("my-3")
+                ui.label("Artifact Location (required)").classes(
+                    "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                )
+                ui.label(
+                    "File will be saved as: StudentInitials_SchoolName_GradeN_Subject.ext"
+                ).classes("text-xs text-slate-400 mb-1")
+                up_project_inp = ui.input(
+                    "Project Title*", placeholder="e.g. Spring 2026 Braille Production"
+                ).classes("w-full")
+                up_student_inp = ui.input(
+                    "Student Initials", placeholder="e.g. FrAn"
+                ).classes("w-full")
+                up_school_inp = ui.input(
+                    "School Name", placeholder="e.g. LegacyJr"
+                ).classes("w-full")
+                up_grade_inp = ui.input(
+                    "Grade Level", placeholder="e.g. 7"
+                ).classes("w-full")
+                up_subject_inp = ui.input(
+                    "Subject", placeholder="e.g. Science"
+                ).classes("w-full")
+
+                ui.separator().classes("my-3")
+                ui.label("Tools & Processes").classes(
+                    "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                )
+                ui.label(
+                    'Record the tool(s) and process(es) applied at this step — '
+                    'e.g. tool: "brailleblaster", process: "OCR".  '
+                    'Multiple tools and processes are allowed.'
+                ).classes("text-xs text-slate-400 mb-1")
+
+                up_tool_rows: list[dict] = []
+                up_proc_rows: list[dict] = []
+
+                ui.label("Tools").classes("text-xs font-medium text-slate-500 mt-1")
+                up_tool_col = ui.column().classes("w-full gap-1")
+
+                def _up_add_tool() -> None:
+                    """ up add tool.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
+                    with up_tool_col:
+                        with ui.row().classes("w-full gap-1 items-center") as row:
+                            inp = ui.input(placeholder='e.g. brailleblaster').classes(
+                                "flex-1 text-sm"
+                            )
+                            ref: dict = {"inp": inp, "row": row}
+                            up_tool_rows.append(ref)
+                            def _rm(r=ref) -> None:
+                                """ rm.
+                                
+                                Parameters
+                                ----------
+                                r : Any
+                                    r parameter.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
+                                r["row"].delete()
+                                if r in up_tool_rows:
+                                    up_tool_rows.remove(r)
+                            ui.button(icon="close", on_click=_rm).props(
+                                "flat dense round size=xs"
+                            ).classes("text-slate-400")
+
+                ui.button("+ Add Tool", on_click=_up_add_tool).props("flat dense").classes(
+                    "text-xs text-indigo-600 self-start mt-1"
+                )
+                _up_add_tool()
+
+                ui.label("Processes").classes("text-xs font-medium text-slate-500 mt-2")
+                up_proc_col = ui.column().classes("w-full gap-1")
+
+                def _up_add_proc() -> None:
+                    """ up add proc.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
+                    with up_proc_col:
+                        with ui.row().classes("w-full gap-1 items-center") as row:
+                            inp = ui.input(
+                                placeholder='e.g. OCR  (one process per row)'
+                            ).classes("flex-1 text-sm")
+                            ref = {"inp": inp, "row": row}
+                            up_proc_rows.append(ref)
+                            def _rm(r=ref) -> None:
+                                """ rm.
+                                
+                                Parameters
+                                ----------
+                                r : Any
+                                    r parameter.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
+                                r["row"].delete()
+                                if r in up_proc_rows:
+                                    up_proc_rows.remove(r)
+                            ui.button(icon="close", on_click=_rm).props(
+                                "flat dense round size=xs"
+                            ).classes("text-slate-400")
+
+                ui.button("+ Add Process", on_click=_up_add_proc).props("flat dense").classes(
+                    "text-xs text-indigo-600 self-start mt-1"
+                )
+                _up_add_proc()
+                ui.separator().classes("my-3")
+
                 uploads_dir = Q.FILES_DIR
 
                 def _handle_upload(event: events.UploadEventArguments) -> None:
-                    dest = uploads_dir / event.name
-                    dest.write_bytes(event.content.read())
+                    """ handle upload.
+                    
+                    Parameters
+                    ----------
+                    event : Any
+                        event parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
+                    if not up_project_inp.value.strip():
+                        notify_error("Project Title is required for artifact storage")
+                        return
+                    # Stage the upload temporarily in job_files/, then ingest to artifacts/
+                    stage = uploads_dir / event.name
+                    stage.write_bytes(event.content.read())
                     try:
+                        _up_tools = [r["inp"].value.strip() for r in up_tool_rows if r["inp"].value.strip()]
+                        _up_procs = [r["inp"].value.strip() for r in up_proc_rows if r["inp"].value.strip()]
+                        _up_extra: dict = {}
+                        if _up_tools:
+                            _up_extra["tools"] = _up_tools
+                        if _up_procs:
+                            _up_extra["processes"] = _up_procs
+
                         file_id = Q.ingest_file(
-                            source_path=str(dest),
+                            source_path=str(stage),
                             file_use=upload_use.value,
                             format_name=upload_fmt.value,
+                            project_title=up_project_inp.value.strip(),
+                            student_initials=up_student_inp.value.strip(),
+                            school_name=up_school_inp.value.strip(),
+                            grade_level=up_grade_inp.value.strip(),
+                            subject=up_subject_inp.value.strip(),
+                            extra_metadata=_up_extra or None,
                         )
+                        # Remove the temporary staged copy
+                        stage.unlink(missing_ok=True)
                         fo = Q.get_file_object(file_id)
                         notify_success(f"Uploaded and ingested: {event.name}")
+                        if fo:
+                            notify_success(f"Saved to: {fo.get('stored_path', '—')}")
                     except Exception as exc:
                         notify_error(f"Error: {exc}")
 

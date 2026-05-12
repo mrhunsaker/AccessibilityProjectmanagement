@@ -5,13 +5,18 @@ Dublin Core metadata, PREMIS event log, and step management.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Optional
 
 from nicegui import ui
 
 from ..db import queries as Q
+from .metadata_options import (
+    get_dublin_core_examples,
+    get_dublin_core_keys,
+    get_non_dc_allowed_keys,
+    get_option_groups,
+)
 from .components import (
     OUTCOME_COLORS,
     confirm_dialog,
@@ -38,18 +43,26 @@ _BRAILLE_FORMATS = [
 ]
 _FILE_USES = ["ORIGINAL", "DERIVATIVE", "INTERMEDIATE", "SOURCE", "REFERENCE"]
 
-_DC_KEYS = [
-    "dc:title", "dc:creator", "dc:subject", "dc:description", "dc:publisher",
-    "dc:contributor", "dc:date", "dc:type", "dc:format", "dc:identifier",
-    "dc:source", "dc:language", "dc:rights",
-    "grade_level", "subject_area", "isbn", "oclc_number", "series", "volume",
-    "edition", "transcriber", "proofreader", "embosser", "emboss_date",
-]
-
 
 # ── Job form dialog ───────────────────────────────────────────────────────────
 
 def _job_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ job dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     title = "Edit Braille Job" if existing else "New Braille Job"
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
         ui.label(title).classes("text-xl font-bold text-slate-800")
@@ -114,6 +127,14 @@ def _job_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not t_input.value.strip():
                     notify_error("Title is required")
                     return
@@ -151,6 +172,22 @@ def _job_dialog(on_save, existing: Optional[dict] = None) -> None:
 # ── File ingest dialog ────────────────────────────────────────────────────────
 
 def _ingest_dialog(job_id: int, on_done) -> None:
+    """ ingest dialog.
+    
+    Parameters
+    ----------
+    job_id : Any
+        job_id parameter.
+    
+    on_done : Any
+        on_done parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[560px] max-w-full"):
         ui.label("Attach File to Job").classes("text-xl font-bold text-slate-800")
         ui.label(
@@ -168,25 +205,118 @@ def _ingest_dialog(job_id: int, on_done) -> None:
         enc_input = ui.input(
             "Encoding / Code Table", placeholder="e.g. UEB, Nemeth, EBAE"
         ).classes("w-full")
-        meta_input = ui.textarea(
-            "Extra Metadata (JSON)",
-            placeholder='{"tool":"BrailleBlaster","version":"1.9"}',
-        ).classes("w-full").props("rows=3")
+
+        ui.label("Tools & Processes").classes(
+            "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+        )
+        ui.label(
+            'Record tool(s) and process(es), e.g. tool: "brailleblaster", process: "OCR".'
+        ).classes("text-xs text-slate-400")
+
+        tool_rows: list[dict] = []
+        proc_rows: list[dict] = []
+        tool_box = ui.column().classes("w-full gap-1")
+        proc_box = ui.column().classes("w-full gap-1")
+
+        def _add_tool() -> None:
+            """ add tool.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with tool_box:
+                with ui.row().classes("w-full gap-1 items-center") as row:
+                    inp = ui.input("Tool", placeholder="e.g. brailleblaster").classes("flex-1")
+                    ref = {"row": row, "inp": inp}
+                    tool_rows.append(ref)
+
+                    def _rm(r=ref) -> None:
+                        """ rm.
+                        
+                        Parameters
+                        ----------
+                        r : Any
+                            r parameter.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
+                        r["row"].delete()
+                        if r in tool_rows:
+                            tool_rows.remove(r)
+
+                    ui.button("✕", on_click=_rm).props("flat dense").classes("text-red-400")
+
+        def _add_proc() -> None:
+            """ add proc.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with proc_box:
+                with ui.row().classes("w-full gap-1 items-center") as row:
+                    inp = ui.input("Process", placeholder="e.g. digitize").classes("flex-1")
+                    ref = {"row": row, "inp": inp}
+                    proc_rows.append(ref)
+
+                    def _rm(r=ref) -> None:
+                        """ rm.
+                        
+                        Parameters
+                        ----------
+                        r : Any
+                            r parameter.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
+                        r["row"].delete()
+                        if r in proc_rows:
+                            proc_rows.remove(r)
+
+                    ui.button("✕", on_click=_rm).props("flat dense").classes("text-red-400")
+
+        ui.button("+ Add Tool", on_click=_add_tool).props("flat dense").classes("text-indigo-600 text-sm")
+        _add_tool()
+        ui.button("+ Add Process", on_click=_add_proc).props("flat dense").classes("text-indigo-600 text-sm")
+        _add_proc()
 
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not path_input.value.strip():
                     notify_error("File path is required")
                     return
-                extra = None
-                if meta_input.value.strip():
-                    try:
-                        extra = json.loads(meta_input.value.strip())
-                    except json.JSONDecodeError:
-                        notify_error("Extra metadata must be valid JSON")
-                        return
+                tools = [r["inp"].value.strip() for r in tool_rows if r["inp"].value.strip()]
+                procs = [r["inp"].value.strip() for r in proc_rows if r["inp"].value.strip()]
+                extra: dict | None = None
+                if tools or procs:
+                    extra = {}
+                    if tools:
+                        extra["tools"] = tools
+                    if procs:
+                        extra["processes"] = procs
                 step_key = None
                 if step_select.value != "(job level)":
                     for k, lbl in _STEP_LABELS.items():
@@ -225,49 +355,182 @@ def _ingest_dialog(job_id: int, on_done) -> None:
 # ── Metadata dialog ───────────────────────────────────────────────────────────
 
 def _metadata_dialog(job_id: int, job_type: str, on_done) -> None:
+    """ metadata dialog.
+    
+    Parameters
+    ----------
+    job_id : Any
+        job_id parameter.
+    
+    job_type : Any
+        job_type parameter.
+    
+    on_done : Any
+        on_done parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     existing_meta = Q.list_job_metadata(job_type, job_id)
+    option_groups = get_option_groups()
+    dc_keys = get_dublin_core_keys()
+    dc_examples = get_dublin_core_examples()
+    non_dc_keys = get_non_dc_allowed_keys()
 
     with ui.dialog() as dlg, ui.card().classes(
         "p-6 gap-4 w-[600px] max-w-full max-h-[90vh] overflow-y-auto"
     ):
         ui.label("Descriptive Metadata").classes("text-xl font-bold text-slate-800")
-        ui.label("Dublin Core and custom fields.").classes("text-slate-500 text-sm")
+        ui.label(
+            "Dublin Core plus controlled eBraille and METS/PREMIS fields. "
+            "Metadata keys are restricted to the approved list to prevent typos."
+        ).classes("text-slate-500 text-sm")
+
+        def _show_options() -> None:
+            """ show options.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with ui.dialog() as od, ui.card().classes(
+                "p-5 gap-3 w-[720px] max-w-full max-h-[85vh] overflow-y-auto"
+            ):
+                ui.label("Potential Metadata Options").classes("text-lg font-bold text-slate-800")
+                ui.label(
+                    "Use Admin Settings -> Metadata Options to add or remove allowed keys."
+                ).classes("text-xs text-slate-500")
+
+                for group, keys in option_groups.items():
+                    ui.separator()
+                    ui.label(group).classes(
+                        "text-sm font-semibold text-slate-600 uppercase tracking-wider"
+                    )
+                    with ui.row().classes("gap-2 flex-wrap"):
+                        for key in keys:
+                            ui.badge(key).classes(
+                                "bg-slate-100 text-slate-700 text-xs rounded px-2 py-1"
+                            )
+
+                with ui.row().classes("justify-end mt-2"):
+                    ui.button("Close", on_click=od.close).classes("bg-slate-700 text-white")
+
+            od.open()
+
+        ui.button("Potential Options", on_click=_show_options).props("flat dense").classes(
+            "text-indigo-600 text-sm self-start"
+        )
 
         meta_rows: dict[str, ui.input] = {}
         with ui.grid(columns=2).classes("gap-2 w-full"):
-            for key in _DC_KEYS:
-                inp = ui.input(key, value=existing_meta.get(key, "")).classes(
-                    "w-full font-mono text-sm"
-                )
-                meta_rows[key] = inp
+            for key in dc_keys:
+                with ui.column().classes("gap-0"):
+                    inp = ui.input(key, value=existing_meta.get(key, "")).classes(
+                        "w-full font-mono text-sm"
+                    )
+                    ui.label(dc_examples.get(key, "")).classes(
+                        "text-[11px] text-slate-400"
+                    )
+                    meta_rows[key] = inp
 
         ui.separator()
-        ui.label("Add custom field").classes("text-sm font-medium text-slate-600")
-        with ui.row().classes("gap-2 w-full"):
-            custom_key = ui.input("Key", placeholder="my:field").classes("flex-1")
-            custom_val = ui.input("Value").classes("flex-1")
+        ui.label("Additional Allowed Fields").classes("text-sm font-medium text-slate-600")
+        ui.label(
+            "Choose keys from the approved eBraille and METS/PREMIS list."
+        ).classes("text-xs text-slate-400")
 
-            def _add_custom() -> None:
-                k = custom_key.value.strip()
-                v = custom_val.value.strip()
-                if k and v:
-                    Q.set_job_metadata(job_type, job_id, k, v)
-                    notify_success(f"Set {k}")
-                    custom_key.value = ""
-                    custom_val.value = ""
+        extra_rows: list[dict[str, ui.element]] = []
+        extra_box = ui.column().classes("w-full gap-2")
 
-            ui.button("Add", on_click=_add_custom).classes("bg-slate-700 text-white")
+        def _add_extra_row(initial_key: str = "", initial_val: str = "") -> None:
+            """ add extra row.
+            
+            Parameters
+            ----------
+            initial_key : Any
+                initial_key parameter.
+            
+            initial_val : Any
+                initial_val parameter.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with extra_box:
+                with ui.row().classes("gap-2 w-full items-center") as row:
+                    key_sel = ui.select(
+                        non_dc_keys,
+                        label="Key",
+                        value=initial_key if initial_key in non_dc_keys else None,
+                    ).classes("w-64")
+                    val_inp = ui.input("Value", value=initial_val).classes("flex-1")
+                    ref = {"row": row, "key": key_sel, "value": val_inp}
+                    extra_rows.append(ref)
+
+                    def _remove(r: dict[str, ui.element] = ref) -> None:
+                        """ remove.
+                        
+                        Parameters
+                        ----------
+                        r : Any
+                            r parameter.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
+                        r["row"].delete()
+                        if r in extra_rows:
+                            extra_rows.remove(r)
+
+                    ui.button("✕", on_click=_remove).props("flat dense").classes("text-red-400")
+
+        ui.button("+ Add Field", on_click=lambda: _add_extra_row()).props("flat dense").classes(
+            "text-indigo-600 text-sm self-start"
+        )
+
+        for key, value in existing_meta.items():
+            if key not in dc_keys and key in non_dc_keys:
+                _add_extra_row(initial_key=key, initial_val=value)
 
         with ui.row().classes("justify-end gap-3 mt-4"):
             ui.button("Close", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save_all() -> None:
+                """ save all.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 for key, inp in meta_rows.items():
                     v = inp.value.strip()
                     if v:
                         Q.set_job_metadata(job_type, job_id, key, v)
                     else:
                         Q.delete_job_metadata(job_type, job_id, key)
+
+                # Re-write controlled non-DC keys from the row editor.
+                for key in non_dc_keys:
+                    Q.delete_job_metadata(job_type, job_id, key)
+                for row in extra_rows:
+                    k = (row["key"].value or "").strip()
+                    v = (row["value"].value or "").strip()
+                    if k and v and k in non_dc_keys:
+                        Q.set_job_metadata(job_type, job_id, k, v)
+
                 notify_success("Metadata saved")
                 dlg.close()
                 on_done()
@@ -280,14 +543,54 @@ def _metadata_dialog(job_id: int, job_type: str, on_done) -> None:
 # ── Job detail view ───────────────────────────────────────────────────────────
 
 def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
+    """ job detail.
+    
+    Parameters
+    ----------
+    job : Any
+        job parameter.
+    
+    content_area : Any
+        content_area parameter.
+    
+    refresh_cb : Any
+        refresh_cb parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     jid = job["id"]
 
     def _refresh() -> None:
+        """ refresh.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         j2 = Q.get_braille_job(jid)
         if j2:
             _render_detail(j2)
 
     def _render_detail(j: dict) -> None:
+        """ render detail.
+        
+        Parameters
+        ----------
+        j : Any
+            j parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         content_area.clear()
         with content_area:
             with ui.row().classes("items-center gap-3 mb-1"):
@@ -298,7 +601,28 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                 priority_badge(j.get("priority", "normal"))
 
                 def _edit() -> None:
+                    """ edit.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     def _do(data: dict) -> None:
+                        """ do.
+                        
+                        Parameters
+                        ----------
+                        data : Any
+                            data parameter.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
                         Q.update_braille_job(jid, **data)
                         notify_success("Job updated")
                         _refresh()
@@ -347,7 +671,28 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                     )
                             if is_done:
                                 def _revert(s: str = step) -> None:
+                                    """ revert.
+                                    
+                                    Parameters
+                                    ----------
+                                    s : Any
+                                        s parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.revert_step("braille", jid, s)
                                         notify_success(f"Reverted: {s}")
                                         _refresh()
@@ -361,6 +706,19 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                 ).on("click", _revert)
                             else:
                                 def _complete(s: str = step) -> None:
+                                    """ complete.
+                                    
+                                    Parameters
+                                    ----------
+                                    s : Any
+                                        s parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     Q.complete_step("braille", jid, s)
                                     notify_success(f"Completed: {s}")
                                     _refresh()
@@ -415,7 +773,28 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                             ).classes("text-xs text-slate-400")
 
                                 def _del_file(link_id: int = f["link_id"]) -> None:
+                                    """ del file.
+                                    
+                                    Parameters
+                                    ----------
+                                    link_id : Any
+                                        link_id parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.unlink_file_from_job(link_id)
                                         notify_success("File unlinked")
                                         _refresh()
@@ -469,6 +848,14 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                     ui.label("PREMIS-style history").classes("text-xs text-slate-400")
 
                     def _add_note() -> None:
+                        """ add note.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
                         with ui.dialog() as nd, ui.card().classes("p-5 gap-3 w-96"):
                             ui.label("Add Note Event").classes(
                                 "font-semibold text-slate-800"
@@ -479,6 +866,14 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                 ui.button("Cancel", on_click=nd.close).props("flat")
 
                                 def _save_note() -> None:
+                                    """ save note.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     Q.log_event(
                                         "braille", jid, "NOTE", "SUCCESS",
                                         agent=agent_txt.value.strip() or "user",
@@ -537,6 +932,19 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
 # ── Main list view ────────────────────────────────────────────────────────────
 
 def braille_jobs_page(content_area: ui.element) -> None:
+    """Braille jobs page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -546,7 +954,28 @@ def braille_jobs_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data: dict) -> None:
+                    """ do.
+                    
+                    Parameters
+                    ----------
+                    data : Any
+                        data parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     Q.add_braille_job(**data)
                     notify_success("Job created")
                     braille_jobs_page(content_area)
@@ -587,6 +1016,14 @@ def braille_jobs_page(content_area: ui.element) -> None:
         job_grid = ui.element("div").classes("grid gap-3 w-full")
 
         def _render_grid() -> None:
+            """ render grid.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
             job_grid.clear()
             search = filter_input.value.lower() if filter_input.value else ""
             filtered = jobs
@@ -647,6 +1084,19 @@ def braille_jobs_page(content_area: ui.element) -> None:
 
                             with ui.column().classes("gap-1 shrink-0"):
                                 def _view(j: dict = job) -> None:
+                                    """ view.
+                                    
+                                    Parameters
+                                    ----------
+                                    j : Any
+                                        j parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     _job_detail(
                                         j, content_area,
                                         lambda: braille_jobs_page(content_area),
@@ -657,7 +1107,28 @@ def braille_jobs_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-sm")
 
                                 def _del(j: dict = job) -> None:
+                                    """ del.
+                                    
+                                    Parameters
+                                    ----------
+                                    j : Any
+                                        j parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.delete_braille_job(j["id"])
                                         notify_success("Job deleted")
                                         braille_jobs_page(content_area)

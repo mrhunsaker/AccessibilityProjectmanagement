@@ -1,3 +1,6 @@
+"""Database module.
+
+"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -10,6 +13,14 @@ Base = declarative_base()
 
 
 def init_db():
+    """Init db.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     from ..models.assets import (
         Asset,
         AssetMetadata,

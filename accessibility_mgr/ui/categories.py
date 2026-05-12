@@ -1,8 +1,19 @@
+"""Categories module.
+
+"""
 from nicegui import ui
 from ..db.database import SessionLocal
 from ..models.inventory import Category
 
 def categories_page():
+    """Categories page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     db = SessionLocal()
 
     ui.label('Categories').classes('text-2xl')
@@ -11,6 +22,14 @@ def categories_page():
     description = ui.input('Description')
 
     def create_category():
+        """Create category.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         category = Category(
             name=name.value,
             description=description.value,

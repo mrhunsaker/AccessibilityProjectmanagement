@@ -10,13 +10,15 @@ from __future__ import annotations
 import hashlib
 import json
 import mimetypes
+import difflib
+import re
 import shutil
 import uuid
 import warnings
 from pathlib import Path
 from typing import Any, Optional
 
-from .schema import FILES_DIR, PRINTS_DIR, get_conn
+from .schema import ARTIFACTS_DIR, FILES_DIR, PRINTS_DIR, get_conn
 
 __all__ = [
     # Filament
@@ -47,6 +49,7 @@ __all__ = [
     "add_struct_node", "list_struct_nodes", "delete_struct_node",
     # Job metadata
     "set_job_metadata", "get_job_metadata", "list_job_metadata", "delete_job_metadata",
+    "list_distinct_metadata_keys", "backfill_metadata_keys",
     # Lookup tables
     "list_material_categories", "add_material_category", "update_material_category",
     "set_material_category_active", "delete_material_category",
@@ -62,7 +65,7 @@ __all__ = [
     # Backup log
     "log_backup", "list_backup_log",
     # Paths
-    "FILES_DIR", "PRINTS_DIR",
+    "ARTIFACTS_DIR", "FILES_DIR", "PRINTS_DIR",
 ]
 
 
@@ -82,7 +85,25 @@ _SAFE_TABLES = _TABLES_WITH_UPDATED_AT | {
 }
 
 
+def _sanitize_name(value: str) -> str:
+    """Strip characters unsafe for file/directory names, preserving alphanumerics and hyphens."""
+    return re.sub(r"[^\w\-]", "", value.replace(" ", "")) or "_"
+
+
 def _rows(cur: Any) -> list[dict[str, Any]]:
+    """ rows.
+    
+    Parameters
+    ----------
+    cur : Any
+        cur parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     cols = [c[0] for c in cur.description]
     return [{cols[i]: row[i] for i in range(len(cols))} for row in cur.fetchall()]
 
@@ -112,6 +133,19 @@ def _build_update_sql(
 
 
 def _sha256(path: Path) -> str:
+    """ sha256.
+    
+    Parameters
+    ----------
+    path : Any
+        path parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
@@ -122,6 +156,14 @@ def _sha256(path: Path) -> str:
 # ── Filament ──────────────────────────────────────────────────────────────────
 
 def list_filaments() -> list[dict[str, Any]]:
+    """List filaments.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM filament ORDER BY brand, color"))
 
@@ -131,6 +173,40 @@ def add_filament(
     diameter_mm: float = 1.75, quantity_g: float = 0,
     cost_per_kg: Optional[float] = None, supplier: str = "", notes: str = "",
 ) -> int:
+    """Add filament.
+    
+    Parameters
+    ----------
+    brand : Any
+        brand parameter.
+    
+    color : Any
+        color parameter.
+    
+    filament_type : Any
+        filament_type parameter.
+    
+    diameter_mm : Any
+        diameter_mm parameter.
+    
+    quantity_g : Any
+        quantity_g parameter.
+    
+    cost_per_kg : Any
+        cost_per_kg parameter.
+    
+    supplier : Any
+        supplier parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO filament (brand,color,filament_type,diameter_mm,quantity_g,"
@@ -141,6 +217,19 @@ def add_filament(
 
 
 def update_filament(row_id: int, **fields: Any) -> None:
+    """Update filament.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"brand", "color", "filament_type", "diameter_mm", "quantity_g",
                "cost_per_kg", "supplier", "notes"}
     sql, vals = _build_update_sql("filament", fields, allowed)
@@ -149,11 +238,40 @@ def update_filament(row_id: int, **fields: Any) -> None:
 
 
 def delete_filament(row_id: int) -> None:
+    """Delete filament.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM filament WHERE id = ?", (row_id,))
 
 
 def deduct_filament(row_id: int, grams: float) -> None:
+    """Deduct filament.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    grams : Any
+        grams parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute(
             "UPDATE filament SET quantity_g = MAX(0, quantity_g - ?), "
@@ -165,6 +283,14 @@ def deduct_filament(row_id: int, grams: float) -> None:
 # ── Paper ─────────────────────────────────────────────────────────────────────
 
 def list_paper() -> list[dict[str, Any]]:
+    """List paper.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM braille_paper ORDER BY paper_type"))
 
@@ -174,6 +300,34 @@ def add_paper(
     size: Optional[str] = None, label_type: Optional[str] = None,
     supplier: str = "", notes: str = "",
 ) -> int:
+    """Add paper.
+    
+    Parameters
+    ----------
+    paper_type : Any
+        paper_type parameter.
+    
+    quantity : Any
+        quantity parameter.
+    
+    size : Any
+        size parameter.
+    
+    label_type : Any
+        label_type parameter.
+    
+    supplier : Any
+        supplier parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO braille_paper (paper_type,size,label_type,quantity,supplier,notes) "
@@ -184,6 +338,19 @@ def add_paper(
 
 
 def update_paper(row_id: int, **fields: Any) -> None:
+    """Update paper.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"paper_type", "size", "label_type", "quantity", "supplier", "notes"}
     sql, vals = _build_update_sql("braille_paper", fields, allowed)
     with get_conn() as conn:
@@ -191,6 +358,19 @@ def update_paper(row_id: int, **fields: Any) -> None:
 
 
 def delete_paper(row_id: int) -> None:
+    """Delete paper.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM braille_paper WHERE id = ?", (row_id,))
 
@@ -198,6 +378,19 @@ def delete_paper(row_id: int) -> None:
 # ── Electronics ───────────────────────────────────────────────────────────────
 
 def list_electronics(category: Optional[str] = None) -> list[dict[str, Any]]:
+    """List electronics.
+    
+    Parameters
+    ----------
+    category : Any
+        category parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         if category:
             return _rows(conn.execute(
@@ -212,6 +405,43 @@ def add_electronic(
     unit: str = "pcs", cost_each: Optional[float] = None,
     supplier: str = "", notes: str = "",
 ) -> int:
+    """Add electronic.
+    
+    Parameters
+    ----------
+    category : Any
+        category parameter.
+    
+    name : Any
+        name parameter.
+    
+    quantity : Any
+        quantity parameter.
+    
+    brand : Any
+        brand parameter.
+    
+    spec : Any
+        spec parameter.
+    
+    unit : Any
+        unit parameter.
+    
+    cost_each : Any
+        cost_each parameter.
+    
+    supplier : Any
+        supplier parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO electronics (category,name,brand,spec,quantity,unit,"
@@ -222,6 +452,19 @@ def add_electronic(
 
 
 def update_electronic(row_id: int, **fields: Any) -> None:
+    """Update electronic.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"category", "name", "brand", "spec", "quantity", "unit",
                "cost_each", "supplier", "notes"}
     sql, vals = _build_update_sql("electronics", fields, allowed)
@@ -230,6 +473,19 @@ def update_electronic(row_id: int, **fields: Any) -> None:
 
 
 def delete_electronic(row_id: int) -> None:
+    """Delete electronic.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM electronics WHERE id = ?", (row_id,))
 
@@ -237,11 +493,38 @@ def delete_electronic(row_id: int) -> None:
 # ── Printers ──────────────────────────────────────────────────────────────────
 
 def list_printers() -> list[dict[str, Any]]:
+    """List printers.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM printer ORDER BY name"))
 
 
 def add_printer(name: str, model: str = "", notes: str = "") -> int:
+    """Add printer.
+    
+    Parameters
+    ----------
+    name : Any
+        name parameter.
+    
+    model : Any
+        model parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO printer (name,model,notes) VALUES (?,?,?)", (name, model, notes),
@@ -258,6 +541,19 @@ def update_printer(row_id: int, **fields: Any) -> None:
 
 
 def delete_printer(row_id: int) -> None:
+    """Delete printer.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM printer WHERE id = ?", (row_id,))
 
@@ -265,11 +561,41 @@ def delete_printer(row_id: int) -> None:
 # ── Embossers ─────────────────────────────────────────────────────────────────
 
 def list_embossers() -> list[dict[str, Any]]:
+    """List embossers.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM embosser ORDER BY name"))
 
 
 def add_embosser(name: str, model: str = "", paper_type: str = "", notes: str = "") -> int:
+    """Add embosser.
+    
+    Parameters
+    ----------
+    name : Any
+        name parameter.
+    
+    model : Any
+        model parameter.
+    
+    paper_type : Any
+        paper_type parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO embosser (name,model,paper_type,notes) VALUES (?,?,?,?)",
@@ -287,6 +613,19 @@ def update_embosser(row_id: int, **fields: Any) -> None:
 
 
 def delete_embosser(row_id: int) -> None:
+    """Delete embosser.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM embosser WHERE id = ?", (row_id,))
 
@@ -294,6 +633,14 @@ def delete_embosser(row_id: int) -> None:
 # ── Print jobs ────────────────────────────────────────────────────────────────
 
 def list_print_jobs() -> list[dict[str, Any]]:
+    """List print jobs.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT pj.*,
@@ -312,6 +659,46 @@ def add_print_job(
     failure_reason: Optional[str] = None, object_name: str = "",
     requester: str = "", request_date: Optional[str] = None, notes: str = "",
 ) -> int:
+    """Add print job.
+    
+    Parameters
+    ----------
+    printer_id : Any
+        printer_id parameter.
+    
+    filament_id : Any
+        filament_id parameter.
+    
+    filament_used_g : Any
+        filament_used_g parameter.
+    
+    file_source_path : Any
+        file_source_path parameter.
+    
+    successful : Any
+        successful parameter.
+    
+    failure_reason : Any
+        failure_reason parameter.
+    
+    object_name : Any
+        object_name parameter.
+    
+    requester : Any
+        requester parameter.
+    
+    request_date : Any
+        request_date parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     file_path: Optional[str] = None
     file_name: Optional[str] = None
     if file_source_path:
@@ -358,6 +745,19 @@ def update_print_job(row_id: int, **fields: Any) -> None:
 
 
 def delete_print_job(row_id: int) -> None:
+    """Delete print job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM print_job WHERE id = ?", (row_id,))
 
@@ -365,6 +765,14 @@ def delete_print_job(row_id: int) -> None:
 # ── Braille jobs ──────────────────────────────────────────────────────────────
 
 def list_braille_jobs() -> list[dict[str, Any]]:
+    """List braille jobs.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT bj.*, e.name AS embosser_name, e.paper_type AS embosser_paper_type
@@ -375,6 +783,19 @@ def list_braille_jobs() -> list[dict[str, Any]]:
 
 
 def get_braille_job(row_id: int) -> Optional[dict[str, Any]]:
+    """Get braille job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         rows = _rows(conn.execute("""
             SELECT bj.*, e.name AS embosser_name, e.paper_type AS embosser_paper_type
@@ -391,6 +812,40 @@ def add_braille_job(
     requester: str = "", request_date: Optional[str] = None,
     due_date: Optional[str] = None, priority: str = "normal", notes: str = "",
 ) -> int:
+    """Add braille job.
+    
+    Parameters
+    ----------
+    title : Any
+        title parameter.
+    
+    braille_type : Any
+        braille_type parameter.
+    
+    embosser_id : Any
+        embosser_id parameter.
+    
+    requester : Any
+        requester parameter.
+    
+    request_date : Any
+        request_date parameter.
+    
+    due_date : Any
+        due_date parameter.
+    
+    priority : Any
+        priority parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO braille_job (title,braille_type,embosser_id,requester,request_date,"
@@ -403,6 +858,19 @@ def add_braille_job(
 
 
 def update_braille_job(row_id: int, **fields: Any) -> None:
+    """Update braille job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"title", "braille_type", "embosser_id", "requester", "request_date", "due_date",
                "priority", "digitized", "formatted", "brailled", "proofread",
                "delivered", "notes"}
@@ -412,6 +880,19 @@ def update_braille_job(row_id: int, **fields: Any) -> None:
 
 
 def delete_braille_job(row_id: int) -> None:
+    """Delete braille job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM braille_job WHERE id = ?", (row_id,))
 
@@ -419,6 +900,19 @@ def delete_braille_job(row_id: int) -> None:
 # ── LP/eBraille jobs ──────────────────────────────────────────────────────────
 
 def list_lp_jobs(job_type: Optional[str] = None) -> list[dict[str, Any]]:
+    """List lp jobs.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         if job_type:
             return _rows(conn.execute(
@@ -429,6 +923,19 @@ def list_lp_jobs(job_type: Optional[str] = None) -> list[dict[str, Any]]:
 
 
 def get_lp_job(row_id: int) -> Optional[dict[str, Any]]:
+    """Get lp job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         rows = _rows(conn.execute("SELECT * FROM lp_ebraille_job WHERE id = ?", (row_id,)))
         return rows[0] if rows else None
@@ -439,6 +946,37 @@ def add_lp_job(
     requester: str = "", request_date: Optional[str] = None,
     due_date: Optional[str] = None, priority: str = "normal", notes: str = "",
 ) -> int:
+    """Add lp job.
+    
+    Parameters
+    ----------
+    title : Any
+        title parameter.
+    
+    job_type : Any
+        job_type parameter.
+    
+    requester : Any
+        requester parameter.
+    
+    request_date : Any
+        request_date parameter.
+    
+    due_date : Any
+        due_date parameter.
+    
+    priority : Any
+        priority parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO lp_ebraille_job (title,job_type,requester,request_date,"
@@ -451,6 +989,19 @@ def add_lp_job(
 
 
 def update_lp_job(row_id: int, **fields: Any) -> None:
+    """Update lp job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"title", "job_type", "requester", "request_date", "due_date",
                "priority", "digitized", "formatted", "converted", "proofread",
                "delivered", "notes"}
@@ -460,6 +1011,19 @@ def update_lp_job(row_id: int, **fields: Any) -> None:
 
 
 def delete_lp_job(row_id: int) -> None:
+    """Delete lp job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM lp_ebraille_job WHERE id = ?", (row_id,))
 
@@ -467,11 +1031,32 @@ def delete_lp_job(row_id: int) -> None:
 # ── Tactile graphics jobs ─────────────────────────────────────────────────────
 
 def list_tactile_jobs() -> list[dict[str, Any]]:
+    """List tactile jobs.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM tactile_graphics_job ORDER BY created_at DESC"))
 
 
 def get_tactile_job(row_id: int) -> Optional[dict[str, Any]]:
+    """Get tactile job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         rows = _rows(conn.execute("SELECT * FROM tactile_graphics_job WHERE id = ?", (row_id,)))
         return rows[0] if rows else None
@@ -482,6 +1067,37 @@ def add_tactile_job(
     requester: str = "", request_date: Optional[str] = None,
     due_date: Optional[str] = None, priority: str = "normal", notes: str = "",
 ) -> int:
+    """Add tactile job.
+    
+    Parameters
+    ----------
+    title : Any
+        title parameter.
+    
+    tactile_type : Any
+        tactile_type parameter.
+    
+    requester : Any
+        requester parameter.
+    
+    request_date : Any
+        request_date parameter.
+    
+    due_date : Any
+        due_date parameter.
+    
+    priority : Any
+        priority parameter.
+    
+    notes : Any
+        notes parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO tactile_graphics_job (title,tactile_type,requester,request_date,"
@@ -494,6 +1110,19 @@ def add_tactile_job(
 
 
 def update_tactile_job(row_id: int, **fields: Any) -> None:
+    """Update tactile job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"title", "tactile_type", "requester", "request_date", "due_date",
                "priority", "designed", "produced", "qa_reviewed", "delivered", "notes"}
     sql, vals = _build_update_sql("tactile_graphics_job", fields, allowed)
@@ -502,6 +1131,19 @@ def update_tactile_job(row_id: int, **fields: Any) -> None:
 
 
 def delete_tactile_job(row_id: int) -> None:
+    """Delete tactile job.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM tactile_graphics_job WHERE id = ?", (row_id,))
 
@@ -509,11 +1151,32 @@ def delete_tactile_job(row_id: int) -> None:
 # ── File objects ──────────────────────────────────────────────────────────────
 
 def list_file_objects() -> list[dict[str, Any]]:
+    """List file objects.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM file_object ORDER BY created_at DESC"))
 
 
 def get_file_object(file_id: int) -> Optional[dict[str, Any]]:
+    """Get file object.
+    
+    Parameters
+    ----------
+    file_id : Any
+        file_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         rows = _rows(conn.execute("SELECT * FROM file_object WHERE id = ?", (file_id,)))
         return rows[0] if rows else None
@@ -526,14 +1189,54 @@ def ingest_file(
     format_version: str = "",
     encoding: str = "",
     extra_metadata: Optional[dict[str, Any]] = None,
+    project_title: str = "",
+    student_initials: str = "",
+    school_name: str = "",
+    grade_level: str = "",
+    subject: str = "",
 ) -> int:
-    """Copy a file into the job-files store, compute SHA-256, insert file_object row."""
+    """Copy a file into the artifact store (preferred) or job-files store, compute SHA-256.
+
+    When *project_title* is supplied the file is placed under::
+
+        artifacts/<project_title>/<student_initials>_<school_name>_Grade<grade_level>_<subject><ext>
+
+    The database stores the **absolute** path so the record always resolves
+    regardless of the working directory.  The legacy UUID-named copy in
+    ``job_files/`` is still used when no project context is provided.
+    """
     src = Path(source_path)
     if not src.exists():
         raise FileNotFoundError(f"Source file not found: {src}")
 
     file_uuid = str(uuid.uuid4())
-    dest = FILES_DIR / f"{file_uuid}{src.suffix}"
+
+    if project_title:
+        # ── Artifact-based storage ────────────────────────────────────────
+        project_dir = ARTIFACTS_DIR / _sanitize_name(project_title)
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        name_parts: list[str] = []
+        if student_initials:
+            name_parts.append(_sanitize_name(student_initials))
+        if school_name:
+            name_parts.append(_sanitize_name(school_name))
+        if grade_level:
+            name_parts.append(f"Grade{_sanitize_name(grade_level)}")
+        if subject:
+            name_parts.append(_sanitize_name(subject))
+
+        artifact_stem = "_".join(name_parts) if name_parts else file_uuid
+        dest = project_dir / f"{artifact_stem}{src.suffix}"
+        # Avoid silent overwrites — append short UUID on collision
+        if dest.exists():
+            dest = project_dir / f"{artifact_stem}_{file_uuid[:8]}{src.suffix}"
+        stored_path_val = str(dest)  # absolute path
+    else:
+        # ── Legacy UUID-based storage in job_files/ ───────────────────────
+        dest = FILES_DIR / f"{file_uuid}{src.suffix}"
+        stored_path_val = dest.name  # relative name, resolved via FILES_DIR
+
     shutil.copy2(src, dest)
     checksum = _sha256(dest)
     size_bytes = dest.stat().st_size
@@ -544,7 +1247,7 @@ def ingest_file(
             "INSERT INTO file_object (uuid,original_name,stored_path,mime_type,size_bytes,"
             "checksum_sha256,file_use,format_name,format_version,encoding,extra_metadata) "
             "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (file_uuid, src.name, dest.name, mime_type, size_bytes, checksum,
+            (file_uuid, src.name, stored_path_val, mime_type, size_bytes, checksum,
              file_use, format_name, format_version, encoding,
              json.dumps(extra_metadata) if extra_metadata else None),
         )
@@ -552,6 +1255,19 @@ def ingest_file(
 
 
 def update_file_object(file_id: int, **fields: Any) -> None:
+    """Update file object.
+    
+    Parameters
+    ----------
+    file_id : Any
+        file_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"file_use", "format_name", "format_version", "encoding", "extra_metadata"}
     sql, vals = _build_update_sql("file_object", fields, allowed)
     with get_conn() as conn:
@@ -559,6 +1275,19 @@ def update_file_object(file_id: int, **fields: Any) -> None:
 
 
 def delete_file_object(file_id: int) -> None:
+    """Delete file object.
+    
+    Parameters
+    ----------
+    file_id : Any
+        file_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     row = get_file_object(file_id)
     if row:
         stored = FILES_DIR / row["stored_path"]
@@ -573,6 +1302,31 @@ def link_file_to_job(
     file_object_id: int, job_type: str, job_id: int,
     step_key: Optional[str] = None, sequence_num: int = 0,
 ) -> int:
+    """Link file to job.
+    
+    Parameters
+    ----------
+    file_object_id : Any
+        file_object_id parameter.
+    
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    step_key : Any
+        step_key parameter.
+    
+    sequence_num : Any
+        sequence_num parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO job_file_link (file_object_id,job_type,job_id,step_key,sequence_num) "
@@ -583,6 +1337,22 @@ def link_file_to_job(
 
 
 def list_files_for_job(job_type: str, job_id: int) -> list[dict[str, Any]]:
+    """List files for job.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT fo.*, jfl.id AS link_id, jfl.step_key, jfl.sequence_num
@@ -594,6 +1364,19 @@ def list_files_for_job(job_type: str, job_id: int) -> list[dict[str, Any]]:
 
 
 def unlink_file_from_job(link_id: int) -> None:
+    """Unlink file from job.
+    
+    Parameters
+    ----------
+    link_id : Any
+        link_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM job_file_link WHERE id = ?", (link_id,))
 
@@ -609,6 +1392,43 @@ def log_event(
     detail: str = "",
     extra_metadata: Optional[dict[str, Any]] = None,
 ) -> int:
+    """Log event.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    event_type : Any
+        event_type parameter.
+    
+    event_outcome : Any
+        event_outcome parameter.
+    
+    step_key : Any
+        step_key parameter.
+    
+    file_object_id : Any
+        file_object_id parameter.
+    
+    agent : Any
+        agent parameter.
+    
+    detail : Any
+        detail parameter.
+    
+    extra_metadata : Any
+        extra_metadata parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO metadata_event (job_type,job_id,event_type,event_outcome,"
@@ -620,6 +1440,22 @@ def log_event(
 
 
 def list_events_for_job(job_type: str, job_id: int) -> list[dict[str, Any]]:
+    """List events for job.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT me.*, fo.original_name AS file_name
@@ -637,6 +1473,37 @@ def add_struct_node(
     parent_id: Optional[int] = None, div_type: str = "section",
     order_num: int = 0, file_object_id: Optional[int] = None,
 ) -> int:
+    """Add struct node.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    label : Any
+        label parameter.
+    
+    parent_id : Any
+        parent_id parameter.
+    
+    div_type : Any
+        div_type parameter.
+    
+    order_num : Any
+        order_num parameter.
+    
+    file_object_id : Any
+        file_object_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO structural_map_node (job_type,job_id,parent_id,label,"
@@ -647,6 +1514,22 @@ def add_struct_node(
 
 
 def list_struct_nodes(job_type: str, job_id: int) -> list[dict[str, Any]]:
+    """List struct nodes.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT sn.*, fo.original_name AS file_name
@@ -658,6 +1541,19 @@ def list_struct_nodes(job_type: str, job_id: int) -> list[dict[str, Any]]:
 
 
 def delete_struct_node(node_id: int) -> None:
+    """Delete struct node.
+    
+    Parameters
+    ----------
+    node_id : Any
+        node_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("DELETE FROM structural_map_node WHERE id = ?", (node_id,))
 
@@ -665,6 +1561,28 @@ def delete_struct_node(node_id: int) -> None:
 # ── Job metadata ──────────────────────────────────────────────────────────────
 
 def set_job_metadata(job_type: str, job_id: int, meta_key: str, meta_value: str) -> None:
+    """Set job metadata.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    meta_key : Any
+        meta_key parameter.
+    
+    meta_value : Any
+        meta_value parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute("""
             INSERT INTO job_metadata (job_type,job_id,meta_key,meta_value) VALUES (?,?,?,?)
@@ -675,6 +1593,25 @@ def set_job_metadata(job_type: str, job_id: int, meta_key: str, meta_value: str)
 
 
 def get_job_metadata(job_type: str, job_id: int, meta_key: str) -> Optional[str]:
+    """Get job metadata.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    meta_key : Any
+        meta_key parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         rows = _rows(conn.execute(
             "SELECT meta_value FROM job_metadata WHERE job_type=? AND job_id=? AND meta_key=?",
@@ -684,6 +1621,22 @@ def get_job_metadata(job_type: str, job_id: int, meta_key: str) -> Optional[str]
 
 
 def list_job_metadata(job_type: str, job_id: int) -> dict[str, str]:
+    """List job metadata.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         rows = _rows(conn.execute(
             "SELECT meta_key, meta_value FROM job_metadata "
@@ -694,11 +1647,144 @@ def list_job_metadata(job_type: str, job_id: int) -> dict[str, str]:
 
 
 def delete_job_metadata(job_type: str, job_id: int, meta_key: str) -> None:
+    """Delete job metadata.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    meta_key : Any
+        meta_key parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute(
             "DELETE FROM job_metadata WHERE job_type=? AND job_id=? AND meta_key=?",
             (job_type, job_id, meta_key),
         )
+
+
+def list_distinct_metadata_keys() -> list[dict[str, Any]]:
+    """Return all metadata keys in use with occurrence counts."""
+    with get_conn() as conn:
+        return _rows(conn.execute(
+            "SELECT meta_key, COUNT(*) AS usage_count "
+            "FROM job_metadata GROUP BY meta_key ORDER BY usage_count DESC, meta_key"
+        ))
+
+
+def backfill_metadata_keys(approved_keys: list[str]) -> dict[str, Any]:
+    """Normalize and backfill typo'd metadata keys into approved keys.
+
+    Strategy:
+    - For each non-approved key, find the closest approved key by normalized form.
+    - Move data to the matched key.
+    - When source and target already exist for the same job row, merge values.
+    """
+    if not approved_keys:
+        return {"updated_rows": 0, "deleted_rows": 0, "mappings": {}, "skipped_keys": []}
+
+    def _norm(k: str) -> str:
+        """ norm.
+        
+        Parameters
+        ----------
+        k : Any
+            k parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        k = k.strip().lower().replace(" ", "_").replace("-", "_")
+        return re.sub(r"[^a-z0-9_:]", "", k)
+
+    approved_set = set(approved_keys)
+    norm_to_key = {_norm(k): k for k in approved_keys}
+    norm_candidates = list(norm_to_key.keys())
+
+    with get_conn() as conn:
+        distinct = _rows(conn.execute("SELECT DISTINCT meta_key FROM job_metadata ORDER BY meta_key"))
+
+        mappings: dict[str, str] = {}
+        skipped: list[str] = []
+
+        for row in distinct:
+            source = row["meta_key"]
+            if source in approved_set:
+                continue
+            nsrc = _norm(source)
+
+            if nsrc in norm_to_key:
+                mappings[source] = norm_to_key[nsrc]
+                continue
+
+            closest = difflib.get_close_matches(nsrc, norm_candidates, n=1, cutoff=0.8)
+            if closest:
+                mappings[source] = norm_to_key[closest[0]]
+            else:
+                skipped.append(source)
+
+        updated_rows = 0
+        deleted_rows = 0
+
+        for source, target in mappings.items():
+            if source == target:
+                continue
+
+            rows = _rows(conn.execute(
+                "SELECT id, job_type, job_id, meta_value FROM job_metadata WHERE meta_key=?",
+                (source,),
+            ))
+
+            for r in rows:
+                existing = _rows(conn.execute(
+                    "SELECT id, meta_value FROM job_metadata "
+                    "WHERE job_type=? AND job_id=? AND meta_key=?",
+                    (r["job_type"], r["job_id"], target),
+                ))
+
+                if not existing:
+                    conn.execute(
+                        "UPDATE job_metadata SET meta_key=?, updated_at=datetime('now') WHERE id=?",
+                        (target, r["id"]),
+                    )
+                    updated_rows += 1
+                    continue
+
+                tgt_id = existing[0]["id"]
+                tgt_val = existing[0].get("meta_value") or ""
+                src_val = r.get("meta_value") or ""
+
+                merged = tgt_val
+                if src_val and src_val not in tgt_val:
+                    merged = f"{tgt_val} | {src_val}" if tgt_val else src_val
+                    conn.execute(
+                        "UPDATE job_metadata SET meta_value=?, updated_at=datetime('now') WHERE id=?",
+                        (merged, tgt_id),
+                    )
+                    updated_rows += 1
+
+                conn.execute("DELETE FROM job_metadata WHERE id=?", (r["id"],))
+                deleted_rows += 1
+
+        return {
+            "updated_rows": updated_rows,
+            "deleted_rows": deleted_rows,
+            "mappings": mappings,
+            "skipped_keys": skipped,
+        }
 
 
 # ── Step helpers ──────────────────────────────────────────────────────────────
@@ -716,6 +1802,28 @@ _ALLOWED_STEPS: dict[str, list[str]] = {
 
 
 def complete_step(job_type: str, job_id: int, step_key: str, agent: str = "user") -> None:
+    """Complete step.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    step_key : Any
+        step_key parameter.
+    
+    agent : Any
+        agent parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     table = _STEP_TABLES.get(job_type)
     if not table or step_key not in _ALLOWED_STEPS.get(job_type, []):
         raise ValueError(f"Unknown step '{step_key}' for job type '{job_type}'")
@@ -732,6 +1840,31 @@ def revert_step(
     job_type: str, job_id: int, step_key: str,
     agent: str = "user", reason: str = "",
 ) -> None:
+    """Revert step.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    step_key : Any
+        step_key parameter.
+    
+    agent : Any
+        agent parameter.
+    
+    reason : Any
+        reason parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     table = _STEP_TABLES.get(job_type)
     if not table or step_key not in _ALLOWED_STEPS.get(job_type, []):
         raise ValueError(f"Unknown step '{step_key}' for job type '{job_type}'")
@@ -750,6 +1883,22 @@ def revert_step(
 def list_material_categories(
     section: Optional[str] = None, active_only: bool = True,
 ) -> list[dict[str, Any]]:
+    """List material categories.
+    
+    Parameters
+    ----------
+    section : Any
+        section parameter.
+    
+    active_only : Any
+        active_only parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         filters: list[str] = []
         params: list[Any] = []
@@ -768,6 +1917,28 @@ def list_material_categories(
 def add_material_category(
     section: str, value: str, label: str, sort_order: int = 0,
 ) -> int:
+    """Add material category.
+    
+    Parameters
+    ----------
+    section : Any
+        section parameter.
+    
+    value : Any
+        value parameter.
+    
+    label : Any
+        label parameter.
+    
+    sort_order : Any
+        sort_order parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO material_category (section,value,label,sort_order) VALUES (?,?,?,?)",
@@ -777,6 +1948,19 @@ def add_material_category(
 
 
 def update_material_category(row_id: int, **fields: Any) -> None:
+    """Update material category.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     allowed = {"section", "value", "label", "sort_order", "active"}
     sql, vals = _build_update_sql("material_category", fields, allowed)
     with get_conn() as conn:
@@ -784,6 +1968,22 @@ def update_material_category(row_id: int, **fields: Any) -> None:
 
 
 def set_material_category_active(row_id: int, active: int) -> None:
+    """Set material category active.
+    
+    Parameters
+    ----------
+    row_id : Any
+        row_id parameter.
+    
+    active : Any
+        active parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute(
             "UPDATE material_category SET active=?, updated_at=datetime('now') WHERE id=?",
@@ -799,6 +1999,22 @@ def delete_material_category(row_id: int) -> None:
 def list_workflow_steps(
     job_type: Optional[str] = None, active_only: bool = True,
 ) -> list[dict[str, Any]]:
+    """List workflow steps.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    active_only : Any
+        active_only parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         filters: list[str] = []
         params: list[Any] = []
@@ -818,6 +2034,31 @@ def add_workflow_step(
     job_type: str, step_key: str, label: str,
     description: str = "", sort_order: int = 0,
 ) -> int:
+    """Add workflow step.
+    
+    Parameters
+    ----------
+    job_type : Any
+        job_type parameter.
+    
+    step_key : Any
+        step_key parameter.
+    
+    label : Any
+        label parameter.
+    
+    description : Any
+        description parameter.
+    
+    sort_order : Any
+        sort_order parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO workflow_step (job_type,step_key,label,description,sort_order) "
@@ -856,6 +2097,34 @@ def log_qa_run(
     success: bool, output: str,
     job_type: Optional[str] = None, job_id: Optional[int] = None,
 ) -> int:
+    """Log qa run.
+    
+    Parameters
+    ----------
+    tool_name : Any
+        tool_name parameter.
+    
+    command : Any
+        command parameter.
+    
+    success : Any
+        success parameter.
+    
+    output : Any
+        output parameter.
+    
+    job_type : Any
+        job_type parameter.
+    
+    job_id : Any
+        job_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO qa_run (tool_name,command,job_type,job_id,success,output) "
@@ -868,6 +2137,22 @@ def log_qa_run(
 def list_qa_runs(
     tool_name: Optional[str] = None, limit: int = 100,
 ) -> list[dict[str, Any]]:
+    """List qa runs.
+    
+    Parameters
+    ----------
+    tool_name : Any
+        tool_name parameter.
+    
+    limit : Any
+        limit parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         if tool_name:
             return _rows(conn.execute(
@@ -882,6 +2167,19 @@ def list_qa_runs(
 # ── Pipeline runs ─────────────────────────────────────────────────────────────
 
 def start_pipeline_run(pipeline_name: str) -> int:
+    """Start pipeline run.
+    
+    Parameters
+    ----------
+    pipeline_name : Any
+        pipeline_name parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO pipeline_run (pipeline_name,status) VALUES (?,?)",
@@ -891,6 +2189,22 @@ def start_pipeline_run(pipeline_name: str) -> int:
 
 
 def finish_pipeline_run(run_id: int, status: str = "completed") -> None:
+    """Finish pipeline run.
+    
+    Parameters
+    ----------
+    run_id : Any
+        run_id parameter.
+    
+    status : Any
+        status parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         conn.execute(
             "UPDATE pipeline_run SET status=?, finished_at=datetime('now') WHERE id=?",
@@ -902,6 +2216,34 @@ def log_pipeline_step(
     pipeline_run_id: int, step_name: str, tool: str,
     command: str, success: bool, output: str,
 ) -> int:
+    """Log pipeline step.
+    
+    Parameters
+    ----------
+    pipeline_run_id : Any
+        pipeline_run_id parameter.
+    
+    step_name : Any
+        step_name parameter.
+    
+    tool : Any
+        tool parameter.
+    
+    command : Any
+        command parameter.
+    
+    success : Any
+        success parameter.
+    
+    output : Any
+        output parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO pipeline_step_run (pipeline_run_id,step_name,tool,command,success,output) "
@@ -912,6 +2254,19 @@ def log_pipeline_step(
 
 
 def list_pipeline_runs(limit: int = 50) -> list[dict[str, Any]]:
+    """List pipeline runs.
+    
+    Parameters
+    ----------
+    limit : Any
+        limit parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute(
             "SELECT * FROM pipeline_run ORDER BY started_at DESC LIMIT ?", (limit,),
@@ -919,6 +2274,19 @@ def list_pipeline_runs(limit: int = 50) -> list[dict[str, Any]]:
 
 
 def list_pipeline_step_runs(pipeline_run_id: int) -> list[dict[str, Any]]:
+    """List pipeline step runs.
+    
+    Parameters
+    ----------
+    pipeline_run_id : Any
+        pipeline_run_id parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with get_conn() as conn:
         return _rows(conn.execute(
             "SELECT * FROM pipeline_step_run WHERE pipeline_run_id=? ORDER BY ran_at",

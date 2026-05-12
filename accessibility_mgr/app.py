@@ -67,6 +67,14 @@ PAGE_DEFINITIONS: list[dict] = [
         "group": "Production",
     },
     {
+        "name": "EPUB3 / DAISY Jobs",
+        "icon": "import_contacts",
+        "module": "accessibility_mgr.ui.lp_ebraille",
+        "function": "epub3_daisy_jobs_page",
+        "description": "EPUB3 and DAISY workflow tracking",
+        "group": "Production",
+    },
+    {
         "name": "Tactile Graphics",
         "icon": "texture",
         "module": "accessibility_mgr.ui.tactile_graphics",
@@ -162,6 +170,22 @@ PAGE_DEFINITIONS: list[dict] = [
 
 
 def _load_handler(module_name: str, function_name: str) -> Callable | None:
+    """ load handler.
+    
+    Parameters
+    ----------
+    module_name : Any
+        module_name parameter.
+    
+    function_name : Any
+        function_name parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     try:
         mod = import_module(module_name)
     except Exception as exc:
@@ -189,6 +213,22 @@ BackupService.start()   # weekly background backup scheduler
 # ── Rendering ─────────────────────────────────────────────────────────────────
 
 def render_page(content: ui.column, page: dict) -> None:
+    """Render page.
+    
+    Parameters
+    ----------
+    content : Any
+        content parameter.
+    
+    page : Any
+        page parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content.clear()
     handler = page["handler"]
     try:
@@ -220,6 +260,14 @@ def _shutdown() -> None:
 
 @ui.page("/")
 def index() -> None:
+    """Index.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.page_title(APP_TITLE)
 
     groups: dict[str, list[dict]] = {}
@@ -259,7 +307,28 @@ def index() -> None:
                     )
                     for page in group_pages:
                         def _make_click(p: dict) -> Callable:
+                            """ make click.
+                            
+                            Parameters
+                            ----------
+                            p : Any
+                                p parameter.
+                            
+                            Returns
+                            -------
+                            Any
+                                Function result.
+                            
+                            """
                             def _click() -> None:
+                                """ click.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
                                 for b in btn_refs.values():
                                     b.classes(
                                         remove="bg-slate-700 text-white",

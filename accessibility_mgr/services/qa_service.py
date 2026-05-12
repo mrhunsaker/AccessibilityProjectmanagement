@@ -18,6 +18,9 @@ from .execution_service import ExecutionResult, ExecutionService
 
 @dataclass
 class QATool:
+    """QATool class.
+    
+    """
     name: str
     domain: str
     description: str
@@ -26,10 +29,31 @@ class QATool:
     timeout: int = 120
 
     def build_command(self, input_path: str = "") -> list[str]:
+        """Build command.
+        
+        Parameters
+        ----------
+        input_path : Any
+            input_path parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         cmd = self.command_template.replace("{input}", input_path)
         return shlex.split(cmd)
 
     def is_available(self) -> bool:
+        """Is available.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return ExecutionService.check_tool_available(self.executable)
 
 
@@ -49,14 +73,6 @@ QA_TOOLS: list[QATool] = [
         executable="epubcheck",
         command_template="epubcheck {input}",
         timeout=60,
-    ),
-    QATool(
-        name="DAISY Pipeline",
-        domain="DAISY Processing",
-        description="DAISY conversion and accessibility workflow engine",
-        executable="pipeline2-cli",
-        command_template="pipeline2-cli tasks",
-        timeout=30,
     ),
     QATool(
         name="Liblouis",
@@ -100,12 +116,35 @@ _TOOL_MAP: dict[str, QATool] = {t.name: t for t in QA_TOOLS}
 
 
 class QAService:
+    """Service for listing and executing QA tooling commands."""
+
     @staticmethod
     def list_tools() -> list[QATool]:
+        """List tools.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return QA_TOOLS
 
     @staticmethod
     def get_tool(name: str) -> Optional[QATool]:
+        """Get tool.
+        
+        Parameters
+        ----------
+        name : Any
+            name parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return _TOOL_MAP.get(name)
 
     @staticmethod

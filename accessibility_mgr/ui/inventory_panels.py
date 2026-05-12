@@ -7,6 +7,7 @@ and the partial ui/inventory.py stub.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from nicegui import ui
@@ -18,12 +19,59 @@ from .components import (
 
 
 def _text_value(value: object) -> str:
+    """ text value.
+    
+    Parameters
+    ----------
+    value : Any
+        value parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     return value.strip() if isinstance(value, str) else ""
+
+
+def _slugify_category(label: str) -> str:
+    """ slugify category.
+    
+    Parameters
+    ----------
+    label : Any
+        label parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
+    slug = re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
+    return slug
 
 
 # ── Filament ──────────────────────────────────────────────────────────────────
 
 def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ filament dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[500px] max-w-full"):
         ui.label("Edit Filament" if is_edit else "Add Filament").classes(
@@ -75,6 +123,14 @@ def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not brand.value.strip() or not color.value.strip():
                     notify_error("Brand and Color are required")
                     return
@@ -106,6 +162,19 @@ def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def filament_page(content_area: ui.element) -> None:
+    """Filament page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -113,7 +182,28 @@ def filament_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data: dict) -> None:
+                    """ do.
+                    
+                    Parameters
+                    ----------
+                    data : Any
+                        data parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     Q.add_filament(**data)
                     notify_success("Filament added")
                     filament_page(content_area)
@@ -167,7 +257,33 @@ def filament_page(content_area: ui.element) -> None:
                                 )
                             with ui.row().classes("gap-1"):
                                 def _edit(fil: dict = f) -> None:
+                                    """ edit.
+                                    
+                                    Parameters
+                                    ----------
+                                    fil : Any
+                                        fil parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(data: dict) -> None:
+                                        """ do.
+                                        
+                                        Parameters
+                                        ----------
+                                        data : Any
+                                            data parameter.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.update_filament(fil["id"], **data)
                                         notify_success("Updated")
                                         filament_page(content_area)
@@ -179,9 +295,30 @@ def filament_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _del(fil: dict = f) -> None:
+                                    """ del.
+                                    
+                                    Parameters
+                                    ----------
+                                    fil : Any
+                                        fil parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     import sqlite3
 
                                     def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         try:
                                             Q.delete_filament(fil["id"])
                                             notify_success("Deleted")
@@ -204,9 +341,38 @@ def filament_page(content_area: ui.element) -> None:
 # ── Braille Paper ─────────────────────────────────────────────────────────────
 
 def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ paper dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
 
     def _text(value: object) -> str:
+        """ text.
+        
+        Parameters
+        ----------
+        value : Any
+            value parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return value.strip() if isinstance(value, str) else ""
 
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[480px] max-w-full"):
@@ -247,6 +413,14 @@ def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 try:
                     pt_val = pv[pts.index(pt_sel.value)]
                 except (ValueError, IndexError):
@@ -269,6 +443,19 @@ def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def paper_page(content_area: ui.element) -> None:
+    """Paper page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -276,7 +463,28 @@ def paper_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data: dict) -> None:
+                    """ do.
+                    
+                    Parameters
+                    ----------
+                    data : Any
+                        data parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     Q.add_paper(**data)
                     notify_success("Paper added")
                     paper_page(content_area)
@@ -326,7 +534,33 @@ def paper_page(content_area: ui.element) -> None:
                                 )
                             with ui.row().classes("gap-1"):
                                 def _e(pp: dict = p) -> None:
+                                    """ e.
+                                    
+                                    Parameters
+                                    ----------
+                                    pp : Any
+                                        pp parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(data: dict) -> None:
+                                        """ do.
+                                        
+                                        Parameters
+                                        ----------
+                                        data : Any
+                                            data parameter.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.update_paper(pp["id"], **data)
                                         notify_success("Updated")
                                         paper_page(content_area)
@@ -338,7 +572,28 @@ def paper_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _d(pp: dict = p) -> None:
+                                    """ d.
+                                    
+                                    Parameters
+                                    ----------
+                                    pp : Any
+                                        pp parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.delete_paper(pp["id"])
                                         notify_success("Deleted")
                                         paper_page(content_area)
@@ -353,20 +608,150 @@ def paper_page(content_area: ui.element) -> None:
 # ── Electronics ───────────────────────────────────────────────────────────────
 
 def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ elec dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
         ui.label("Edit Component" if is_edit else "Add Component").classes(
             "text-xl font-bold text-slate-800"
         )
 
-        cats = [r["label"] for r in Q.list_material_categories("elec_cat")]
-        cv = [r["value"] for r in Q.list_material_categories("elec_cat")]
-        cur_c = existing.get("category", "other") if is_edit else "other"
+        cat_rows = Q.list_material_categories("elec_cat", active_only=False)
+        if not is_edit:
+            cat_rows = [
+                r
+                for r in cat_rows
+                if r["value"] != "other" and r["label"].strip().lower() != "other"
+            ]
+        cats = [r["label"] for r in cat_rows]
+        cv = [r["value"] for r in cat_rows]
+        cats.append("EMPTY")
+        cv.append("__new__")
+        cur_c = existing.get("category", "other") if is_edit else (cv[0] if cv else "")
         try:
             cur_cl = cats[cv.index(cur_c)]
         except ValueError:
             cur_cl = cats[0] if cats else "Other"
         cat_sel = ui.select(cats, label="Category*", value=cur_cl).classes("w-full")
+
+        def _new_category_dialog() -> None:
+            """ new category dialog.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with ui.dialog() as cat_dlg, ui.card().classes("p-5 gap-3 w-[420px] max-w-full"):
+                ui.label("Create New Electronics Category").classes("text-lg font-semibold")
+                ui.label("Type a category name to continue.").classes("text-sm text-slate-500")
+                new_label = ui.input("New Category*", placeholder="e.g. Sensors").classes("w-full")
+
+                with ui.row().classes("justify-end gap-2 mt-2"):
+                    def _cancel() -> None:
+                        """ cancel.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
+                        cat_sel.value = cats[0] if cats else None
+                        cat_dlg.close()
+
+                    ui.button("Cancel", on_click=_cancel).props("flat")
+
+                    def _create() -> None:
+                        """ create.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
+                        label = _text_value(new_label.value)
+                        if not label:
+                            notify_error("New category is required")
+                            return
+
+                        existing_rows = Q.list_material_categories("elec_cat", active_only=False)
+                        for row in existing_rows:
+                            if row["label"].strip().lower() == label.lower():
+                                if row["label"] not in cats:
+                                    cats.insert(len(cats) - 1, row["label"])
+                                    cv.insert(len(cv) - 1, row["value"])
+                                    cat_sel.options = cats
+                                cat_sel.value = row["label"]
+                                notify_success("Using existing category")
+                                cat_dlg.close()
+                                return
+
+                        base_value = _slugify_category(label)
+                        if not base_value:
+                            notify_error("Please enter letters or numbers for the category")
+                            return
+
+                        used_values = {row["value"] for row in existing_rows}
+                        value = base_value
+                        suffix = 2
+                        while value in used_values:
+                            value = f"{base_value}_{suffix}"
+                            suffix += 1
+
+                        max_sort = max((int(row.get("sort_order") or 0) for row in existing_rows), default=0)
+                        Q.add_material_category(
+                            section="elec_cat",
+                            value=value,
+                            label=label,
+                            sort_order=max_sort + 1,
+                        )
+
+                        cats.insert(len(cats) - 1, label)
+                        cv.insert(len(cv) - 1, value)
+                        cat_sel.options = cats
+                        cat_sel.value = label
+                        notify_success("Category added")
+                        cat_dlg.close()
+
+                    ui.button("Add Category", on_click=_create).classes("bg-blue-600 text-white")
+
+            cat_dlg.open()
+
+        def _on_cat_change(_) -> None:
+            """ on cat change.
+            
+            Parameters
+            ----------
+            e : Any
+                e parameter.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            if cat_sel.value == "EMPTY":
+                _new_category_dialog()
+
+        cat_sel.on("update:model-value", _on_cat_change)
 
         name = ui.input(
             "Name*", value=existing.get("name", "") if is_edit else ""
@@ -397,9 +782,11 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
             ).classes("flex-1")
             unit_sel = ui.select(units, label="Unit", value=cur_ul).classes("flex-1")
 
+        cost_value = (existing.get("cost_each") or 0) if is_edit else 0
+
         with ui.row().classes("gap-4 w-full"):
             cost = ui.number(
-                "Cost Each ($)", value=existing.get("cost_each") or 0, min=0
+                "Cost Each ($)", value=cost_value, min=0
             ).classes("flex-1")
             sup = ui.input(
                 "Supplier", value=existing.get("supplier", "") if is_edit else ""
@@ -413,6 +800,14 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 name_text = _text_value(name.value)
                 brand_text = _text_value(brand.value)
                 spec_text = _text_value(spec.value)
@@ -422,10 +817,16 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
                 if not name_text:
                     notify_error("Name required")
                     return
+                if cat_sel.value == "EMPTY":
+                    notify_error("Please create/select a category before saving")
+                    return
                 try:
                     cat_val = cv[cats.index(cat_sel.value)]
                 except (ValueError, IndexError):
-                    cat_val = "other"
+                    cat_val = ""
+                if not cat_val or cat_val == "__new__":
+                    notify_error("Category required")
+                    return
                 try:
                     u_val = uv[units.index(unit_sel.value)]
                 except (ValueError, IndexError):
@@ -451,6 +852,19 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def electronics_page(content_area: ui.element) -> None:
+    """Electronics page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -460,7 +874,28 @@ def electronics_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data: dict) -> None:
+                    """ do.
+                    
+                    Parameters
+                    ----------
+                    data : Any
+                        data parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     Q.add_electronic(**data)
                     notify_success("Component added")
                     electronics_page(content_area)
@@ -472,23 +907,135 @@ def electronics_page(content_area: ui.element) -> None:
             )
 
         items = Q.list_electronics()
-        if not items:
-            ui.label("No electronics in inventory.").classes(
-                "text-slate-400 text-lg text-center py-10"
-            )
-            return
+        cat_rows = Q.list_material_categories("elec_cat", active_only=False)
 
-        # Group by category
+        # Group inventory by category
         by_cat: dict[str, list] = {}
         for item in items:
             by_cat.setdefault(item["category"], []).append(item)
 
-        cat_labels = {
-            r["value"]: r["label"]
-            for r in Q.list_material_categories("elec_cat", active_only=False)
-        }
+        cat_labels = {r["value"]: r["label"] for r in cat_rows}
+        rendered: set[str] = set()
 
+        for row in cat_rows:
+            cat = row["value"]
+            cat_items = by_cat.get(cat, [])
+            rendered.add(cat)
+
+            ui.label(row["label"]).classes(
+                "text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-2"
+            )
+
+            if not cat_items:
+                ui.label("No components in this category.").classes(
+                    "text-sm text-slate-400 mb-2"
+                )
+                continue
+
+            with ui.element("div").classes("grid gap-2 w-full"):
+                for item in cat_items:
+                    with ui.card().classes("p-3 rounded-lg border border-slate-200"):
+                        with ui.row().classes("items-center gap-3"):
+                            with ui.column().classes("flex-1 gap-0 min-w-0"):
+                                ui.label(item["name"]).classes(
+                                    "font-medium text-slate-800"
+                                )
+                                parts = []
+                                if item.get("brand"):
+                                    parts.append(item["brand"])
+                                if item.get("spec"):
+                                    parts.append(item["spec"])
+                                if item.get("supplier"):
+                                    parts.append(f"from {item['supplier']}")
+                                if parts:
+                                    ui.label(" · ".join(parts)).classes(
+                                        "text-xs text-slate-400"
+                                    )
+                            with ui.column().classes("items-end gap-0 shrink-0"):
+                                ui.label(
+                                    f"{item.get('quantity', 0)} {item.get('unit', 'pcs')}"
+                                ).classes("font-semibold text-slate-700")
+                                if item.get("cost_each"):
+                                    ui.label(f"${item['cost_each']:.2f} ea").classes(
+                                        "text-xs text-slate-400"
+                                    )
+                            with ui.row().classes("gap-1 shrink-0"):
+                                def _e(it: dict = item) -> None:
+                                    """ e.
+                                    
+                                    Parameters
+                                    ----------
+                                    it : Any
+                                        it parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
+                                    def _do(data: dict) -> None:
+                                        """ do.
+                                        
+                                        Parameters
+                                        ----------
+                                        data : Any
+                                            data parameter.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
+                                        Q.update_electronic(it["id"], **data)
+                                        notify_success("Updated")
+                                        electronics_page(content_area)
+
+                                    _elec_dialog(_do, existing=it)
+
+                                ui.button("Edit", on_click=_e).props(
+                                    "flat dense"
+                                ).classes("text-blue-600 text-xs")
+
+                                def _d(it: dict = item) -> None:
+                                    """ d.
+                                    
+                                    Parameters
+                                    ----------
+                                    it : Any
+                                        it parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
+                                    def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
+                                        Q.delete_electronic(it["id"])
+                                        notify_success("Deleted")
+                                        electronics_page(content_area)
+
+                                    confirm_dialog(f"Delete '{it['name']}'?", _do)
+
+                                ui.button("Del", on_click=_d).props(
+                                    "flat dense"
+                                ).classes("text-red-400 text-xs")
+
+        # Show any legacy categories already in inventory but missing from lookup rows.
         for cat, cat_items in by_cat.items():
+            if cat in rendered:
+                continue
+
             ui.label(cat_labels.get(cat, cat.replace("_", " ").title())).classes(
                 "text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-2"
             )
@@ -521,7 +1068,33 @@ def electronics_page(content_area: ui.element) -> None:
                                     )
                             with ui.row().classes("gap-1 shrink-0"):
                                 def _e(it: dict = item) -> None:
+                                    """ e.
+                                    
+                                    Parameters
+                                    ----------
+                                    it : Any
+                                        it parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(data: dict) -> None:
+                                        """ do.
+                                        
+                                        Parameters
+                                        ----------
+                                        data : Any
+                                            data parameter.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.update_electronic(it["id"], **data)
                                         notify_success("Updated")
                                         electronics_page(content_area)
@@ -533,7 +1106,28 @@ def electronics_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _d(it: dict = item) -> None:
+                                    """ d.
+                                    
+                                    Parameters
+                                    ----------
+                                    it : Any
+                                        it parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do() -> None:
+                                        """ do.
+                                        
+                                        Returns
+                                        -------
+                                        Any
+                                            Function result.
+                                        
+                                        """
                                         Q.delete_electronic(it["id"])
                                         notify_success("Deleted")
                                         electronics_page(content_area)

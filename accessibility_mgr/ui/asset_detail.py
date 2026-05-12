@@ -1,9 +1,20 @@
+"""Asset detail module.
+
+"""
 from nicegui import ui
 
 from ..services.assets_service import AssetService
 
 
 def asset_detail_page() -> None:
+    """Asset detail page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("Asset Detail Manager").classes("text-2xl font-bold")
 
     assets = AssetService.list_assets()
@@ -13,6 +24,14 @@ def asset_detail_page() -> None:
     detail_container = ui.column().classes("w-full")
 
     def render_details():
+        """Render details.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         detail_container.clear()
 
         if not selected_asset.value:

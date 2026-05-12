@@ -16,13 +16,20 @@ def _install_legacy_import_aliases() -> None:
 
 	aliases = {
 		"db": "accessibility_mgr.db",
-		"models": "accessibility_mgr.models",
 		"services": "accessibility_mgr.services",
 		"ui": "accessibility_mgr.ui",
 	}
 	for alias, target in aliases.items():
 		if alias not in sys.modules:
-			sys.modules[alias] = import_module(target)
+			try:
+				sys.modules[alias] = import_module(target)
+			except ModuleNotFoundError as exc:
+				# The SQLAlchemy-backed legacy model package is optional in the
+				# current SQLite-first workflow. Skip aliasing it if the dependency
+				# is unavailable so the rest of the app can still start.
+				if alias == "models" and exc.name == "sqlalchemy":
+					continue
+				raise
 
 
 _install_legacy_import_aliases()

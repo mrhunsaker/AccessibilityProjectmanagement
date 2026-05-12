@@ -1,3 +1,6 @@
+"""Package service module.
+
+"""
 from __future__ import annotations
 
 import json
@@ -7,8 +10,23 @@ from .assets_service import AssetService
 
 
 class PackageService:
+    """Service for exporting preservation package manifests."""
+
     @staticmethod
     def export_package(output_path: str = "exports"):
+        """Export package.
+        
+        Parameters
+        ----------
+        output_path : Any
+            output_path parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         assets = AssetService.list_assets()
 
         export_dir = Path(output_path)

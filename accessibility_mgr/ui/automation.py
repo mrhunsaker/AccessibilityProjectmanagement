@@ -1,9 +1,20 @@
+"""Automation module.
+
+"""
 from nicegui import ui
 
 from ..services.automation_service import AutomationService
 
 
 def automation_page() -> None:
+    """Automation page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("Workflow Automation Integrations").classes(
         "text-2xl font-bold"
     )

@@ -60,6 +60,7 @@ accessibility_manager.db
 project_manager.db
 prints_files/
 job_files/
+artifacts/
 uploads/
 ace-report/
 exports/

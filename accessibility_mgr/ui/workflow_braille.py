@@ -1,3 +1,6 @@
+"""Workflow braille module.
+
+"""
 from nicegui import ui
 
 from ..services.assets_service import AssetService
@@ -15,6 +18,14 @@ BRAILLE_STAGES = [
 
 
 def workflow_braille_page() -> None:
+    """Workflow braille page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("Braille Workflow Execution").classes("text-2xl font-bold")
 
     assets = AssetService.list_assets()
@@ -28,6 +39,14 @@ def workflow_braille_page() -> None:
     history_container = ui.column().classes("w-full")
 
     def refresh_history():
+        """Refresh history.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         history_container.clear()
 
         if not selected_asset.value:
@@ -63,6 +82,19 @@ def workflow_braille_page() -> None:
         for stage in BRAILLE_STAGES:
 
             def execute(current_stage=stage):
+                """Execute.
+                
+                Parameters
+                ----------
+                current_stage : Any
+                    current_stage parameter.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not selected_asset.value:
                     ui.notify("Select an asset first")
                     return

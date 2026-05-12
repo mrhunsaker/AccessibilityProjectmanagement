@@ -1,12 +1,49 @@
+"""Assets service module.
+
+"""
 from __future__ import annotations
 
-from ..db.database import SessionLocal
-from ..models.assets import Asset, AssetMetadata, Project, WorkflowEvent
+from typing import Any
+
+try:
+    from ..db.database import SessionLocal
+    from ..models.assets import Asset, AssetMetadata, Project, WorkflowEvent
+except ModuleNotFoundError:
+    SessionLocal = None
+    Asset = AssetMetadata = Project = WorkflowEvent = Any
+
+
+def _require_sqlalchemy() -> None:
+    """Require SQLAlchemy-backed model dependencies before service use."""
+    if SessionLocal is None:
+        raise RuntimeError(
+            "assets_service requires SQLAlchemy runtime dependencies. "
+            "Install project dependencies (e.g. `uv sync`) before using this service."
+        )
 
 
 class AssetService:
+    """Service for creating and querying legacy asset records."""
+
     @staticmethod
     def create_project(title: str, description: str = "") -> Project:
+        """Create project.
+        
+        Parameters
+        ----------
+        title : Any
+            title parameter.
+        
+        description : Any
+            description parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
 
         project = Project(title=title, description=description)
@@ -19,6 +56,15 @@ class AssetService:
 
     @staticmethod
     def list_projects() -> list[Project]:
+        """List projects.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
         results = session.query(Project).all()
         session.close()
@@ -32,6 +78,32 @@ class AssetService:
         project_id: int | None = None,
         parent_id: int | None = None,
     ) -> Asset:
+        """Create asset.
+        
+        Parameters
+        ----------
+        name : Any
+            name parameter.
+        
+        asset_type : Any
+            asset_type parameter.
+        
+        path : Any
+            path parameter.
+        
+        project_id : Any
+            project_id parameter.
+        
+        parent_id : Any
+            parent_id parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
 
         asset = Asset(
@@ -51,6 +123,15 @@ class AssetService:
 
     @staticmethod
     def list_assets() -> list[Asset]:
+        """List assets.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
         results = session.query(Asset).all()
         session.close()
@@ -63,6 +144,29 @@ class AssetService:
         value: str,
         metadata_group: str = "general",
     ) -> AssetMetadata:
+        """Add metadata.
+        
+        Parameters
+        ----------
+        asset_id : Any
+            asset_id parameter.
+        
+        key : Any
+            key parameter.
+        
+        value : Any
+            value parameter.
+        
+        metadata_group : Any
+            metadata_group parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
 
         record = AssetMetadata(
@@ -87,6 +191,32 @@ class AssetService:
         operator: str = "",
         notes: str = "",
     ) -> WorkflowEvent:
+        """Add workflow event.
+        
+        Parameters
+        ----------
+        asset_id : Any
+            asset_id parameter.
+        
+        workflow_type : Any
+            workflow_type parameter.
+        
+        stage : Any
+            stage parameter.
+        
+        operator : Any
+            operator parameter.
+        
+        notes : Any
+            notes parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
 
         event = WorkflowEvent(
@@ -107,6 +237,20 @@ class AssetService:
 
     @staticmethod
     def get_workflow_history(asset_id: int) -> list[WorkflowEvent]:
+        """Get workflow history.
+        
+        Parameters
+        ----------
+        asset_id : Any
+            asset_id parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
+        _require_sqlalchemy()
         session = SessionLocal()
 
         results = (

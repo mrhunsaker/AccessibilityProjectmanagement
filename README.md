@@ -66,6 +66,15 @@ Tracks:
 Tracks electronics and assembly components used in accessibility hardware
 projects.
 
+Category behavior:
+
+- All configured electronics categories are shown on the page, even when empty.
+- Empty category sections display a "No components in this category." message.
+- In Add/Edit Component dialogs, selecting `EMPTY` prompts for a required new
+  category name.
+- Newly entered categories are written to the `material_category` table and are
+  immediately available in the UI.
+
 Examples include:
 
 - Microcontrollers
@@ -111,6 +120,8 @@ Supported categories include:
 ## Large Print / eBraille Jobs
 
 Tracks large-print and electronic braille production.
+
+Also includes an `EPUB3 / DAISY` workflow type for accessible digital delivery.
 
 Workflow stages:
 
@@ -177,6 +188,18 @@ Print assets are stored in the `prints_files/` directory.
 ---
 
 ## Running the Application
+
+## Recent Workflow and Metadata Updates
+
+- File ingestion now copies assets into `artifacts/<Project Title>/` with
+  structured naming based on project/student/school/grade/subject metadata.
+- Ingested file records are linked to the artifact path in the database for
+  centralized file traceability.
+- Metadata entry uses governed option sets (including Dublin Core and
+  eBraille-profile fields), with helper examples and option popups in UI forms.
+- Admin includes metadata option management and typo-key backfill tooling.
+- `EPUB3 / DAISY Jobs` is available as a first-class production page.
+- `DAISY Pipeline` is classified under Pipelines instead of QA Tooling.
 
 ## System Dependencies
 
@@ -274,6 +297,12 @@ get the confirmed absolute path for a tool before invoking it.
 uv sync
 ```
 
+### Optional: Run a docstring quality pass
+
+The project follows NumPy-style docstring conventions for modules, classes,
+and functions. If you are validating docstrings locally, run your preferred
+linting/checking tools after dependency sync.
+
 ---
 
 ## Run the NiceGUI Frontend
@@ -348,19 +377,26 @@ The database uses:
 ```text
 accessibility_mgr/
 ├── app.py                # NiceGUI frontend entrypoint
-├── appTUI.py             # Original Textual TUI application
 ├── db/
 │   ├── database.py       # Database initialization
 │   ├── queries.py        # Data access layer
 │   └── schema.py         # Schema definitions
 ├── ui/
 │   ├── dashboard.py
-│   ├── inventory.py
+│   ├── inventory_panels.py
 │   ├── categories.py
 │   ├── print_jobs.py
 │   ├── braille_jobs.py
-│   ├── lp_jobs.py
-│   └── transactions.py
+│   ├── lp_ebraille.py
+│   ├── pipelines.py
+│   ├── qa.py
+│   └── metadata_editor.py
+├── services/
+│   ├── pipeline_service.py
+│   ├── qa_service.py
+│   └── tools_service.py
+├── job_files/
+├── artifacts/
 └── prints_files/
 ```
 

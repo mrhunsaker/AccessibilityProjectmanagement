@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 
 @dataclass
 class ProductionDevice:
+    """ProductionDevice class.
+    
+    """
     name: str
     device_type: str
     status: str = "available"
@@ -17,10 +20,32 @@ class ProductionDevice:
 
 
 class ProductionService:
+    """ProductionService class.
+    
+    """
     devices: list[ProductionDevice] = []
 
     @classmethod
     def register_device(cls, name: str, device_type: str, material: str = ""):
+        """Register device.
+        
+        Parameters
+        ----------
+        name : Any
+            name parameter.
+        
+        device_type : Any
+            device_type parameter.
+        
+        material : Any
+            material parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         today = datetime.utcnow()
         device = ProductionDevice(
             name=name,
@@ -34,4 +59,12 @@ class ProductionService:
 
     @classmethod
     def list_devices(cls):
+        """List devices.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return cls.devices

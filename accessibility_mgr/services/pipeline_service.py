@@ -17,24 +17,55 @@ from .execution_service import ExecutionResult, ExecutionService
 
 @dataclass
 class PipelineStep:
+    """PipelineStep class.
+    
+    """
     name: str
     tool: str
     command_template: str   # {input} replaced at runtime
     timeout: int = 120
 
     def build_command(self, input_path: str = "") -> list[str]:
+        """Build command.
+        
+        Parameters
+        ----------
+        input_path : Any
+            input_path parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         cmd = self.command_template.replace("{input}", input_path)
         return shlex.split(cmd)
 
 
 @dataclass
 class WorkflowPipeline:
+    """WorkflowPipeline class.
+    
+    """
     name: str
     description: str
     steps: list[PipelineStep] = field(default_factory=list)
 
 
 PIPELINES: list[WorkflowPipeline] = [
+    WorkflowPipeline(
+        name="DAISY Pipeline",
+        description="Run the DAISY Pipeline task set for EPUB/DAISY processing.",
+        steps=[
+            PipelineStep(
+                name="Run Pipeline Tasks",
+                tool="DAISY Pipeline",
+                command_template="pipeline2-cli tasks",
+                timeout=30,
+            ),
+        ],
+    ),
     WorkflowPipeline(
         name="Accessible EPUB Pipeline",
         description="Convert a document to EPUB then validate it for accessibility.",
@@ -84,6 +115,9 @@ _PIPELINE_MAP: dict[str, WorkflowPipeline] = {p.name: p for p in PIPELINES}
 
 @dataclass
 class PipelineRunResult:
+    """PipelineRunResult class.
+    
+    """
     pipeline_name: str
     run_id: int
     step_results: list[ExecutionResult]
@@ -91,12 +125,35 @@ class PipelineRunResult:
 
 
 class PipelineService:
+    """Service for listing and executing multi-step workflow pipelines."""
+
     @staticmethod
     def list_pipelines() -> list[WorkflowPipeline]:
+        """List pipelines.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return PIPELINES
 
     @staticmethod
     def get_pipeline(name: str) -> Optional[WorkflowPipeline]:
+        """Get pipeline.
+        
+        Parameters
+        ----------
+        name : Any
+            name parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         return _PIPELINE_MAP.get(name)
 
     @staticmethod

@@ -13,6 +13,9 @@ from typing import Optional
 
 @dataclass
 class ExecutionResult:
+    """ExecutionResult class.
+    
+    """
     command: str
     success: bool
     output: str
@@ -20,6 +23,9 @@ class ExecutionResult:
 
 
 class ExecutionService:
+    """ExecutionService class.
+    
+    """
     DEFAULT_TIMEOUT: int = 120  # seconds
 
     @staticmethod

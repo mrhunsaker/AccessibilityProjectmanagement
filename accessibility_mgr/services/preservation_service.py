@@ -16,6 +16,8 @@ from ..db import queries as Q
 
 
 class PreservationService:
+    """Service for fixity checks and PREMIS event persistence."""
+
     @staticmethod
     def generate_checksum(path: str) -> str:
         """Compute and return the SHA-256 hex digest of the file at *path*."""

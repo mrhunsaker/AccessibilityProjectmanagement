@@ -1,10 +1,33 @@
+"""Inventory service module.
+
+"""
 from ..db.database import SessionLocal
 from ..models.inventory import InventoryItem, InventoryTransaction
 
 class InventoryService:
+    """Service for mutating legacy inventory stock records."""
 
     @staticmethod
     def add_inventory(item_id: int, quantity: float, notes: str = ''):
+        """Add inventory.
+        
+        Parameters
+        ----------
+        item_id : Any
+            item_id parameter.
+        
+        quantity : Any
+            quantity parameter.
+        
+        notes : Any
+            notes parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         db = SessionLocal()
         item = db.query(InventoryItem).get(item_id)
 
@@ -26,6 +49,28 @@ class InventoryService:
 
     @staticmethod
     def consume_inventory(item_id: int, quantity: float, notes: str = '', project_id=None):
+        """Consume inventory.
+        
+        Parameters
+        ----------
+        item_id : Any
+            item_id parameter.
+        
+        quantity : Any
+            quantity parameter.
+        
+        notes : Any
+            notes parameter.
+        
+        project_id : Any
+            project_id parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         db = SessionLocal()
         item = db.query(InventoryItem).get(item_id)
 

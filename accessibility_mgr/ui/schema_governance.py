@@ -1,3 +1,6 @@
+"""Schema governance module.
+
+"""
 from nicegui import ui
 
 from ..services.schema_governance_service import (
@@ -6,6 +9,14 @@ from ..services.schema_governance_service import (
 
 
 def schema_governance_page() -> None:
+    """Schema governance page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("Schema Governance").classes("text-2xl font-bold")
 
     vocabularies = SchemaGovernanceService.get_vocabularies()

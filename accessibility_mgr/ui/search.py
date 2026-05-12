@@ -11,6 +11,22 @@ from .components import section_header
 
 
 def _match(text: str, query: str) -> bool:
+    """ match.
+    
+    Parameters
+    ----------
+    text : Any
+        text parameter.
+    
+    query : Any
+        query parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     return query.lower() in (text or "").lower()
 
 
@@ -27,6 +43,14 @@ def search_page(content_area: ui.element) -> None:
         results_area = ui.column().classes("w-full gap-4 mt-4")
 
         def _execute() -> None:
+            """ execute.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
             q = query_inp.value.strip()
             if not q:
                 results_area.clear()
@@ -102,6 +126,25 @@ def search_page(content_area: ui.element) -> None:
                     return
 
                 def _section(title: str, items: list, render_fn) -> None:
+                    """ section.
+                    
+                    Parameters
+                    ----------
+                    title : Any
+                        title parameter.
+                    
+                    items : Any
+                        items parameter.
+                    
+                    render_fn : Any
+                        render_fn parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     if not items:
                         return
                     ui.label(title).classes(
@@ -112,6 +155,19 @@ def search_page(content_area: ui.element) -> None:
                             render_fn(item)
 
                 def _braille_row(j: dict) -> None:
+                    """ braille row.
+                    
+                    Parameters
+                    ----------
+                    j : Any
+                        j parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     steps = ["digitized", "formatted", "brailled", "proofread", "delivered"]
                     done = sum(j.get(s, 0) for s in steps)
                     with ui.row().classes(
@@ -126,6 +182,19 @@ def search_page(content_area: ui.element) -> None:
                         ui.label(f"{done}/5 steps").classes("text-xs text-slate-400")
 
                 def _lp_row(j: dict) -> None:
+                    """ lp row.
+                    
+                    Parameters
+                    ----------
+                    j : Any
+                        j parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     steps = ["digitized", "formatted", "converted", "proofread", "delivered"]
                     done = sum(j.get(s, 0) for s in steps)
                     with ui.row().classes(
@@ -140,6 +209,19 @@ def search_page(content_area: ui.element) -> None:
                         ui.label(f"{done}/5 steps").classes("text-xs text-slate-400")
 
                 def _print_row(j: dict) -> None:
+                    """ print row.
+                    
+                    Parameters
+                    ----------
+                    j : Any
+                        j parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     with ui.row().classes(
                         "items-center px-4 py-3 border-b border-slate-50 last:border-0 gap-3"
                     ):
@@ -157,6 +239,19 @@ def search_page(content_area: ui.element) -> None:
                         )
 
                 def _tactile_row(j: dict) -> None:
+                    """ tactile row.
+                    
+                    Parameters
+                    ----------
+                    j : Any
+                        j parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     steps = ["designed", "produced", "qa_reviewed", "delivered"]
                     done = sum(j.get(s, 0) for s in steps)
                     with ui.row().classes(
@@ -170,6 +265,19 @@ def search_page(content_area: ui.element) -> None:
                         ui.label(f"{done}/4 steps").classes("text-xs text-slate-400")
 
                 def _file_row(f: dict) -> None:
+                    """ file row.
+                    
+                    Parameters
+                    ----------
+                    f : Any
+                        f parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     with ui.row().classes(
                         "items-center px-4 py-3 border-b border-slate-50 last:border-0 gap-3"
                     ):
@@ -184,6 +292,19 @@ def search_page(content_area: ui.element) -> None:
                         )
 
                 def _meta_row(m: dict) -> None:
+                    """ meta row.
+                    
+                    Parameters
+                    ----------
+                    m : Any
+                        m parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     with ui.row().classes(
                         "items-center px-4 py-3 border-b border-slate-50 last:border-0 gap-3"
                     ):

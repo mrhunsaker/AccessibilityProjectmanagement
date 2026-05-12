@@ -1,9 +1,20 @@
+"""Layout module.
+
+"""
 from nicegui import ui
 from .inventory import inventory_page
 from .dashboard import dashboard_page
 from .categories import categories_page
 
 def build_layout():
+    """Build layout.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.row().classes('w-full no-wrap'):
         with ui.column().classes('bg-gray-200 h-screen p-4 w-64'):
             ui.label('Accessibility PM').classes('text-xl')

@@ -19,10 +19,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH    = Path(__file__).parent.parent / "accessibility_manager.db"
-PRINTS_DIR = Path(__file__).parent.parent / "prints_files"
-FILES_DIR  = Path(__file__).parent.parent / "job_files"
-BACKUPS_DIR = Path(__file__).parent.parent / "backups"
+DB_PATH       = Path(__file__).parent.parent / "accessibility_manager.db"
+PRINTS_DIR    = Path(__file__).parent.parent / "prints_files"
+FILES_DIR     = Path(__file__).parent.parent / "job_files"
+BACKUPS_DIR   = Path(__file__).parent.parent / "backups"
+# Artifacts are stored one level above the package so the folder lives at the
+# repository / project root: <repo root>/artifacts/<project title>/
+ARTIFACTS_DIR = Path(__file__).parent.parent.parent / "artifacts"
 
 
 @contextmanager
@@ -376,6 +379,50 @@ INSERT OR IGNORE INTO material_category (section, value, label, sort_order) VALU
     ('tactile_type','embossed_figures',  'Embossed Figures',   3),
     ('lp_type','large_print', 'Large Print', 1),
     ('lp_type','ebraille',    'eBraille',    2),
+    ('lp_type','epub3_daisy', 'EPUB3 / DAISY', 3),
+    ('metadata_dublin_core','dc:title',       'dc:title',       1),
+    ('metadata_dublin_core','dc:creator',     'dc:creator',     2),
+    ('metadata_dublin_core','dc:subject',     'dc:subject',     3),
+    ('metadata_dublin_core','dc:description', 'dc:description', 4),
+    ('metadata_dublin_core','dc:publisher',   'dc:publisher',   5),
+    ('metadata_dublin_core','dc:contributor', 'dc:contributor', 6),
+    ('metadata_dublin_core','dc:date',        'dc:date',        7),
+    ('metadata_dublin_core','dc:type',        'dc:type',        8),
+    ('metadata_dublin_core','dc:format',      'dc:format',      9),
+    ('metadata_dublin_core','dc:identifier',  'dc:identifier',  10),
+    ('metadata_dublin_core','dc:source',      'dc:source',      11),
+    ('metadata_dublin_core','dc:language',    'dc:language',    12),
+    ('metadata_dublin_core','dc:relation',    'dc:relation',    13),
+    ('metadata_dublin_core','dc:coverage',    'dc:coverage',    14),
+    ('metadata_dublin_core','dc:rights',      'dc:rights',      15),
+    ('metadata_ebraille_profile','grade_level',             'grade_level',             1),
+    ('metadata_ebraille_profile','subject_area',            'subject_area',            2),
+    ('metadata_ebraille_profile','isbn',                    'isbn',                    3),
+    ('metadata_ebraille_profile','oclc_number',             'oclc_number',             4),
+    ('metadata_ebraille_profile','series',                  'series',                  5),
+    ('metadata_ebraille_profile','volume',                  'volume',                  6),
+    ('metadata_ebraille_profile','edition',                 'edition',                 7),
+    ('metadata_ebraille_profile','transcriber',             'transcriber',             8),
+    ('metadata_ebraille_profile','proofreader',             'proofreader',             9),
+    ('metadata_ebraille_profile','embosser',                'embosser',                10),
+    ('metadata_ebraille_profile','emboss_date',             'emboss_date',             11),
+    ('metadata_ebraille_profile','braille_code',            'braille_code',            12),
+    ('metadata_ebraille_profile','contracted_status',       'contracted_status',       13),
+    ('metadata_ebraille_profile','nemeth_used',             'nemeth_used',             14),
+    ('metadata_ebraille_profile','tactile_graphics_present','tactile_graphics_present',15),
+    ('metadata_ebraille_profile','reading_level',           'reading_level',           16),
+    ('metadata_mets_premis','mets:file_group',            'mets:file_group',            1),
+    ('metadata_mets_premis','mets:div_type',              'mets:div_type',              2),
+    ('metadata_mets_premis','mets:struct_order',          'mets:struct_order',          3),
+    ('metadata_mets_premis','mets:amdsec_id',             'mets:amdsec_id',             4),
+    ('metadata_mets_premis','premis:event_type',          'premis:event_type',          5),
+    ('metadata_mets_premis','premis:event_datetime',      'premis:event_datetime',      6),
+    ('metadata_mets_premis','premis:event_outcome',       'premis:event_outcome',       7),
+    ('metadata_mets_premis','premis:agent',               'premis:agent',               8),
+    ('metadata_mets_premis','premis:object_identifier',   'premis:object_identifier',   9),
+    ('metadata_mets_premis','premis:rights_basis',        'premis:rights_basis',        10),
+    ('metadata_mets_premis','premis:significant_properties','premis:significant_properties',11),
+    ('metadata_mets_premis','premis:storage_location',    'premis:storage_location',    12),
     ('filament_type','PLA',   'PLA',   1),
     ('filament_type','PETG',  'PETG',  2),
     ('filament_type','ABS',   'ABS',   3),
@@ -427,6 +474,25 @@ INSERT OR IGNORE INTO workflow_step (job_type, step_key, label, description, sor
 
 
 def _table_has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    """ table has column.
+    
+    Parameters
+    ----------
+    conn : Any
+        conn parameter.
+    
+    table : Any
+        table parameter.
+    
+    column : Any
+        column parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
     return any(row[1] == column for row in rows)
 
@@ -476,6 +542,7 @@ def init_db() -> None:
     PRINTS_DIR.mkdir(exist_ok=True)
     FILES_DIR.mkdir(exist_ok=True)
     BACKUPS_DIR.mkdir(exist_ok=True)
+    ARTIFACTS_DIR.mkdir(exist_ok=True)
     with get_conn() as conn:
         conn.executescript(_SCHEMA_SQL)
         _migrate(conn)

@@ -21,6 +21,22 @@ from ..ui.components import (
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ filament dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[500px] max-w-full"):
         ui.label("Edit Filament" if is_edit else "Add Filament").classes("text-xl font-bold text-slate-800")
@@ -55,6 +71,14 @@ def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
             def _save():
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not brand.value.strip() or not color.value.strip():
                     notify_error("Brand and Color are required"); return
                 try: ft_val = tv[types.index(ft_sel.value)]
@@ -74,12 +98,46 @@ def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def filament_page(content_area: ui.element) -> None:
+    """Filament page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
             section_header("Filament Inventory", "Track 3-D printer filament stock")
             ui.element("div").classes("flex-1")
             def _new():
+                               """ do.
+                               
+                               Parameters
+                               ----------
+                               data : Any
+                                   data parameter.
+                               
+                               Returns
+                               -------
+                               Any
+                                   Function result.
+                               
+                               """
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data): Q.add_filament(**data); notify_success("Filament added"); filament_page(content_area)
                 _filament_dialog(_do)
             ui.button("+ Add Filament", on_click=_new).classes("bg-blue-600 text-white rounded-lg px-4 py-2")
@@ -118,10 +176,57 @@ def filament_page(content_area: ui.element) -> None:
 
                             with ui.row().classes("gap-1"):
                                 def _edit(fil=f):
+                                                   """ do.
+                                                   
+                                                   Parameters
+                                                   ----------
+                                                   data : Any
+                                                       data parameter.
+                                                   
+                                                   Returns
+                                                   -------
+                                                   Any
+                                                       Function result.
+                                                   
+                                                   """
+                                    """ edit.
+                                    
+                                    Parameters
+                                    ----------
+                                    fil : Any
+                                        fil parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(data): Q.update_filament(fil["id"], **data); notify_success("Updated"); filament_page(content_area)
                                     _filament_dialog(_do, existing=fil)
                                 ui.button("Edit", on_click=_edit).props("flat dense").classes("text-blue-600 text-sm")
                                 def _del(fil=f):
+                                               """ do.
+                                               
+                                               Returns
+                                               -------
+                                               Any
+                                                   Function result.
+                                               
+                                               """
+                                    """ del.
+                                    
+                                    Parameters
+                                    ----------
+                                    fil : Any
+                                        fil parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(): Q.delete_filament(fil["id"]); notify_success("Deleted"); filament_page(content_area)
                                     confirm_dialog(f"Delete {fil['brand']} {fil['color']}?", _do)
                                 ui.button("Delete", on_click=_del).props("flat dense").classes("text-red-400 text-sm")
@@ -132,6 +237,22 @@ def filament_page(content_area: ui.element) -> None:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ paper dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[480px] max-w-full"):
         ui.label("Edit Paper" if is_edit else "Add Paper").classes("text-xl font-bold text-slate-800")
@@ -156,6 +277,14 @@ def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
             def _save():
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 try: pt_val = pv[pts.index(pt_sel.value)]
                 except (ValueError, IndexError): pt_val = pv[0] if pv else "sheet_feed_11.5x11"
                 on_save(dict(paper_type=pt_val, quantity=int(qty.value or 0),
@@ -168,12 +297,46 @@ def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def paper_page(content_area: ui.element) -> None:
+    """Paper page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
             section_header("Braille Paper", "Track paper and label supplies")
             ui.element("div").classes("flex-1")
             def _new():
+                               """ do.
+                               
+                               Parameters
+                               ----------
+                               data : Any
+                                   data parameter.
+                               
+                               Returns
+                               -------
+                               Any
+                                   Function result.
+                               
+                               """
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data): Q.add_paper(**data); notify_success("Paper added"); paper_page(content_area)
                 _paper_dialog(_do)
             ui.button("+ Add Paper", on_click=_new).classes("bg-blue-600 text-white rounded-lg px-4 py-2")
@@ -201,10 +364,57 @@ def paper_page(content_area: ui.element) -> None:
                             if low: ui.badge("⚠ Low").classes("bg-amber-100 text-amber-700 text-xs rounded px-2")
                             with ui.row().classes("gap-1"):
                                 def _e(pp=p):
+                                                   """ do.
+                                                   
+                                                   Parameters
+                                                   ----------
+                                                   data : Any
+                                                       data parameter.
+                                                   
+                                                   Returns
+                                                   -------
+                                                   Any
+                                                       Function result.
+                                                   
+                                                   """
+                                    """ e.
+                                    
+                                    Parameters
+                                    ----------
+                                    pp : Any
+                                        pp parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(data): Q.update_paper(pp["id"], **data); notify_success("Updated"); paper_page(content_area)
                                     _paper_dialog(_do, existing=pp)
                                 ui.button("Edit", on_click=_e).props("flat dense").classes("text-blue-600 text-sm")
                                 def _d(pp=p):
+                                               """ do.
+                                               
+                                               Returns
+                                               -------
+                                               Any
+                                                   Function result.
+                                               
+                                               """
+                                    """ d.
+                                    
+                                    Parameters
+                                    ----------
+                                    pp : Any
+                                        pp parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(): Q.delete_paper(pp["id"]); notify_success("Deleted"); paper_page(content_area)
                                     confirm_dialog(f"Delete {pp['paper_type']}?", _do)
                                 ui.button("Delete", on_click=_d).props("flat dense").classes("text-red-400 text-sm")
@@ -215,6 +425,22 @@ def paper_page(content_area: ui.element) -> None:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ elec dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
         ui.label("Edit Component" if is_edit else "Add Component").classes("text-xl font-bold text-slate-800")
@@ -251,6 +477,14 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
             def _save():
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not name.value.strip(): notify_error("Name required"); return
                 try: cat_val = cv[cats.index(cat_sel.value)]
                 except (ValueError,IndexError): cat_val = "other"
@@ -271,12 +505,46 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def electronics_page(content_area: ui.element) -> None:
+    """Electronics page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
             section_header("Electronics Inventory", "Components, boards, wire, and hardware")
             ui.element("div").classes("flex-1")
             def _new():
+                               """ do.
+                               
+                               Parameters
+                               ----------
+                               data : Any
+                                   data parameter.
+                               
+                               Returns
+                               -------
+                               Any
+                                   Function result.
+                               
+                               """
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data): Q.add_electronic(**data); notify_success("Added"); electronics_page(content_area)
                 _elec_dialog(_do)
             ui.button("+ Add Component", on_click=_new).classes("bg-blue-600 text-white rounded-lg px-4 py-2")
@@ -312,10 +580,57 @@ def electronics_page(content_area: ui.element) -> None:
                                     ui.label(f"${item['cost_each']:.2f} ea").classes("text-xs text-slate-400")
                             with ui.row().classes("gap-1 shrink-0"):
                                 def _e(it=item):
+                                                   """ do.
+                                                   
+                                                   Parameters
+                                                   ----------
+                                                   data : Any
+                                                       data parameter.
+                                                   
+                                                   Returns
+                                                   -------
+                                                   Any
+                                                       Function result.
+                                                   
+                                                   """
+                                    """ e.
+                                    
+                                    Parameters
+                                    ----------
+                                    it : Any
+                                        it parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(data): Q.update_electronic(it["id"], **data); notify_success("Updated"); electronics_page(content_area)
                                     _elec_dialog(_do, existing=it)
                                 ui.button("Edit", on_click=_e).props("flat dense").classes("text-blue-600 text-xs")
                                 def _d(it=item):
+                                               """ do.
+                                               
+                                               Returns
+                                               -------
+                                               Any
+                                                   Function result.
+                                               
+                                               """
+                                    """ d.
+                                    
+                                    Parameters
+                                    ----------
+                                    it : Any
+                                        it parameter.
+                                    
+                                    Returns
+                                    -------
+                                    Any
+                                        Function result.
+                                    
+                                    """
                                     def _do(): Q.delete_electronic(it["id"]); notify_success("Deleted"); electronics_page(content_area)
                                     confirm_dialog(f"Delete '{it['name']}'?", _do)
                                 ui.button("Del", on_click=_d).props("flat dense").classes("text-red-400 text-xs")
@@ -326,6 +641,22 @@ def electronics_page(content_area: ui.element) -> None:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ print job dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[560px] max-w-full"):
         ui.label("Edit Print Job" if is_edit else "Log Print Job").classes("text-xl font-bold text-slate-800")
@@ -359,6 +690,14 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
             def _save():
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 try: pr_id = pids[pnames.index(pr_sel.value)]
                 except (ValueError, IndexError): notify_error("Select a printer"); return
                 try: f_id = fids[fdescs.index(fil_sel.value)]
@@ -380,13 +719,47 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def print_jobs_page(content_area: ui.element) -> None:
+    """Print jobs page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
             section_header("3-D Print Jobs", "Log every print run with filament tracking and file attachment")
             ui.element("div").classes("flex-1")
             def _new():
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data):
+                    """ do.
+                    
+                    Parameters
+                    ----------
+                    data : Any
+                        data parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     try:
                         Q.add_print_job(**data)
                         notify_success("Print job logged")
@@ -432,6 +805,27 @@ def print_jobs_page(content_area: ui.element) -> None:
                     ui.label(str(job.get("printed_at",""))[:10]).classes("w-28 text-xs text-slate-400")
                     with ui.row().classes("w-20 gap-1 justify-end"):
                         def _del(j=job):
+                                       """ do.
+                                       
+                                       Returns
+                                       -------
+                                       Any
+                                           Function result.
+                                       
+                                       """
+                            """ del.
+                            
+                            Parameters
+                            ----------
+                            j : Any
+                                j parameter.
+                            
+                            Returns
+                            -------
+                            Any
+                                Function result.
+                            
+                            """
                             def _do(): Q.delete_print_job(j["id"]); notify_success("Deleted"); print_jobs_page(content_area)
                             confirm_dialog(f"Delete print job?", _do)
                         ui.button("Del", on_click=_del).props("flat dense").classes("text-red-400 text-xs")

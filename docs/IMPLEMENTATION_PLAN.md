@@ -3,69 +3,70 @@
 This document targets the six major remediation areas identified during the
 architecture audit.
 
+## Completed updates since initial plan
+
+- Added artifact-based ingestion and structured artifact naming conventions.
+- Added metadata governance controls, option catalogs, and admin backfill
+  actions for key normalization.
+- Added EPUB3/DAISY production workflow visibility and dashboard surfacing.
+- Reclassified DAISY Pipeline under Pipelines instead of QA Tooling.
+- Improved electronics inventory category UX to display empty categories and
+  support required inline category creation.
+
 ---
 
-# 1. UI Exposure
+## 1. UI Exposure
 
-## Goal
+### UI Exposure Goal
 
 Expose all metadata, workflow, and asset-management capabilities through the
 NiceGUI interface.
 
-## Required Work
+### Remaining Work
 
-- Add project management UI
-- Add asset browser
-- Add metadata editor
-- Add lineage explorer
-- Add workflow timeline visualization
-- Add inventory dashboards
-- Add fabrication dashboards
+- Expose the Asset Registry as a first-class page in the main app sidebar.
+- Add workflow timeline visualization in dashboard and job-level views.
+- Expand fabrication dashboards with trend/throughput views beyond current job lists.
 
-## Immediate Deliverables
+### Incomplete Deliverables
 
-- Asset Registry page
-- Workflow dashboard integration
-- Accessible sidebar navigation
+- Add direct sidebar entry for Asset Registry.
+- Add timeline widgets to production pages.
 
 ---
 
-# 2. CRUD Tooling
+## 2. CRUD Tooling
 
-## Goal
+### CRUD Tooling Goal
 
 Provide complete create/read/update/delete support for all workflow entities.
 
-## Required CRUD Domains
+### Remaining CRUD Domains
 
-| Domain | Priority |
-|---|---|
-| Projects | High |
-| Jobs | High |
-| Assets | High |
-| Metadata | High |
-| Inventory | High |
-| Workflow events | Medium |
-| Devices | Medium |
-| Deliveries | Medium |
+| Domain          | Priority |
+| --------------- | -------- |
+| Projects        | High     |
+| Assets          | High     |
+| Workflow events | Medium   |
+| Devices         | Medium   |
+| Deliveries      | Medium   |
 
-## Technical Direction
+### Remaining Technical Work
 
-- Centralized database service layer
-- Typed data access methods
-- Reusable NiceGUI forms
-- Validation logic
-- Accessible form labeling
+- Complete project CRUD in primary UI flows.
+- Complete asset CRUD integration from navigation and detail pages.
+- Add workflow event, device, and delivery CRUD UIs.
+- Add validation coverage for remaining CRUD domains.
 
 ---
 
-# 3. Workflow Orchestration
+## 3. Workflow Orchestration
 
-## Goal
+### Workflow Orchestration Goal
 
 Track all accessibility production steps from ingestion through delivery.
 
-## Workflow Domains
+### Workflow Domains
 
 ### Braille
 
@@ -95,7 +96,7 @@ Track all accessibility production steps from ingestion through delivery.
 - QA validation
 - Assembly tracking
 
-## Planned Features
+### Planned Features (Workflow)
 
 - Workflow timelines
 - Status transitions
@@ -105,13 +106,13 @@ Track all accessibility production steps from ingestion through delivery.
 
 ---
 
-# 4. Metadata Editing Interfaces
+## 4. Metadata Editing Interfaces
 
-## Goal
+### Metadata Editing Goal
 
 Support flexible metadata editing inspired by METS/PREMIS workflows.
 
-## Required Metadata Categories
+### Required Metadata Categories
 
 ### Descriptive
 
@@ -140,23 +141,21 @@ Support flexible metadata editing inspired by METS/PREMIS workflows.
 - Provenance
 - Derivative chains
 
-## Planned Features
+### Remaining Features (Metadata)
 
 - Dynamic metadata templates
-- JSON metadata editor
-- Structured validation
 - Metadata inheritance
 - Batch metadata editing
 
 ---
 
-# 5. File Ingestion Pipelines
+## 5. File Ingestion Pipelines
 
-## Goal
+### File Ingestion Goal
 
 Track all incoming and generated assets.
 
-## Supported Asset Types
+### Supported Asset Types
 
 - DOCX
 - PDF
@@ -170,25 +169,22 @@ Track all incoming and generated assets.
 - G-code
 - Images
 
-## Planned Features
+### Remaining Features (Ingestion)
 
-- File upload UI
 - Automatic metadata extraction
-- Checksum generation
-- MIME identification
 - Derivative generation tracking
 - OCR pipeline integration
 
 ---
 
-# 6. Lineage and Provenance Visualization
+## 6. Lineage and Provenance Visualization
 
-## Goal
+### Lineage and Provenance Goal
 
 Visualize relationships between source files, derivatives, workflow events,
 and physical outputs.
 
-## Planned Features
+### Planned Features (Lineage)
 
 - Asset graph visualization
 - Parent/child lineage trees

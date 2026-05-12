@@ -11,6 +11,28 @@ from .components import PRIORITY_COLORS, section_header
 
 
 def _stat_card(label: str, value: Any, color: str = "blue", icon: str = "") -> None:
+    """ stat card.
+    
+    Parameters
+    ----------
+    label : Any
+        label parameter.
+    
+    value : Any
+        value parameter.
+    
+    color : Any
+        color parameter.
+    
+    icon : Any
+        icon parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     colors = {
         "blue":   ("bg-blue-50",   "text-blue-600",   "border-blue-200"),
         "green":  ("bg-green-50",  "text-green-600",  "border-green-200"),
@@ -35,6 +57,37 @@ def _recent_job_card(
     job_type_label: str,
     type_key: str,
 ) -> None:
+    """ recent job card.
+    
+    Parameters
+    ----------
+    title : Any
+        title parameter.
+    
+    jobs : Any
+        jobs parameter.
+    
+    steps : Any
+        steps parameter.
+    
+    empty_text : Any
+        empty_text parameter.
+    
+    progress_color : Any
+        progress_color parameter.
+    
+    job_type_label : Any
+        job_type_label parameter.
+    
+    type_key : Any
+        type_key parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.card().classes(
         "flex-1 min-w-80 p-5 rounded-xl shadow-sm border border-slate-200"
     ):
@@ -65,6 +118,19 @@ def _recent_job_card(
 
 
 def dashboard_page(content_area: ui.element) -> None:
+    """Dashboard page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         section_header("Dashboard", "Overview of your accessibility materials studio")
@@ -72,6 +138,7 @@ def dashboard_page(content_area: ui.element) -> None:
         braille_jobs = Q.list_braille_jobs()
         lp_jobs = Q.list_lp_jobs("large_print")
         ebraille_jobs = Q.list_lp_jobs("ebraille")
+        epub3_daisy_jobs = Q.list_lp_jobs("epub3_daisy")
         tactile_jobs = Q.list_tactile_jobs()
         print_jobs = Q.list_print_jobs()
         filaments = Q.list_filaments()
@@ -94,13 +161,17 @@ def dashboard_page(content_area: ui.element) -> None:
             1 for j in ebraille_jobs
             if 0 < sum(j.get(s, 0) for s in lp_steps) < 5
         )
+        in_progress_epub3_daisy = sum(
+            1 for j in epub3_daisy_jobs
+            if 0 < sum(j.get(s, 0) for s in lp_steps) < 5
+        )
         tactile_steps = ["designed", "produced", "qa_reviewed", "delivered"]
         in_progress_tactile = sum(
             1 for j in tactile_jobs
             if 0 < sum(j.get(s, 0) for s in tactile_steps) < len(tactile_steps)
         )
         urgent = [
-            j for j in braille_jobs + lp_jobs + ebraille_jobs + tactile_jobs
+            j for j in braille_jobs + lp_jobs + ebraille_jobs + epub3_daisy_jobs + tactile_jobs
             if j.get("priority") == "urgent"
         ]
         low_filament = [f for f in filaments if f.get("quantity_g", 0) < 100]
@@ -111,16 +182,43 @@ def dashboard_page(content_area: ui.element) -> None:
             _stat_card("Braille Jobs",    len(braille_jobs),           "purple", "⠿")
             _stat_card(
                 "In Progress",
-                in_progress_b + in_progress_lp + in_progress_ebraille + in_progress_tactile,
+                in_progress_b + in_progress_lp + in_progress_ebraille + in_progress_epub3_daisy + in_progress_tactile,
                 "blue",
                 "⏳",
             )
             _stat_card("Large Print",     len(lp_jobs),                "green",  "🔠")
             _stat_card("eBraille",        len(ebraille_jobs),          "green",  "⠮")
+            _stat_card("EPUB3/DAISY",     len(epub3_daisy_jobs),       "green",  "📚")
             _stat_card("Tactile",         len(tactile_jobs),           "red",    "▦")
             _stat_card("Print Jobs",      len(print_jobs),             "amber",  "🖨️")
             _stat_card("Urgent",          len(urgent),                 "red",    "🚨")
             _stat_card("Low Stock",       len(low_filament) + len(low_paper), "amber", "⚠️")
+
+        # ── Home quick-launch ────────────────────────────────────────────────
+        with ui.card().classes(
+            "mb-6 p-5 rounded-xl shadow-sm border border-slate-200"
+        ):
+            ui.label("Quick Launch").classes("text-base font-semibold text-slate-700 mb-2")
+            ui.label("Jump directly to key production job pages.").classes(
+                "text-sm text-slate-500 mb-3"
+            )
+
+            with ui.row().classes("gap-2 flex-wrap"):
+                ui.button("Braille Jobs", on_click=lambda: __import__(
+                    "accessibility_mgr.ui.braille_jobs", fromlist=["braille_jobs_page"]
+                ).braille_jobs_page(content_area)).classes("bg-indigo-600 text-white")
+                ui.button("Large Print Jobs", on_click=lambda: __import__(
+                    "accessibility_mgr.ui.lp_ebraille", fromlist=["large_print_jobs_page"]
+                ).large_print_jobs_page(content_area)).classes("bg-green-600 text-white")
+                ui.button("eBraille Jobs", on_click=lambda: __import__(
+                    "accessibility_mgr.ui.lp_ebraille", fromlist=["ebraille_jobs_page"]
+                ).ebraille_jobs_page(content_area)).classes("bg-emerald-600 text-white")
+                ui.button("EPUB3 / DAISY Jobs", on_click=lambda: __import__(
+                    "accessibility_mgr.ui.lp_ebraille", fromlist=["epub3_daisy_jobs_page"]
+                ).epub3_daisy_jobs_page(content_area)).classes("bg-teal-600 text-white")
+                ui.button("Tactile Graphics", on_click=lambda: __import__(
+                    "accessibility_mgr.ui.tactile_graphics", fromlist=["tactile_graphics_page"]
+                ).tactile_graphics_page(content_area)).classes("bg-rose-600 text-white")
 
         # ── Inventory alerts ───────────────────────────────────────────────
         with ui.card().classes(
@@ -180,6 +278,15 @@ def dashboard_page(content_area: ui.element) -> None:
                 "No eBraille jobs yet.",
                 "bg-purple-500",
                 "eBraille",
+                "job_type",
+            )
+            _recent_job_card(
+                "Recent EPUB3 / DAISY Jobs",
+                epub3_daisy_jobs,
+                lp_steps,
+                "No EPUB3 / DAISY jobs yet.",
+                "bg-teal-500",
+                "EPUB3 / DAISY",
                 "job_type",
             )
             _recent_job_card(

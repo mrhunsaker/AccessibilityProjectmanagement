@@ -15,6 +15,22 @@ from .components import notify_error, notify_success, section_header
 
 
 def _tool_card(tool: QATool, result_area: ui.element) -> None:
+    """ tool card.
+    
+    Parameters
+    ----------
+    tool : Any
+        tool parameter.
+    
+    result_area : Any
+        result_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     available = tool.is_available()
     border = "border-slate-200" if available else "border-amber-200 bg-amber-50"
     with ui.card().classes(f"p-4 rounded-xl border {border} w-full"):
@@ -37,6 +53,19 @@ def _tool_card(tool: QATool, result_area: ui.element) -> None:
             with ui.column().classes("gap-2 shrink-0"):
                 # Run button
                 def _run(t: QATool = tool) -> None:
+                    """ run.
+                    
+                    Parameters
+                    ----------
+                    t : Any
+                        t parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     _run_tool_dialog(t, result_area)
 
                 ui.button("▶ Run Validation", on_click=_run).classes(
@@ -45,6 +74,19 @@ def _tool_card(tool: QATool, result_area: ui.element) -> None:
 
                 # History button
                 def _hist(t: QATool = tool) -> None:
+                    """ hist.
+                    
+                    Parameters
+                    ----------
+                    t : Any
+                        t parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     _show_history(t.name, result_area)
 
                 ui.button("📋 View History", on_click=_hist).props("flat dense").classes(
@@ -53,6 +95,22 @@ def _tool_card(tool: QATool, result_area: ui.element) -> None:
 
 
 def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
+    """ run tool dialog.
+    
+    Parameters
+    ----------
+    tool : Any
+        tool parameter.
+    
+    result_area : Any
+        result_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[540px] max-w-full"):
         ui.label(f"Run: {tool.name}").classes("text-xl font-bold text-slate-800")
         ui.label(tool.description).classes("text-sm text-slate-500")
@@ -68,6 +126,14 @@ def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
             spinner_holder: list[ui.element] = []
 
             def _execute() -> None:
+                """ execute.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 dlg.close()
                 result_area.clear()
                 with result_area:
@@ -81,6 +147,14 @@ def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
                         spinner_holder.append(spin)
 
                 def _do() -> None:
+                    """ do.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     result = QAService.run_tool(
                         tool.name, input_path=input_path.value.strip()
                     )
@@ -97,6 +171,22 @@ def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
 
 
 def _render_result(tool_name: str, result: object) -> None:
+    """ render result.
+    
+    Parameters
+    ----------
+    tool_name : Any
+        tool_name parameter.
+    
+    result : Any
+        result parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     success = getattr(result, "success", False)
     output = getattr(result, "output", "")
     command = getattr(result, "command", "")
@@ -115,6 +205,22 @@ def _render_result(tool_name: str, result: object) -> None:
 
 
 def _show_history(tool_name: str, result_area: ui.element) -> None:
+    """ show history.
+    
+    Parameters
+    ----------
+    tool_name : Any
+        tool_name parameter.
+    
+    result_area : Any
+        result_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     runs = Q.list_qa_runs(tool_name=tool_name, limit=20)
     result_area.clear()
     with result_area:

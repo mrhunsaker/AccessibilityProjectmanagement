@@ -41,11 +41,40 @@ def progress_bar(done: int, total: int) -> None:
 
 
 def priority_badge(priority: str) -> None:
+    """Priority badge.
+    
+    Parameters
+    ----------
+    priority : Any
+        priority parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     cls = PRIORITY_COLORS.get(priority, "bg-slate-400 text-white")
     ui.badge(priority.upper()).classes(f"text-xs px-2 py-0.5 rounded {cls}")
 
 
 def status_chip(label: str, done: bool) -> None:
+    """Status chip.
+    
+    Parameters
+    ----------
+    label : Any
+        label parameter.
+    
+    done : Any
+        done parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     if done:
         ui.badge("✓ " + label).classes(
             "bg-green-100 text-green-800 text-xs rounded px-2 py-0.5"
@@ -59,6 +88,25 @@ def confirm_dialog(
     on_confirm: Callable[[], None],
     title: str = "Confirm",
 ) -> None:
+    """Confirm dialog.
+    
+    Parameters
+    ----------
+    message : Any
+        message parameter.
+    
+    on_confirm : Any
+        on_confirm parameter.
+    
+    title : Any
+        title parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.dialog() as dialog, ui.card().classes("p-6 gap-4 min-w-80"):
         ui.label(title).classes("text-lg font-semibold text-slate-800")
         ui.label(message).classes("text-slate-600")
@@ -68,6 +116,14 @@ def confirm_dialog(
             )
 
             def _do() -> None:
+                """ do.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 dialog.close()
                 on_confirm()
 
@@ -76,6 +132,22 @@ def confirm_dialog(
 
 
 def section_header(title: str, subtitle: str = "") -> None:
+    """Section header.
+    
+    Parameters
+    ----------
+    title : Any
+        title parameter.
+    
+    subtitle : Any
+        subtitle parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.column().classes("gap-1 mb-2"):
         ui.label(title).classes("text-2xl font-bold text-slate-800 tracking-tight")
         if subtitle:
@@ -83,19 +155,66 @@ def section_header(title: str, subtitle: str = "") -> None:
 
 
 def notify_success(msg: str) -> None:
+    """Notify success.
+    
+    Parameters
+    ----------
+    msg : Any
+        msg parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.notify(msg, type="positive", position="top-right")
 
 
 def notify_error(msg: str) -> None:
+    """Notify error.
+    
+    Parameters
+    ----------
+    msg : Any
+        msg parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.notify(msg, type="negative", position="top-right")
 
 
 def file_use_badge(file_use: str) -> None:
+    """File use badge.
+    
+    Parameters
+    ----------
+    file_use : Any
+        file_use parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     cls = FILE_USE_COLORS.get(file_use, "bg-slate-100 text-slate-600")
     ui.badge(file_use).classes(f"text-xs px-2 py-0.5 rounded {cls}")
 
 
 def card_row(*labels: tuple[str, Any], cls: str = "") -> None:
+    """Card row.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     with ui.row().classes(f"gap-6 flex-wrap {cls}"):
         for key, val in labels:
             with ui.column().classes("gap-0"):

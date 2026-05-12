@@ -1,9 +1,20 @@
+"""Authentication module.
+
+"""
 from nicegui import ui
 
 from ..services.auth_service import AuthService
 
 
 def authentication_page() -> None:
+    """Authentication page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("Authentication and RBAC").classes("text-2xl font-bold")
 
     current = ui.label(
@@ -15,6 +26,14 @@ def authentication_page() -> None:
     selector = ui.select(usernames, value=usernames[0])
 
     def switch():
+        """Switch.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         AuthService.switch_user(selector.value)
         current.set_text(
             f"Current User: {AuthService.current_user.username}"

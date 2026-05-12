@@ -1,3 +1,6 @@
+"""File ingestion service module.
+
+"""
 from __future__ import annotations
 
 import hashlib
@@ -7,8 +10,23 @@ from .assets_service import AssetService
 
 
 class FileIngestionService:
+    """Service helpers for file checksum and ingestion registration."""
+
     @staticmethod
     def calculate_checksum(path: str) -> str:
+        """Calculate checksum.
+        
+        Parameters
+        ----------
+        path : Any
+            path parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         sha256 = hashlib.sha256()
 
         with open(path, "rb") as file_handle:
@@ -22,6 +40,22 @@ class FileIngestionService:
         file_path: str,
         asset_type: str,
     ):
+        """Ingest file.
+        
+        Parameters
+        ----------
+        file_path : Any
+            file_path parameter.
+        
+        asset_type : Any
+            asset_type parameter.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         path = Path(file_path)
 
         checksum = FileIngestionService.calculate_checksum(file_path)

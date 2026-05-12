@@ -8,10 +8,213 @@ from typing import Optional
 from nicegui import ui
 
 from ..db import queries as Q
+from .metadata_options import (
+    get_dublin_core_examples,
+    get_dublin_core_keys,
+    get_non_dc_allowed_keys,
+    get_option_groups,
+)
 from .components import confirm_dialog, notify_error, notify_success, section_header
 
 
+def _metadata_dialog(print_job_id: int, on_done) -> None:
+    """ metadata dialog.
+    
+    Parameters
+    ----------
+    print_job_id : Any
+        print_job_id parameter.
+    
+    on_done : Any
+        on_done parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
+    existing_meta = Q.list_job_metadata("print", print_job_id)
+    option_groups = get_option_groups()
+    dc_keys = get_dublin_core_keys()
+    dc_examples = get_dublin_core_examples()
+    non_dc_keys = get_non_dc_allowed_keys()
+
+    with ui.dialog() as dlg, ui.card().classes(
+        "p-6 gap-4 w-[600px] max-w-full max-h-[90vh] overflow-y-auto"
+    ):
+        ui.label("Descriptive Metadata").classes("text-xl font-bold text-slate-800")
+        ui.label(
+            "Dublin Core plus controlled eBraille and METS/PREMIS fields."
+        ).classes("text-slate-500 text-sm")
+
+        def _show_options() -> None:
+            """ show options.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with ui.dialog() as od, ui.card().classes(
+                "p-5 gap-3 w-[720px] max-w-full max-h-[85vh] overflow-y-auto"
+            ):
+                ui.label("Potential Metadata Options").classes("text-lg font-bold text-slate-800")
+                ui.label(
+                    "Use Admin Settings -> Metadata Options to add or remove allowed keys."
+                ).classes("text-xs text-slate-500")
+
+                for group, keys in option_groups.items():
+                    ui.separator()
+                    ui.label(group).classes(
+                        "text-sm font-semibold text-slate-600 uppercase tracking-wider"
+                    )
+                    with ui.row().classes("gap-2 flex-wrap"):
+                        for key in keys:
+                            ui.badge(key).classes(
+                                "bg-slate-100 text-slate-700 text-xs rounded px-2 py-1"
+                            )
+
+                with ui.row().classes("justify-end mt-2"):
+                    ui.button("Close", on_click=od.close).classes("bg-slate-700 text-white")
+
+            od.open()
+
+        ui.button("Potential Options", on_click=_show_options).props("flat dense").classes(
+            "text-indigo-600 text-sm self-start"
+        )
+
+        meta_rows: dict[str, ui.input] = {}
+        with ui.grid(columns=2).classes("gap-2 w-full"):
+            for key in dc_keys:
+                with ui.column().classes("gap-0"):
+                    inp = ui.input(key, value=existing_meta.get(key, "")).classes(
+                        "w-full font-mono text-sm"
+                    )
+                    ui.label(dc_examples.get(key, "")).classes(
+                        "text-[11px] text-slate-400"
+                    )
+                    meta_rows[key] = inp
+
+        ui.separator()
+        ui.label("Additional Allowed Fields").classes("text-sm font-medium text-slate-600")
+        ui.label(
+            "Choose keys from the approved eBraille and METS/PREMIS list."
+        ).classes("text-xs text-slate-400")
+
+        extra_rows: list[dict[str, ui.element]] = []
+        extra_box = ui.column().classes("w-full gap-2")
+
+        def _add_extra_row(initial_key: str = "", initial_val: str = "") -> None:
+            """ add extra row.
+            
+            Parameters
+            ----------
+            initial_key : Any
+                initial_key parameter.
+            
+            initial_val : Any
+                initial_val parameter.
+            
+            Returns
+            -------
+            Any
+                Function result.
+            
+            """
+            with extra_box:
+                with ui.row().classes("gap-2 w-full items-center") as row:
+                    key_sel = ui.select(
+                        non_dc_keys,
+                        label="Key",
+                        value=initial_key if initial_key in non_dc_keys else None,
+                    ).classes("w-64")
+                    val_inp = ui.input("Value", value=initial_val).classes("flex-1")
+                    ref = {"row": row, "key": key_sel, "value": val_inp}
+                    extra_rows.append(ref)
+
+                    def _remove(r: dict[str, ui.element] = ref) -> None:
+                        """ remove.
+                        
+                        Parameters
+                        ----------
+                        r : Any
+                            r parameter.
+                        
+                        Returns
+                        -------
+                        Any
+                            Function result.
+                        
+                        """
+                        r["row"].delete()
+                        if r in extra_rows:
+                            extra_rows.remove(r)
+
+                    ui.button("✕", on_click=_remove).props("flat dense").classes("text-red-400")
+
+        ui.button("+ Add Field", on_click=lambda: _add_extra_row()).props("flat dense").classes(
+            "text-indigo-600 text-sm self-start"
+        )
+
+        for key, value in existing_meta.items():
+            if key not in dc_keys and key in non_dc_keys:
+                _add_extra_row(initial_key=key, initial_val=value)
+
+        with ui.row().classes("justify-end gap-3 mt-4"):
+            ui.button("Close", on_click=dlg.close).props("flat").classes("text-slate-500")
+
+            def _save_all() -> None:
+                """ save all.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
+                for key, inp in meta_rows.items():
+                    v = inp.value.strip()
+                    if v:
+                        Q.set_job_metadata("print", print_job_id, key, v)
+                    else:
+                        Q.delete_job_metadata("print", print_job_id, key)
+
+                for key in non_dc_keys:
+                    Q.delete_job_metadata("print", print_job_id, key)
+                for row in extra_rows:
+                    k = (row["key"].value or "").strip()
+                    v = (row["value"].value or "").strip()
+                    if k and v and k in non_dc_keys:
+                        Q.set_job_metadata("print", print_job_id, k, v)
+
+                notify_success("Metadata saved")
+                dlg.close()
+                on_done()
+
+            ui.button("Save All", on_click=_save_all).classes("bg-blue-600 text-white")
+
+    dlg.open()
+
+
 def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
+    """ print job dialog.
+    
+    Parameters
+    ----------
+    on_save : Any
+        on_save parameter.
+    
+    existing : Any
+        existing parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[560px] max-w-full"):
         ui.label("Edit Print Job" if is_edit else "Log Print Job").classes(
@@ -71,6 +274,14 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
+                """ save.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not pnames:
                     notify_error("No printers configured. Add one in Admin Settings first.")
                     return
@@ -105,6 +316,19 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def print_jobs_page(content_area: ui.element) -> None:
+    """Print jobs page.
+    
+    Parameters
+    ----------
+    content_area : Any
+        content_area parameter.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -115,7 +339,28 @@ def print_jobs_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
+                """ new.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 def _do(data: dict) -> None:
+                    """ do.
+                    
+                    Parameters
+                    ----------
+                    data : Any
+                        data parameter.
+                    
+                    Returns
+                    -------
+                    Any
+                        Function result.
+                    
+                    """
                     try:
                         Q.add_print_job(**data)
                         notify_success("Print job logged")
@@ -192,9 +437,55 @@ def print_jobs_page(content_area: ui.element) -> None:
                         "w-28 text-xs text-slate-400"
                     )
                     with ui.row().classes("w-20 gap-1 justify-end"):
+                        def _meta(j: dict = job) -> None:
+                            """ meta.
+                            
+                            Parameters
+                            ----------
+                            j : Any
+                                j parameter.
+                            
+                            Returns
+                            -------
+                            Any
+                                Function result.
+                            
+                            """
+                            _metadata_dialog(j["id"], lambda: print_jobs_page(content_area))
+
+                        ui.button("Meta", on_click=_meta).props("flat dense").classes(
+                            "text-indigo-600 text-xs"
+                        )
+
                         def _edit(j: dict = job) -> None:
+                            """ edit.
+                            
+                            Parameters
+                            ----------
+                            j : Any
+                                j parameter.
+                            
+                            Returns
+                            -------
+                            Any
+                                Function result.
+                            
+                            """
                             def _do(data: dict) -> None:
                                 # Recalculate filament delta on edit
+                                """ do.
+                                
+                                Parameters
+                                ----------
+                                data : Any
+                                    data parameter.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
                                 old_grams = float(j.get("filament_used_g") or 0)
                                 new_grams = float(data.get("filament_used_g") or 0)
                                 delta = new_grams - old_grams
@@ -216,7 +507,28 @@ def print_jobs_page(content_area: ui.element) -> None:
                         )
 
                         def _del(j: dict = job) -> None:
+                            """ del.
+                            
+                            Parameters
+                            ----------
+                            j : Any
+                                j parameter.
+                            
+                            Returns
+                            -------
+                            Any
+                                Function result.
+                            
+                            """
                             def _do() -> None:
+                                """ do.
+                                
+                                Returns
+                                -------
+                                Any
+                                    Function result.
+                                
+                                """
                                 Q.delete_print_job(j["id"])
                                 notify_success("Deleted")
                                 print_jobs_page(content_area)

@@ -1,3 +1,6 @@
+"""Workflow printing module.
+
+"""
 from nicegui import ui
 
 from ..services.assets_service import AssetService
@@ -14,6 +17,14 @@ PRINT_STAGES = [
 
 
 def workflow_printing_page() -> None:
+    """Workflow printing page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("3D Printing Workflow Execution").classes(
         "text-2xl font-bold"
     )
@@ -30,6 +41,19 @@ def workflow_printing_page() -> None:
         for stage in PRINT_STAGES:
 
             def execute(current_stage=stage):
+                """Execute.
+                
+                Parameters
+                ----------
+                current_stage : Any
+                    current_stage parameter.
+                
+                Returns
+                -------
+                Any
+                    Function result.
+                
+                """
                 if not selected_asset.value:
                     ui.notify("Select an asset first")
                     return

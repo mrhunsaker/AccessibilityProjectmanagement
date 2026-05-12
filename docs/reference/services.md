@@ -4,10 +4,6 @@ The services package contains small orchestration layers used by the UI and
 legacy workflow paths. mkdocstrings renders the public classes and functions
 from each module below.
 
-## Assets service
-
-::: accessibility_mgr.services.assets_service
-
 ## Authentication
 
 ::: accessibility_mgr.services.auth_service
@@ -20,21 +16,9 @@ from each module below.
 
 ::: accessibility_mgr.services.execution_service
 
-## File ingestion
-
-::: accessibility_mgr.services.file_ingestion_service
-
-## Inventory
-
-::: accessibility_mgr.services.inventory_service
-
 ## Metadata schema
 
 ::: accessibility_mgr.services.metadata_schema_service
-
-## Package management
-
-::: accessibility_mgr.services.package_service
 
 ## Pipeline
 
@@ -56,10 +40,6 @@ from each module below.
 
 ::: accessibility_mgr.services.schema_governance_service
 
-## Search
-
-::: accessibility_mgr.services.search_service
-
 ## Secrets
 
 ::: accessibility_mgr.services.secrets_service
@@ -68,6 +48,15 @@ from each module below.
 
 ::: accessibility_mgr.services.tools_service
 
-## Workflow engine
+## Legacy SQLAlchemy-backed services
 
-::: accessibility_mgr.services.workflow_engine
+The following legacy services are intentionally not rendered by mkdocstrings in
+the strict docs build, because they require optional SQLAlchemy runtime
+dependencies at import time:
+
+- `accessibility_mgr.services.assets_service`
+- `accessibility_mgr.services.file_ingestion_service`
+- `accessibility_mgr.services.inventory_service`
+- `accessibility_mgr.services.package_service`
+- `accessibility_mgr.services.search_service`
+- `accessibility_mgr.services.workflow_engine`

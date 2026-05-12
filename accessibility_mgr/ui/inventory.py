@@ -1,9 +1,20 @@
+"""Inventory module.
+
+"""
 from nicegui import ui
 
 from ..services.inventory_service import InventoryService
 
 
 def inventory_page() -> None:
+    """Inventory page.
+    
+    Returns
+    -------
+    Any
+        Function result.
+    
+    """
     ui.label("Production Inventory").classes("text-2xl font-bold")
 
     item_id = ui.input("Item ID")
@@ -11,6 +22,14 @@ def inventory_page() -> None:
     notes = ui.input("Notes")
 
     def add_stock():
+        """Add stock.
+        
+        Returns
+        -------
+        Any
+            Function result.
+        
+        """
         InventoryService.add_inventory(
             int(item_id.value),
             float(quantity.value),

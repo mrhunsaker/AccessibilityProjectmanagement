@@ -10,13 +10,27 @@ This project is organized into a small number of layers so that the UI, data acc
 
 [`accessibility_mgr.db.schema`](reference/database.md) owns schema creation and database bootstrap behavior. [`accessibility_mgr.db.queries`](reference/database.md) holds the SQL data-access API used by the UI and services.
 
+The data layer also defines lookup categories and metadata option sets used by
+inventory, metadata editing, and workflow UIs.
+
 ## Services layer
 
 [`accessibility_mgr.services.workflow_engine`](reference/services.md) contains legacy workflow validation helpers. [`accessibility_mgr.services.tools_service`](reference/services.md) normalizes external command paths for docs, validation, and accessibility tooling.
 
+Pipeline orchestration is handled by the pipeline services; DAISY Pipeline is
+registered in the Pipelines domain rather than QA Tooling.
+
 ## UI layer
 
 The pages under [`accessibility_mgr.ui`](reference/ui.md) implement the dashboard, inventory management, production workflows, search, metadata editing, QA, and administration screens.
+
+Recent UI behavior includes:
+
+- Artifact-targeted ingestion forms using project metadata.
+- Controlled metadata editing with governed options and examples.
+- EPUB3/DAISY job flows under production pages.
+- Electronics inventory category rendering for both populated and empty
+  categories, including inline category creation support.
 
 ## Legacy data models
 
