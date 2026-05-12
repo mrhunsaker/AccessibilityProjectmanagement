@@ -3,6 +3,7 @@ Accessibility Project Manager — NiceGUI application entry point.
 
 All pages are registered here in PAGE_DEFINITIONS and rendered via the
 sidebar.  The database is initialised once on startup via db.schema.init_db().
+The weekly backup scheduler is started immediately after init_db().
 """
 
 from __future__ import annotations
@@ -17,19 +18,17 @@ from nicegui import ui
 
 from accessibility_mgr.db.schema import init_db
 from accessibility_mgr.services import tools_service
+from accessibility_mgr.services.backup_service import BackupService
 
 APP_TITLE = "Accessibility Document Generation Project Manager"
 
 # ── Page registry ─────────────────────────────────────────────────────────────
-# Each entry: name, icon (Material), module, function, description, group.
-# Groups determine sidebar sections.
-
 PAGE_DEFINITIONS: list[dict] = [
     # ── Overview ──────────────────────────────────────────────────────────────
     {
         "name": "Dashboard",
         "icon": "dashboard",
-        "module": "ui.dashboard",
+        "module": "accessibility_mgr.ui.dashboard",
         "function": "dashboard_page",
         "description": "Studio overview and active work summary",
         "group": "Overview",
@@ -37,7 +36,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Search",
         "icon": "search",
-        "module": "ui.search",
+        "module": "accessibility_mgr.ui.search",
         "function": "search_page",
         "description": "Search jobs, files, and metadata",
         "group": "Overview",
@@ -46,7 +45,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Braille Jobs",
         "icon": "article",
-        "module": "ui.braille_jobs",
+        "module": "accessibility_mgr.ui.braille_jobs",
         "function": "braille_jobs_page",
         "description": "Braille transcription workflow tracking",
         "group": "Production",
@@ -54,7 +53,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Large Print Jobs",
         "icon": "format_size",
-        "module": "ui.lp_ebraille",
+        "module": "accessibility_mgr.ui.lp_ebraille",
         "function": "large_print_jobs_page",
         "description": "Large print workflow tracking",
         "group": "Production",
@@ -62,7 +61,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "eBraille Jobs",
         "icon": "menu_book",
-        "module": "ui.lp_ebraille",
+        "module": "accessibility_mgr.ui.lp_ebraille",
         "function": "ebraille_jobs_page",
         "description": "eBraille workflow tracking",
         "group": "Production",
@@ -70,7 +69,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Tactile Graphics",
         "icon": "texture",
-        "module": "ui.tactile_graphics",
+        "module": "accessibility_mgr.ui.tactile_graphics",
         "function": "tactile_graphics_page",
         "description": "Thermoform, hand-tooled, and embossed figure tracking",
         "group": "Production",
@@ -78,7 +77,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "3-D Print Jobs",
         "icon": "print",
-        "module": "ui.print_jobs",
+        "module": "accessibility_mgr.ui.print_jobs",
         "function": "print_jobs_page",
         "description": "3-D fabrication job tracking",
         "group": "Production",
@@ -87,7 +86,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Filament",
         "icon": "cable",
-        "module": "ui.inventory_panels",
+        "module": "accessibility_mgr.ui.inventory_panels",
         "function": "filament_page",
         "description": "3-D printer filament inventory",
         "group": "Inventory",
@@ -95,7 +94,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Braille Paper",
         "icon": "inventory_2",
-        "module": "ui.inventory_panels",
+        "module": "accessibility_mgr.ui.inventory_panels",
         "function": "paper_page",
         "description": "Braille paper and label stock",
         "group": "Inventory",
@@ -103,7 +102,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Electronics",
         "icon": "memory",
-        "module": "ui.inventory_panels",
+        "module": "accessibility_mgr.ui.inventory_panels",
         "function": "electronics_page",
         "description": "Electronics and assembly components",
         "group": "Inventory",
@@ -112,7 +111,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "File Ingestion",
         "icon": "upload_file",
-        "module": "ui.ingestion",
+        "module": "accessibility_mgr.ui.ingestion",
         "function": "ingestion_page",
         "description": "Preservation-aware file ingestion",
         "group": "Metadata & Files",
@@ -120,7 +119,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Metadata Editor",
         "icon": "edit_note",
-        "module": "ui.metadata_editor",
+        "module": "accessibility_mgr.ui.metadata_editor",
         "function": "metadata_editor_page",
         "description": "Dublin Core and custom metadata editing",
         "group": "Metadata & Files",
@@ -128,7 +127,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Lineage Viewer",
         "icon": "share",
-        "module": "ui.lineage",
+        "module": "accessibility_mgr.ui.lineage",
         "function": "lineage_page",
         "description": "File lineage and provenance graph",
         "group": "Metadata & Files",
@@ -137,7 +136,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "QA Tooling",
         "icon": "verified",
-        "module": "ui.qa",
+        "module": "accessibility_mgr.ui.qa",
         "function": "qa_page",
         "description": "Accessibility validation tools",
         "group": "QA & Automation",
@@ -145,7 +144,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Pipelines",
         "icon": "account_tree",
-        "module": "ui.pipelines",
+        "module": "accessibility_mgr.ui.pipelines",
         "function": "pipelines_page",
         "description": "Multi-stage workflow automation",
         "group": "QA & Automation",
@@ -154,7 +153,7 @@ PAGE_DEFINITIONS: list[dict] = [
     {
         "name": "Admin Settings",
         "icon": "settings",
-        "module": "ui.admin",
+        "module": "accessibility_mgr.ui.admin",
         "function": "admin_page",
         "description": "Material categories, steps, printers, and embossers",
         "group": "Admin",
@@ -181,8 +180,10 @@ for _defn in PAGE_DEFINITIONS:
         print(f"[app] WARNING: handler not found for {_defn['name']}")
 
 
+# ── Startup ───────────────────────────────────────────────────────────────────
 tools_service.bootstrap()
 init_db()
+BackupService.start()   # weekly background backup scheduler
 
 
 # ── Rendering ─────────────────────────────────────────────────────────────────
@@ -201,17 +202,16 @@ def render_page(content: ui.column, page: dict) -> None:
         import traceback
         content.clear()
         with content, ui.card().classes("w-full border border-red-200 bg-red-50 p-4 rounded-xl"):
-                ui.label(f"Error loading '{page['name']}'").classes(
-                    "text-red-700 font-semibold"
-                )
-                ui.label(str(exc)).classes("text-sm text-red-600 mt-1")
-                ui.code(traceback.format_exc()).classes("text-xs mt-2 overflow-auto max-h-48")
+            ui.label(f"Error loading '{page['name']}'").classes("text-red-700 font-semibold")
+            ui.label(str(exc)).classes("text-sm text-red-600 mt-1")
+            ui.code(traceback.format_exc()).classes("text-xs mt-2 overflow-auto max-h-48")
 
 
-# ── Shutdown handler ─────────────────────────────────────────────────────────
+# ── Shutdown handler ──────────────────────────────────────────────────────────
 
 def _shutdown() -> None:
-    """Gracefully shutdown the app."""
+    """Gracefully stop the backup scheduler and shut down the app."""
+    BackupService.stop()
     ui.notify("Shutting down...", position="top")
     nicegui_app.shutdown()
 
@@ -222,13 +222,12 @@ def _shutdown() -> None:
 def index() -> None:
     ui.page_title(APP_TITLE)
 
-    # Group pages by their group label
     groups: dict[str, list[dict]] = {}
     for page in PAGES:
         groups.setdefault(page["group"], []).append(page)
 
     with ui.column().classes("w-full h-[100dvh] overflow-hidden min-h-0"):
-        # ── Header with shutdown button ───────────────────────────────────────
+        # ── Header ────────────────────────────────────────────────────────────
         with ui.row().classes(
             "w-full bg-white border-b border-slate-200 px-6 py-3 items-center justify-end shadow-sm"
         ):
@@ -241,7 +240,7 @@ def index() -> None:
 
         with ui.row().classes("flex-1 w-full no-wrap overflow-hidden min-h-0"):
 
-            # ── Sidebar ───────────────────────────────────────────────────────────
+            # ── Sidebar ───────────────────────────────────────────────────────
             with ui.column().classes(
                 "h-full bg-slate-900 text-white p-4 gap-1 shadow-xl overflow-y-auto min-h-0"
             ).style("min-width:240px; max-width:240px"):
@@ -261,20 +260,17 @@ def index() -> None:
                     for page in group_pages:
                         def _make_click(p: dict) -> Callable:
                             def _click() -> None:
-                                # Reset all buttons
                                 for b in btn_refs.values():
                                     b.classes(
                                         remove="bg-slate-700 text-white",
                                         add="text-slate-300",
                                     )
-                                # Highlight active
                                 btn_refs[p["name"]].classes(
                                     remove="text-slate-300",
                                     add="bg-slate-700 text-white",
                                 )
                                 active_page[0] = p
                                 render_page(content_area, p)
-
                             return _click
 
                         btn = (
@@ -291,13 +287,12 @@ def index() -> None:
                         )
                         btn_refs[page["name"]] = btn
 
-            # ── Content area ──────────────────────────────────────────────────────
+            # ── Content area ──────────────────────────────────────────────────
             with ui.column().classes(
                 "flex-1 h-full overflow-auto bg-slate-50 min-h-0"
             ):
                 content_area = ui.column().classes("w-full p-6 pb-20 gap-4 min-h-0")
 
-                # Render first page on load
                 if PAGES:
                     first = PAGES[0]
                     btn_refs[first["name"]].classes(
@@ -308,7 +303,8 @@ def index() -> None:
 
         # ── Footer ────────────────────────────────────────────────────────────
         with ui.row().classes(
-            "w-full shrink-0 items-center justify-between gap-4 border-t border-slate-200 bg-white px-6 py-3 text-xs text-slate-500"
+            "w-full shrink-0 items-center justify-between gap-4 border-t border-slate-200 "
+            "bg-white px-6 py-3 text-xs text-slate-500"
         ):
             ui.link(
                 "Repository",
@@ -322,7 +318,7 @@ def index() -> None:
 
 
 def main() -> None:
-    """Console-script entry point for `uv run AccessMan`."""
+    """Console-script entry point for ``uv run AccessMan``."""
     favicon_path = Path(__file__).parent.parent / "resources/icons/favicon.svg"
     ui.run(
         title=APP_TITLE,

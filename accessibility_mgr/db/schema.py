@@ -22,6 +22,7 @@ from pathlib import Path
 DB_PATH    = Path(__file__).parent.parent / "accessibility_manager.db"
 PRINTS_DIR = Path(__file__).parent.parent / "prints_files"
 FILES_DIR  = Path(__file__).parent.parent / "job_files"
+BACKUPS_DIR = Path(__file__).parent.parent / "backups"
 
 
 @contextmanager
@@ -88,14 +89,16 @@ CREATE TABLE IF NOT EXISTS electronics (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- PRINTERS
+-- PRINTERS & EMBOSSERS
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS printer (
-    id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    name  TEXT NOT NULL UNIQUE,
-    model TEXT,
-    notes TEXT
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    model      TEXT,
+    notes      TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS embosser (
@@ -103,7 +106,9 @@ CREATE TABLE IF NOT EXISTS embosser (
     name       TEXT NOT NULL UNIQUE,
     model      TEXT,
     paper_type TEXT,
-    notes      TEXT
+    notes      TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 -- ═══════════════════════════════════════════════════════════════
@@ -303,6 +308,7 @@ CREATE TABLE IF NOT EXISTS material_category (
     UNIQUE(section, value)
 );
 
+-- workflow_step now includes updated_at for consistency with all other mutable tables
 CREATE TABLE IF NOT EXISTS workflow_step (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     job_type    TEXT NOT NULL,
@@ -314,6 +320,19 @@ CREATE TABLE IF NOT EXISTS workflow_step (
     created_at  TEXT DEFAULT (datetime('now')),
     updated_at  TEXT DEFAULT (datetime('now')),
     UNIQUE(job_type, step_key)
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- BACKUP LOG (tracks automated and manual backup runs)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS backup_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    backup_path TEXT NOT NULL,
+    size_bytes  INTEGER,
+    trigger     TEXT NOT NULL DEFAULT 'scheduled',
+    status      TEXT NOT NULL DEFAULT 'ok',
+    created_at  TEXT DEFAULT (datetime('now'))
 );
 
 -- ═══════════════════════════════════════════════════════════════
@@ -412,13 +431,51 @@ def _table_has_column(conn: sqlite3.Connection, table: str, column: str) -> bool
     return any(row[1] == column for row in rows)
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Apply incremental schema migrations to existing databases."""
+    # braille_job.embosser_id — added post-initial release
+    if not _table_has_column(conn, "braille_job", "embosser_id"):
+        conn.execute(
+            "ALTER TABLE braille_job ADD COLUMN embosser_id INTEGER REFERENCES embosser(id)"
+        )
+
+    # printer / embosser — add created_at / updated_at if absent (older DBs)
+    for tbl in ("printer", "embosser"):
+        if not _table_has_column(conn, tbl, "created_at"):
+            conn.execute(f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")  # noqa: S608
+        if not _table_has_column(conn, tbl, "updated_at"):
+            conn.execute(f"ALTER TABLE {tbl} ADD COLUMN updated_at TEXT")  # noqa: S608
+
+    # workflow_step — add updated_at if absent (pre-fix databases)
+    if not _table_has_column(conn, "workflow_step", "updated_at"):
+        conn.execute(
+            "ALTER TABLE workflow_step ADD COLUMN updated_at TEXT"
+        )
+
+    # workflow_step — add description if absent
+    if not _table_has_column(conn, "workflow_step", "description"):
+        conn.execute(
+            "ALTER TABLE workflow_step ADD COLUMN description TEXT"
+        )
+
+    # backup_log — new table added for automated backup tracking
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS backup_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            backup_path TEXT NOT NULL,
+            size_bytes  INTEGER,
+            trigger     TEXT NOT NULL DEFAULT 'scheduled',
+            status      TEXT NOT NULL DEFAULT 'ok',
+            created_at  TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+
 def init_db() -> None:
     """Create all tables, directories, and seed data if they do not exist."""
     PRINTS_DIR.mkdir(exist_ok=True)
     FILES_DIR.mkdir(exist_ok=True)
+    BACKUPS_DIR.mkdir(exist_ok=True)
     with get_conn() as conn:
         conn.executescript(_SCHEMA_SQL)
-        if not _table_has_column(conn, "braille_job", "embosser_id"):
-            conn.execute(
-                "ALTER TABLE braille_job ADD COLUMN embosser_id INTEGER REFERENCES embosser(id)"
-            )
+        _migrate(conn)

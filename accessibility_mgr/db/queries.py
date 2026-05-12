@@ -59,6 +59,8 @@ __all__ = [
     # Pipeline
     "start_pipeline_run", "finish_pipeline_run", "log_pipeline_step",
     "list_pipeline_runs", "list_pipeline_step_runs",
+    # Backup log
+    "log_backup", "list_backup_log",
     # Paths
     "FILES_DIR", "PRINTS_DIR",
 ]
@@ -66,10 +68,17 @@ __all__ = [
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-_SAFE_TABLES = {
-    "filament", "braille_paper", "electronics", "printer", "embosser",
+# Tables that have an updated_at column and should receive automatic timestamp updates
+_TABLES_WITH_UPDATED_AT = {
+    "filament", "braille_paper", "electronics",
+    "printer", "embosser",
     "print_job", "braille_job", "lp_ebraille_job", "tactile_graphics_job",
     "file_object", "job_metadata", "material_category", "workflow_step",
+}
+
+# All tables safe to use in dynamic UPDATE construction
+_SAFE_TABLES = _TABLES_WITH_UPDATED_AT | {
+    "structural_map_node",
 }
 
 
@@ -84,6 +93,14 @@ def _build_update_sql(
     allowed: set[str],
     has_updated_at: bool = True,
 ) -> tuple[str, list[Any]]:
+    """Build a safe parameterised UPDATE statement.
+
+    Column names are validated against `allowed`; values are always bound
+    parameters, never interpolated.  When `has_updated_at` is True (default),
+    ``updated_at = datetime('now')`` is appended automatically — pass False for
+    tables that lack this column (printer, embosser in older DB schemas will
+    receive the column via migration, but the flag remains for safety).
+    """
     if table not in _SAFE_TABLES:
         raise ValueError(f"Disallowed table '{table}'")
     safe = {k: v for k, v in fields.items() if k in allowed}
@@ -233,8 +250,9 @@ def add_printer(name: str, model: str = "", notes: str = "") -> int:
 
 
 def update_printer(row_id: int, **fields: Any) -> None:
+    """Update a printer record.  printer now has updated_at after migration."""
     allowed = {"name", "model", "notes"}
-    sql, vals = _build_update_sql("printer", fields, allowed, has_updated_at=False)
+    sql, vals = _build_update_sql("printer", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
 
@@ -243,6 +261,8 @@ def delete_printer(row_id: int) -> None:
     with get_conn() as conn:
         conn.execute("DELETE FROM printer WHERE id = ?", (row_id,))
 
+
+# ── Embossers ─────────────────────────────────────────────────────────────────
 
 def list_embossers() -> list[dict[str, Any]]:
     with get_conn() as conn:
@@ -259,8 +279,9 @@ def add_embosser(name: str, model: str = "", paper_type: str = "", notes: str = 
 
 
 def update_embosser(row_id: int, **fields: Any) -> None:
+    """Update an embosser record.  embosser now has updated_at after migration."""
     allowed = {"name", "model", "paper_type", "notes"}
-    sql, vals = _build_update_sql("embosser", fields, allowed, has_updated_at=False)
+    sql, vals = _build_update_sql("embosser", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
 
@@ -328,15 +349,12 @@ def add_print_job(
 
 
 def update_print_job(row_id: int, **fields: Any) -> None:
+    """Update mutable fields on a print job record."""
     allowed = {"printer_id", "filament_id", "filament_used_g", "successful",
                "failure_reason", "object_name", "requester", "request_date", "notes"}
-    safe = {k: v for k, v in fields.items() if k in allowed}
-    if not safe:
-        return
-    sets = ", ".join(f"{c} = ?" for c in safe)
-    vals = list(safe.values()) + [row_id]
+    sql, vals = _build_update_sql("print_job", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
-        conn.execute(f"UPDATE print_job SET {sets} WHERE id = ?", vals)  # noqa: S608
+        conn.execute(sql, vals + [row_id])
 
 
 def delete_print_job(row_id: int) -> None:
@@ -445,6 +463,8 @@ def delete_lp_job(row_id: int) -> None:
     with get_conn() as conn:
         conn.execute("DELETE FROM lp_ebraille_job WHERE id = ?", (row_id,))
 
+
+# ── Tactile graphics jobs ─────────────────────────────────────────────────────
 
 def list_tactile_jobs() -> list[dict[str, Any]]:
     with get_conn() as conn:
@@ -772,6 +792,7 @@ def set_material_category_active(row_id: int, active: int) -> None:
 
 
 def delete_material_category(row_id: int) -> None:
+    """Soft-delete a material category (sets active=0)."""
     set_material_category_active(row_id, 0)
 
 
@@ -807,13 +828,15 @@ def add_workflow_step(
 
 
 def update_workflow_step(row_id: int, **fields: Any) -> None:
+    """Update a workflow step record.  workflow_step.updated_at is guaranteed by schema/migration."""
     allowed = {"job_type", "step_key", "label", "description", "sort_order", "active"}
-    sql, vals = _build_update_sql("workflow_step", fields, allowed)
+    sql, vals = _build_update_sql("workflow_step", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
 
 
 def set_workflow_step_active(row_id: int, active: int) -> None:
+    """Enable or disable a workflow step.  Uses updated_at which now exists after migration."""
     with get_conn() as conn:
         conn.execute(
             "UPDATE workflow_step SET active=?, updated_at=datetime('now') WHERE id=?",
@@ -822,6 +845,7 @@ def set_workflow_step_active(row_id: int, active: int) -> None:
 
 
 def delete_workflow_step(row_id: int) -> None:
+    """Soft-delete a workflow step (sets active=0)."""
     set_workflow_step_active(row_id, 0)
 
 
@@ -899,4 +923,25 @@ def list_pipeline_step_runs(pipeline_run_id: int) -> list[dict[str, Any]]:
         return _rows(conn.execute(
             "SELECT * FROM pipeline_step_run WHERE pipeline_run_id=? ORDER BY ran_at",
             (pipeline_run_id,),
+        ))
+
+
+# ── Backup log ────────────────────────────────────────────────────────────────
+
+def log_backup(backup_path: str, size_bytes: int, trigger: str = "scheduled",
+               status: str = "ok") -> int:
+    """Record a completed backup in the backup_log table."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO backup_log (backup_path, size_bytes, trigger, status) VALUES (?,?,?,?)",
+            (backup_path, size_bytes, trigger, status),
+        )
+        return int(cur.lastrowid)
+
+
+def list_backup_log(limit: int = 50) -> list[dict[str, Any]]:
+    """Return recent backup log entries, newest first."""
+    with get_conn() as conn:
+        return _rows(conn.execute(
+            "SELECT * FROM backup_log ORDER BY created_at DESC LIMIT ?", (limit,),
         ))
