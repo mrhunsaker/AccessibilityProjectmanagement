@@ -50,10 +50,6 @@ def lineage_page(content_area: ui.element) -> None:
             shape = f'["{label}\\n{use}"]'
             mermaid_lines.append(f"  {fnode}{shape}")
 
-        # Build edges job → file
-        for f in files:
-            fnode = f"F{f['id']}"
-            links = Q.list_files_for_job("braille", -1)  # placeholder; we iterate all
 
         # Re-approach: get all links by scanning files
         for f in files:

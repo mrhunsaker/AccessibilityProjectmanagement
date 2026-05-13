@@ -1290,7 +1290,11 @@ def delete_file_object(file_id: int) -> None:
     """
     row = get_file_object(file_id)
     if row:
-        stored = FILES_DIR / row["stored_path"]
+        _sp = Path(row["stored_path"])
+        if _sp.is_absolute():
+            stored = _sp
+        else:
+            stored = FILES_DIR / _sp
         stored.unlink(missing_ok=True)
     with get_conn() as conn:
         conn.execute("DELETE FROM file_object WHERE id = ?", (file_id,))

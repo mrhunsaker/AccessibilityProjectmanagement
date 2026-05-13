@@ -1,0 +1,845 @@
+{
+  "meta": {
+    "project": "Accessibility Project Manager",
+    "audit_date": "2026-05-12",
+    "audit_source": "AUDIT_REPORT.md",
+    "schema_version": "1.0",
+    "description": "Spec-driven development task list for a local LLM. Each step is self-contained: it includes the full context, exact files to modify, acceptance criteria, and test requirements so the LLM can execute the step without reading the rest of the codebase.",
+    "execution_model": "Steps within the same phase may be executed concurrently. Phases must be executed in order. Each step must pass its acceptance_criteria before the next phase begins.",
+    "phases": [
+      "phase_1_critical_bugs",
+      "phase_2_missing_file",
+      "phase_3_seed_data_cleanup",
+      "phase_4_dashboard_hardening",
+      "phase_5_lineage_completeness",
+      "phase_6_test_coverage",
+      "phase_7_roadmap_features"
+    ]
+  },
+
+  "phase_1_critical_bugs": {
+    "description": "Fix two runtime bugs that can silently corrupt data or produce wrong behavior. Must be completed before any other phase.",
+    "steps": [
+
+      {
+        "id": "1.1",
+        "title": "Remove dead query in lineage_page()",
+        "severity": "HIGH",
+        "priority": 1,
+        "status": "TODO",
+
+        "context": {
+          "problem": "lineage.py contains a 3-line block that calls Q.list_files_for_job('braille', -1) using job_id=-1 as a placeholder. The result is assigned to the variable `links` which is never used. This is a leftover comment block from an incomplete refactor. It executes a real database query on every page load, returning no rows but wasting a round-trip. The correct per-job file lookup already exists in the for-loop block that follows immediately after.",
+          "root_cause": "Incomplete refactor — the developer wrote a placeholder comment and loop then wrote the correct implementation below but did not delete the placeholder.",
+          "impact": "One unnecessary DB query on every lineage page load. No data corruption, but misleading code."
+        },
+
+        "target_file": "accessibility_mgr/ui/lineage.py",
+
+        "locate_block": {
+          "instruction": "Find the block that matches ALL of the following lines appearing consecutively (approximately lines 50-52):",
+          "lines_to_find": [
+            "for f in files:",
+            "    fnode = f\"F{f['id']}\"",
+            "    links = Q.list_files_for_job(\"braille\", -1)  # placeholder; we iterate all"
+          ]
+        },
+
+        "change": {
+          "action": "DELETE",
+          "description": "Delete the entire 3-line block identified above. Do not modify any surrounding code. The for-loop that follows (which iterates braille_jobs and lp_jobs correctly) must remain untouched."
+        },
+
+        "acceptance_criteria": [
+          "The string 'job_id=-1' or 'list_files_for_job(\"braille\", -1)' does not appear anywhere in lineage.py after the change.",
+          "The string 'list_files_for_job' still appears at least twice in lineage.py (used correctly in the braille_jobs and lp_jobs for-loops).",
+          "The variable name `links` does not appear anywhere in lineage.py after the change.",
+          "Running `python -c 'from accessibility_mgr.ui.lineage import lineage_page'` produces no ImportError.",
+          "The function `lineage_page` still exists in lineage.py."
+        ],
+
+        "test_requirement": {
+          "description": "No new test needed — existing import smoke test is sufficient. Verify with grep.",
+          "verify_commands": [
+            "grep -n 'job_id=-1' accessibility_mgr/ui/lineage.py || echo 'PASS: not found'",
+            "grep -n 'links = Q' accessibility_mgr/ui/lineage.py || echo 'PASS: not found'",
+            "grep -c 'list_files_for_job' accessibility_mgr/ui/lineage.py"
+          ]
+        }
+      },
+
+      {
+        "id": "1.2",
+        "title": "Fix delete_file_object() to handle absolute artifact paths",
+        "severity": "HIGH",
+        "priority": 1,
+        "status": "TODO",
+
+        "context": {
+          "problem": "When ingest_file() is called with a project_title argument, it stores the file under artifacts/<project>/ and saves the ABSOLUTE path (e.g. /home/user/project/artifacts/Spring2026/FrAn_LegacyJr_Grade7_Science.brf) in the stored_path column of file_object. When delete_file_object() later tries to remove that file, it does: `stored = FILES_DIR / row['stored_path']`. In Python, joining an absolute path using the / operator discards the left operand, so `Path('/some/dir') / '/absolute/path'` returns `Path('/absolute/path')`. This means the delete DOES accidentally work on CPython/POSIX — but it is relying on undefined/platform-specific behavior, produces a confusing code path, and will fail silently on some platforms or if the behavior changes.",
+          "root_cause": "ingest_file() was updated to support artifact storage with absolute paths, but delete_file_object() was not updated to handle both relative and absolute stored_path values.",
+          "impact": "File deletion may silently fail or behave incorrectly on non-POSIX platforms. Code is confusing and non-obvious."
+        },
+
+        "target_file": "accessibility_mgr/db/queries.py",
+        "target_function": "delete_file_object",
+
+        "current_code": {
+          "function_signature": "def delete_file_object(file_id: int) -> None:",
+          "current_body_excerpt": [
+            "    row = get_file_object(file_id)",
+            "    if row:",
+            "        stored = FILES_DIR / row[\"stored_path\"]",
+            "        stored.unlink(missing_ok=True)",
+            "    with get_conn() as conn:",
+            "        conn.execute(\"DELETE FROM file_object WHERE id = ?\", (file_id,))"
+          ]
+        },
+
+        "replacement_code": {
+          "description": "Replace the path resolution logic with an explicit absolute-vs-relative check.",
+          "new_body_excerpt": [
+            "    row = get_file_object(file_id)",
+            "    if row:",
+            "        _sp = Path(row[\"stored_path\"])",
+            "        stored = _sp if _sp.is_absolute() else FILES_DIR / _sp",
+            "        stored.unlink(missing_ok=True)",
+            "    with get_conn() as conn:",
+            "        conn.execute(\"DELETE FROM file_object WHERE id = ?\", (file_id,))"
+          ]
+        },
+
+        "acceptance_criteria": [
+          "The string `FILES_DIR / row[\"stored_path\"]` no longer appears in queries.py.",
+          "The string `_sp.is_absolute()` appears in the delete_file_object function body.",
+          "Running `python -c 'from accessibility_mgr.db.queries import delete_file_object'` produces no ImportError.",
+          "A call to delete_file_object() with a row whose stored_path is an absolute path correctly resolves to that absolute path.",
+          "A call to delete_file_object() with a row whose stored_path is a relative filename correctly resolves to FILES_DIR / filename."
+        ],
+
+        "test_requirement": {
+          "description": "Add a test to tests/test_queries.py named test_delete_file_object_paths that verifies both the absolute-path and relative-path cases. Use tmp_path and monkeypatching as established in the existing fresh_db fixture.",
+          "test_outline": [
+            "Create a temp file at tmp_path / 'test_relative.brf'",
+            "Monkeypatch FILES_DIR and ARTIFACTS_DIR to tmp_path subdirs",
+            "Call ingest_file() WITHOUT project_title -> stored_path is relative -> verify file is deleted when delete_file_object() is called",
+            "Create a second temp file",
+            "Call ingest_file() WITH project_title -> stored_path is absolute -> verify file is deleted when delete_file_object() is called",
+            "After each delete call, assert the file does not exist on disk",
+            "After each delete call, assert get_file_object() returns None"
+          ]
+        }
+      }
+
+    ]
+  },
+
+  "phase_2_missing_file": {
+    "description": "Create the missing models/inventory.py and update models/__init__.py so that all legacy imports resolve cleanly. Neither file is reachable from the running app, but broken imports block test runs and future wiring.",
+    "steps": [
+
+      {
+        "id": "2.1",
+        "title": "Create accessibility_mgr/models/inventory.py",
+        "severity": "MEDIUM",
+        "priority": 2,
+        "status": "TODO",
+
+        "context": {
+          "problem": "Two files import from models/inventory.py which does not exist: ui/categories.py (imports Category) and services/inventory_service.py (imports InventoryItem, InventoryTransaction). This causes an ImportError if either file is ever imported. They are not in PAGE_DEFINITIONS and not reachable from the active app, but they break `import` completeness checks and any future attempt to wire them.",
+          "root_cause": "The project migrated from SQLAlchemy to raw SQLite queries but the legacy UI and service files were not updated or removed. The SQLAlchemy model file was never written.",
+          "impact": "ImportError if either file is imported. Blocks future wiring of categories or inventory service."
+        },
+
+        "new_file": "accessibility_mgr/models/inventory.py",
+
+        "file_requirements": {
+          "module_docstring": "Legacy SQLAlchemy inventory models. These are retained for import compatibility with ui/categories.py and services/inventory_service.py. The active application uses the SQLite-native queries layer in db/queries.py instead.",
+          "imports_needed": [
+            "from __future__ import annotations",
+            "from sqlalchemy import Integer, String, Float, Text, ForeignKey, DateTime",
+            "from sqlalchemy.orm import Mapped, mapped_column, relationship",
+            "from datetime import datetime",
+            "from ..db.database import Base"
+          ],
+          "classes": [
+            {
+              "name": "Category",
+              "tablename": "categories",
+              "docstring": "A named grouping for inventory items.",
+              "columns": [
+                {"name": "id", "type": "Integer", "primary_key": true},
+                {"name": "name", "type": "String(255)", "nullable": false},
+                {"name": "description", "type": "Text", "default": "\"\""}
+              ]
+            },
+            {
+              "name": "InventoryItem",
+              "tablename": "inventory_items",
+              "docstring": "A tracked inventory item with a current stock quantity.",
+              "columns": [
+                {"name": "id", "type": "Integer", "primary_key": true},
+                {"name": "name", "type": "String(255)", "nullable": false},
+                {"name": "current_quantity", "type": "Float", "default": 0},
+                {"name": "category_id", "type": "Integer", "fk": "categories.id", "nullable": true}
+              ]
+            },
+            {
+              "name": "InventoryTransaction",
+              "tablename": "inventory_transactions",
+              "docstring": "An audit record of a quantity change on an InventoryItem.",
+              "columns": [
+                {"name": "id", "type": "Integer", "primary_key": true},
+                {"name": "item_id", "type": "Integer", "fk": "inventory_items.id", "nullable": false},
+                {"name": "transaction_type", "type": "String(50)", "nullable": false, "note": "values: ADD or REMOVE"},
+                {"name": "quantity", "type": "Float", "nullable": false},
+                {"name": "previous_quantity", "type": "Float", "nullable": false},
+                {"name": "new_quantity", "type": "Float", "nullable": false},
+                {"name": "notes", "type": "Text", "default": "\"\""},
+                {"name": "project_id", "type": "Integer", "nullable": true},
+                {"name": "created_at", "type": "DateTime", "default": "datetime.utcnow"}
+              ]
+            }
+          ]
+        },
+
+        "acceptance_criteria": [
+          "File accessibility_mgr/models/inventory.py exists.",
+          "Running `python -c 'from accessibility_mgr.models.inventory import Category, InventoryItem, InventoryTransaction'` produces no ImportError.",
+          "Running `python -c 'from accessibility_mgr.ui.categories import categories_page'` produces no ImportError.",
+          "Running `python -c 'from accessibility_mgr.services.inventory_service import InventoryService'` produces no ImportError.",
+          "All three classes (Category, InventoryItem, InventoryTransaction) are defined in the file.",
+          "Each class inherits from Base (imported from ..db.database)."
+        ],
+
+        "test_requirement": {
+          "description": "Add a test to tests/test_queries.py named test_legacy_model_imports that verifies the import chain resolves without error.",
+          "test_outline": [
+            "Import Category, InventoryItem, InventoryTransaction from accessibility_mgr.models.inventory",
+            "Assert all three are not None",
+            "Assert Category.__tablename__ == 'categories'",
+            "Assert InventoryItem.__tablename__ == 'inventory_items'",
+            "Assert InventoryTransaction.__tablename__ == 'inventory_transactions'"
+          ]
+        }
+      },
+
+      {
+        "id": "2.2",
+        "title": "Update accessibility_mgr/models/__init__.py to export inventory models",
+        "severity": "MEDIUM",
+        "priority": 2,
+        "status": "TODO",
+        "depends_on": ["2.1"],
+
+        "context": {
+          "problem": "models/__init__.py currently only exports the four asset models (Asset, AssetMetadata, Project, WorkflowEvent). After step 2.1 creates models/inventory.py, the three inventory models should be exported from the package __init__ for consistency.",
+          "impact": "Without this, `from accessibility_mgr.models import Category` fails even after 2.1 is complete."
+        },
+
+        "target_file": "accessibility_mgr/models/__init__.py",
+
+        "current_content": "\"\"\"SQLAlchemy-era model package used by the documentation reference pages.\"\"\"\n\nfrom .assets import Asset, AssetMetadata, Project, WorkflowEvent\n\n__all__ = [\"Asset\", \"AssetMetadata\", \"Project\", \"WorkflowEvent\"]",
+
+        "replacement_content": "\"\"\"SQLAlchemy-era model package used by the documentation reference pages.\"\"\"\n\nfrom .assets import Asset, AssetMetadata, Project, WorkflowEvent\nfrom .inventory import Category, InventoryItem, InventoryTransaction\n\n__all__ = [\n    \"Asset\",\n    \"AssetMetadata\",\n    \"Project\",\n    \"WorkflowEvent\",\n    \"Category\",\n    \"InventoryItem\",\n    \"InventoryTransaction\",\n]",
+
+        "acceptance_criteria": [
+          "Running `python -c 'from accessibility_mgr.models import Category, InventoryItem, InventoryTransaction'` produces no ImportError.",
+          "The __all__ list in models/__init__.py contains all 7 model class names.",
+          "Running `python -c 'from accessibility_mgr.models import Asset'` still works (existing exports not broken)."
+        ],
+
+        "test_requirement": {
+          "description": "Covered by step 2.1 test. No additional test needed.",
+          "verify_commands": [
+            "python -c 'from accessibility_mgr.models import Category, InventoryItem, InventoryTransaction; print(\"PASS\")'",
+            "python -c 'from accessibility_mgr.models import Asset, AssetMetadata, Project, WorkflowEvent; print(\"PASS\")'"
+          ]
+        }
+      }
+
+    ]
+  },
+
+  "phase_3_seed_data_cleanup": {
+    "description": "Remove the orphaned print workflow_step seed rows from schema.py so the seeded data matches what complete_step() actually supports.",
+    "steps": [
+
+      {
+        "id": "3.1",
+        "title": "Remove orphaned print workflow steps from seed data",
+        "severity": "MEDIUM",
+        "priority": 3,
+        "status": "TODO",
+
+        "context": {
+          "problem": "The INSERT OR IGNORE INTO workflow_step block in schema.py seeds 5 rows for job_type='print' (designed, sliced, printed, inspected, delivered). However, complete_step() in queries.py only supports job_type values 'braille', 'lp_ebraille', and 'tactile'. Calling complete_step('print', ...) raises ValueError. The print_jobs_page does not use step completion — it uses a boolean successful flag. The seeded print steps exist in the database but can never be activated or completed through any application code path. They appear in the Admin -> Workflow Steps panel, creating confusion.",
+          "decision": "Remove the 5 print rows from seed data (Option B). The print job model uses success/fail semantics, not discrete step tracking. If step-level print tracking is added in the future, it should be done as a deliberate feature with schema column additions and _STEP_TABLES support added simultaneously.",
+          "root_cause": "Seed data was written speculatively for a feature that was never implemented in queries.py."
+        },
+
+        "target_file": "accessibility_mgr/db/schema.py",
+        "target_block": "INSERT OR IGNORE INTO workflow_step",
+
+        "locate_rows_to_remove": {
+          "instruction": "Within the INSERT OR IGNORE INTO workflow_step (...) VALUES block, find and remove the 5 tuples whose first element is 'print':",
+          "rows_to_delete": [
+            "('print','designed',  'Designed',  'CAD/3D model obtained or designed',             1),",
+            "('print','sliced',    'Sliced',    'Model sliced; G-code generated',                2),",
+            "('print','printed',   'Printed',   'Print job completed',                           3),",
+            "('print','inspected', 'Inspected', 'Print inspected for quality',                   4),",
+            "('print','delivered', 'Delivered', 'Object delivered to requester',                 5);"
+          ],
+          "note": "The trailing semicolon moves to the last remaining row after deletion. Ensure the INSERT statement remains syntactically valid SQL."
+        },
+
+        "acceptance_criteria": [
+          "The string \"'print'\" does not appear in any INSERT OR IGNORE INTO workflow_step tuple in schema.py.",
+          "The INSERT OR IGNORE INTO workflow_step block remains syntactically valid SQL (no trailing comma on last row, semicolon present).",
+          "Running `python -c 'from accessibility_mgr.db.schema import init_db'` produces no SyntaxError or ImportError.",
+          "The workflow_step INSERT block still contains all rows for job_type 'braille', 'lp_ebraille', and 'tactile' (14 rows total: 5 + 5 + 4).",
+          "Running init_db() on a fresh database results in 14 workflow_step rows (not 19)."
+        ],
+
+        "test_requirement": {
+          "description": "Add to tests/test_queries.py a test named test_no_print_workflow_steps_seeded.",
+          "test_outline": [
+            "Call init_db() via the fresh_db fixture",
+            "Call Q.list_workflow_steps(job_type='print', active_only=False)",
+            "Assert the returned list is empty",
+            "Call Q.list_workflow_steps(active_only=False)",
+            "Assert len(result) == 14"
+          ]
+        }
+      }
+
+    ]
+  },
+
+  "phase_4_dashboard_hardening": {
+    "description": "Replace fragile inline __import__ calls in dashboard Quick Launch buttons with safe module-level references.",
+    "steps": [
+
+      {
+        "id": "4.1",
+        "title": "Replace __import__ Quick Launch buttons with direct module imports",
+        "severity": "MEDIUM",
+        "priority": 4,
+        "status": "TODO",
+
+        "context": {
+          "problem": "dashboard.py Quick Launch buttons use runtime __import__ calls: `on_click=lambda: __import__('accessibility_mgr.ui.braille_jobs', fromlist=['braille_jobs_page']).braille_jobs_page(content_area)`. If any of the 5 target modules fails to import for any reason (syntax error, dependency issue), the button click silently does nothing — no error is shown to the user and no exception is raised to the log. All 5 target modules (braille_jobs, lp_ebraille, tactile_graphics) are already imported at application startup via PAGE_DEFINITIONS, so they are always available in sys.modules.",
+          "root_cause": "Likely copy-pasted from a template or generated without awareness of the startup import context.",
+          "impact": "Silent failures during development if a module has an error. Code is harder to read and static analysis tools cannot resolve the references."
+        },
+
+        "target_file": "accessibility_mgr/ui/dashboard.py",
+
+        "change": {
+          "action": "ADD_IMPORTS_AND_REPLACE_LAMBDAS",
+          "step_1": {
+            "description": "Add three import statements at the top of dashboard.py, after the existing imports block.",
+            "imports_to_add": [
+              "from accessibility_mgr.ui import braille_jobs as _braille_jobs_mod",
+              "from accessibility_mgr.ui import lp_ebraille as _lp_ebraille_mod",
+              "from accessibility_mgr.ui import tactile_graphics as _tactile_mod"
+            ],
+            "placement": "After the line `from .components import PRIORITY_COLORS, section_header`"
+          },
+          "step_2": {
+            "description": "Replace each __import__ lambda with a direct reference. Find the Quick Launch button block and replace all 5 on_click lambdas.",
+            "replacements": [
+              {
+                "find_button_text": "Braille Jobs",
+                "old_on_click": "on_click=lambda: __import__('accessibility_mgr.ui.braille_jobs', fromlist=['braille_jobs_page']).braille_jobs_page(content_area)",
+                "new_on_click": "on_click=lambda: _braille_jobs_mod.braille_jobs_page(content_area)"
+              },
+              {
+                "find_button_text": "Large Print Jobs",
+                "old_on_click": "on_click=lambda: __import__('accessibility_mgr.ui.lp_ebraille', fromlist=['large_print_jobs_page']).large_print_jobs_page(content_area)",
+                "new_on_click": "on_click=lambda: _lp_ebraille_mod.large_print_jobs_page(content_area)"
+              },
+              {
+                "find_button_text": "eBraille Jobs",
+                "old_on_click": "on_click=lambda: __import__('accessibility_mgr.ui.lp_ebraille', fromlist=['ebraille_jobs_page']).ebraille_jobs_page(content_area)",
+                "new_on_click": "on_click=lambda: _lp_ebraille_mod.ebraille_jobs_page(content_area)"
+              },
+              {
+                "find_button_text": "EPUB3 / DAISY Jobs",
+                "old_on_click": "on_click=lambda: __import__('accessibility_mgr.ui.lp_ebraille', fromlist=['epub3_daisy_jobs_page']).epub3_daisy_jobs_page(content_area)",
+                "new_on_click": "on_click=lambda: _lp_ebraille_mod.epub3_daisy_jobs_page(content_area)"
+              },
+              {
+                "find_button_text": "Tactile Graphics",
+                "old_on_click": "on_click=lambda: __import__('accessibility_mgr.ui.tactile_graphics', fromlist=['tactile_graphics_page']).tactile_graphics_page(content_area)",
+                "new_on_click": "on_click=lambda: _tactile_mod.tactile_graphics_page(content_area)"
+              }
+            ]
+          }
+        },
+
+        "acceptance_criteria": [
+          "The string `__import__` does not appear anywhere in dashboard.py.",
+          "Three import statements for braille_jobs, lp_ebraille, and tactile_graphics appear near the top of dashboard.py.",
+          "All 5 Quick Launch button on_click lambdas reference the module-level aliases (_braille_jobs_mod, _lp_ebraille_mod, _tactile_mod).",
+          "Running `python -c 'from accessibility_mgr.ui.dashboard import dashboard_page'` produces no ImportError.",
+          "Running `ruff check accessibility_mgr/ui/dashboard.py` reports no F401 (unused import) errors for the new imports."
+        ],
+
+        "test_requirement": {
+          "description": "No behavioral test needed. Verify with grep and import check.",
+          "verify_commands": [
+            "grep -n '__import__' accessibility_mgr/ui/dashboard.py || echo 'PASS: no __import__ found'",
+            "python -c 'from accessibility_mgr.ui.dashboard import dashboard_page; print(\"PASS\")'",
+            "grep -c '_braille_jobs_mod\\|_lp_ebraille_mod\\|_tactile_mod' accessibility_mgr/ui/dashboard.py"
+          ]
+        }
+      }
+
+    ]
+  },
+
+  "phase_5_lineage_completeness": {
+    "description": "Extend lineage_page() to include tactile graphics and print jobs in the DAG, so all job types with linked files appear in the provenance graph.",
+    "steps": [
+
+      {
+        "id": "5.1",
+        "title": "Add tactile and print jobs to lineage DAG builder",
+        "severity": "LOW",
+        "priority": 5,
+        "status": "TODO",
+
+        "context": {
+          "problem": "lineage_page() builds a Mermaid DAG connecting jobs to their file_object records. It only queries braille_jobs and lp_jobs. Files attached to tactile_graphics_job or print_job via job_file_link are invisible in the lineage view even though the data exists in the database.",
+          "root_cause": "The two new job type dicts were not added when the page was originally written.",
+          "impact": "Incomplete provenance graph — tactile and print job files do not appear in the lineage viewer."
+        },
+
+        "target_file": "accessibility_mgr/ui/lineage.py",
+        "target_function": "lineage_page",
+
+        "change": {
+          "action": "EXTEND_DAG_BUILDER",
+          "description": "After the lines that define `braille_jobs` and `lp_jobs` dicts, add equivalent dicts for tactile and print jobs. Then add two for-loops (mirroring the existing braille and lp loops) that build DAG edges for tactile and print job files.",
+
+          "step_1_add_dicts": {
+            "instruction": "Find the two lines that build braille_jobs and lp_jobs dicts:",
+            "existing_lines": [
+              "braille_jobs = {j[\"id\"]: j[\"title\"] for j in Q.list_braille_jobs()}",
+              "lp_jobs = {j[\"id\"]: j[\"title\"] for j in Q.list_lp_jobs()}"
+            ],
+            "add_after": [
+              "tactile_jobs = {j[\"id\"]: j[\"title\"] for j in Q.list_tactile_jobs()}",
+              "print_jobs = {j[\"id\"]: j.get(\"object_name\") or j.get(\"file_name\") or f\"Print #{j['id']}\" for j in Q.list_print_jobs()}"
+            ]
+          },
+
+          "step_2_add_loops": {
+            "instruction": "After the existing lp_jobs for-loop block (which builds edges between lp jobs and files), add two new for-loop blocks with identical structure:",
+            "tactile_loop_template": {
+              "job_dict": "tactile_jobs",
+              "job_node_prefix": "TG",
+              "job_file_link_type": "tactile",
+              "mermaid_label_prefix": "Tactile:"
+            },
+            "print_loop_template": {
+              "job_dict": "print_jobs",
+              "job_node_prefix": "PJ",
+              "job_file_link_type": "print",
+              "mermaid_label_prefix": "Print:"
+            },
+            "shape_syntax": "Use the same shape as lp jobs: `[/\"Label: title\"/]`"
+          }
+        },
+
+        "acceptance_criteria": [
+          "Running `python -c 'from accessibility_mgr.ui.lineage import lineage_page'` produces no ImportError.",
+          "The strings 'tactile_jobs' and 'print_jobs' appear in lineage.py.",
+          "The string 'Q.list_tactile_jobs()' appears in lineage.py.",
+          "The string 'Q.list_print_jobs()' appears in lineage.py.",
+          "The job_file_link type strings 'tactile' and 'print' appear in the new loop blocks.",
+          "Node prefix strings 'TG' and 'PJ' appear in lineage.py (for Mermaid node IDs).",
+          "The function still uses `seen_edges` set to deduplicate DAG entries."
+        ],
+
+        "test_requirement": {
+          "description": "Add to tests/test_queries.py a test named test_lineage_covers_all_job_types that verifies files linked to tactile and print jobs appear in list_files_for_job() calls.",
+          "test_outline": [
+            "Add a tactile job via Q.add_tactile_job()",
+            "Create a temp file and ingest it via Q.ingest_file()",
+            "Link the file to the tactile job via Q.link_file_to_job(fid, 'tactile', jid)",
+            "Call Q.list_files_for_job('tactile', jid) and assert the file appears",
+            "Add a printer via Q.add_printer(), add a print job via Q.add_print_job()",
+            "Create a second temp file and ingest it",
+            "Link it to the print job via Q.link_file_to_job(fid2, 'print', pjid)",
+            "Call Q.list_files_for_job('print', pjid) and assert the file appears"
+          ]
+        }
+      }
+
+    ]
+  },
+
+  "phase_6_test_coverage": {
+    "description": "Close the most critical gaps in tests/test_queries.py. All new tests must use the existing fresh_db fixture pattern (tmp_path + monkeypatch of DB_PATH, PRINTS_DIR, FILES_DIR, ARTIFACTS_DIR).",
+    "steps": [
+
+      {
+        "id": "6.1",
+        "title": "Add tests for paper, electronics, printer, embosser CRUD",
+        "severity": "HIGH",
+        "priority": 6,
+        "status": "TODO",
+
+        "target_file": "tests/test_queries.py",
+
+        "tests_to_add": [
+          {
+            "name": "test_paper_crud",
+            "operations": [
+              "Q.add_paper('sheet_feed_11.5x11', quantity=500, supplier='APH')",
+              "assert len(Q.list_paper()) == 1",
+              "Q.update_paper(id, quantity=250)",
+              "assert Q.list_paper()[0]['quantity'] == 250",
+              "Q.delete_paper(id)",
+              "assert Q.list_paper() == []"
+            ]
+          },
+          {
+            "name": "test_electronics_crud",
+            "operations": [
+              "Q.add_electronic('board', 'TRRS Trinkey', quantity=5, brand='Adafruit')",
+              "assert len(Q.list_electronics()) == 1",
+              "assert Q.list_electronics('board')[0]['name'] == 'TRRS Trinkey'",
+              "Q.update_electronic(id, quantity=3)",
+              "assert Q.list_electronics()[0]['quantity'] == 3",
+              "Q.delete_electronic(id)",
+              "assert Q.list_electronics() == []"
+            ]
+          },
+          {
+            "name": "test_printer_crud",
+            "operations": [
+              "Q.add_printer('Test Printer', model='X1')",
+              "assert any(p['name'] == 'Test Printer' for p in Q.list_printers())",
+              "id = [p['id'] for p in Q.list_printers() if p['name'] == 'Test Printer'][0]",
+              "Q.update_printer(id, model='X2')",
+              "assert [p for p in Q.list_printers() if p['id'] == id][0]['model'] == 'X2'",
+              "Q.delete_printer(id)",
+              "assert not any(p['name'] == 'Test Printer' for p in Q.list_printers())"
+            ]
+          },
+          {
+            "name": "test_embosser_crud",
+            "operations": [
+              "Q.add_embosser('Test Embosser', model='E1', paper_type='sheet_feed_11.5x11')",
+              "assert any(e['name'] == 'Test Embosser' for e in Q.list_embossers())",
+              "id = [e['id'] for e in Q.list_embossers() if e['name'] == 'Test Embosser'][0]",
+              "Q.update_embosser(id, model='E2')",
+              "assert [e for e in Q.list_embossers() if e['id'] == id][0]['model'] == 'E2'",
+              "Q.delete_embosser(id)",
+              "assert not any(e['name'] == 'Test Embosser' for e in Q.list_embossers())"
+            ]
+          }
+        ],
+
+        "acceptance_criteria": [
+          "All 4 new test functions exist in tests/test_queries.py.",
+          "Running `uv run pytest tests/test_queries.py -v` shows all 4 new tests passing.",
+          "No existing tests are broken."
+        ]
+      },
+
+      {
+        "id": "6.2",
+        "title": "Add tests for print_job creation with filament deduction, and tactile job workflow",
+        "severity": "HIGH",
+        "priority": 6,
+        "status": "TODO",
+
+        "target_file": "tests/test_queries.py",
+
+        "tests_to_add": [
+          {
+            "name": "test_print_job_filament_deduction",
+            "operations": [
+              "Add a printer: pid = Q.add_printer('P1S', 'BambuLab P1S')",
+              "Add filament: fid = Q.add_filament('Bambu', 'White', 'PLA', quantity_g=500)",
+              "Add print job: Q.add_print_job(pid, fid, filament_used_g=100, object_name='Test Cube')",
+              "Verify filament was deducted: assert Q.list_filaments()[0]['quantity_g'] == 400",
+              "Verify job exists: assert len(Q.list_print_jobs()) == 1",
+              "Verify job fields: job = Q.list_print_jobs()[0]; assert job['object_name'] == 'Test Cube'",
+              "Delete job: Q.delete_print_job(job['id'])",
+              "Verify deleted: assert Q.list_print_jobs() == []"
+            ]
+          },
+          {
+            "name": "test_tactile_job_workflow",
+            "operations": [
+              "jid = Q.add_tactile_job('Test Tactile', 'thermoform_swell', requester='Bob')",
+              "job = Q.get_tactile_job(jid)",
+              "assert job['title'] == 'Test Tactile'",
+              "assert job['designed'] == 0",
+              "Q.complete_step('tactile', jid, 'designed')",
+              "assert Q.get_tactile_job(jid)['designed'] == 1",
+              "Q.complete_step('tactile', jid, 'produced')",
+              "Q.revert_step('tactile', jid, 'designed')",
+              "assert Q.get_tactile_job(jid)['designed'] == 0",
+              "assert Q.get_tactile_job(jid)['produced'] == 1",
+              "events = Q.list_events_for_job('tactile', jid)",
+              "assert len(events) >= 3",
+              "assert any(e['event_type'] == 'STEP_COMPLETE' for e in events)",
+              "assert any(e['event_type'] == 'STEP_REVERT' for e in events)"
+            ]
+          }
+        ],
+
+        "acceptance_criteria": [
+          "Both new test functions exist in tests/test_queries.py.",
+          "Running `uv run pytest tests/test_queries.py::test_print_job_filament_deduction -v` passes.",
+          "Running `uv run pytest tests/test_queries.py::test_tactile_job_workflow -v` passes."
+        ]
+      },
+
+      {
+        "id": "6.3",
+        "title": "Add tests for ingest_file(), file links, and log_backup",
+        "severity": "HIGH",
+        "priority": 6,
+        "status": "TODO",
+
+        "target_file": "tests/test_queries.py",
+
+        "fixture_note": "The fresh_db fixture must be extended to also monkeypatch ARTIFACTS_DIR in db.schema and db.queries to a tmp_path subdir so ingest_file() can write files during tests.",
+
+        "tests_to_add": [
+          {
+            "name": "test_ingest_file_and_links",
+            "operations": [
+              "Create a real temp file: src = tmp_path / 'test.brf'; src.write_text('⠓⠑⠇⠇⠕')",
+              "Monkeypatch ARTIFACTS_DIR to tmp_path / 'artifacts'",
+              "fid = Q.ingest_file(str(src), file_use='ORIGINAL', format_name='BRF', project_title='TestProj', student_initials='TeS', school_name='TestSch', grade_level='5', subject='Math')",
+              "fo = Q.get_file_object(fid)",
+              "assert fo is not None",
+              "assert fo['original_name'] == 'test.brf'",
+              "assert fo['file_use'] == 'ORIGINAL'",
+              "assert fo['checksum_sha256'] is not None and len(fo['checksum_sha256']) == 64",
+              "assert Path(fo['stored_path']).is_absolute()",
+              "assert Path(fo['stored_path']).exists()",
+              "jid = Q.add_braille_job('Link Test', 'literary')",
+              "Q.link_file_to_job(fid, 'braille', jid, step_key='digitized')",
+              "files = Q.list_files_for_job('braille', jid)",
+              "assert len(files) == 1",
+              "assert files[0]['original_name'] == 'test.brf'",
+              "assert files[0]['step_key'] == 'digitized'",
+              "Q.unlink_file_from_job(files[0]['link_id'])",
+              "assert Q.list_files_for_job('braille', jid) == []"
+            ]
+          },
+          {
+            "name": "test_log_and_list_backup",
+            "operations": [
+              "bid = Q.log_backup('/backups/test_2026.db', size_bytes=1024, trigger='manual', status='ok')",
+              "assert isinstance(bid, int)",
+              "entries = Q.list_backup_log()",
+              "assert len(entries) >= 1",
+              "assert entries[0]['status'] == 'ok'",
+              "assert entries[0]['trigger'] == 'manual'",
+              "assert entries[0]['size_bytes'] == 1024"
+            ]
+          },
+          {
+            "name": "test_backfill_metadata_keys",
+            "operations": [
+              "jid = Q.add_braille_job('Backfill Test', 'literary')",
+              "Insert a typo'd key directly: with Q.get_conn() as conn: conn.execute(\"INSERT INTO job_metadata (job_type, job_id, meta_key, meta_value) VALUES (?, ?, ?, ?)\", ('braille', jid, 'dc:titl', 'Test Title'))",
+              "approved = ['dc:title', 'dc:creator', 'dc:subject']",
+              "result = Q.backfill_metadata_keys(approved)",
+              "assert result['updated_rows'] >= 1",
+              "assert Q.get_job_metadata('braille', jid, 'dc:title') == 'Test Title'",
+              "assert Q.get_job_metadata('braille', jid, 'dc:titl') is None"
+            ]
+          }
+        ],
+
+        "acceptance_criteria": [
+          "All 3 new test functions exist in tests/test_queries.py.",
+          "Running `uv run pytest tests/test_queries.py -v` shows all new tests passing.",
+          "The fresh_db fixture (or a separate fixture) correctly monkeypatches ARTIFACTS_DIR."
+        ]
+      }
+
+    ]
+  },
+
+  "phase_7_roadmap_features": {
+    "description": "Implement the two highest-value not-yet-built features from the README roadmap: a Reports/Analytics page, and stub wiring for Authentication. These are new features, not bug fixes.",
+    "steps": [
+
+      {
+        "id": "7.1",
+        "title": "Create accessibility_mgr/ui/reports.py with a basic analytics page",
+        "severity": "LOW",
+        "priority": 7,
+        "status": "TODO",
+
+        "context": {
+          "problem": "No reports or analytics page exists despite being listed as a planned feature in README.md. Operators have no way to see aggregate statistics, job throughput, inventory consumption trends, or QA pass rates without running manual database queries.",
+          "scope": "This step creates a read-only summary page. No new database tables or query functions are needed — it uses existing list_* functions."
+        },
+
+        "new_file": "accessibility_mgr/ui/reports.py",
+
+        "page_sections": [
+          {
+            "name": "Production Summary",
+            "description": "Counts of total/in-progress/complete jobs per type (braille, large_print, ebraille, epub3_daisy, tactile, print). Display as stat cards.",
+            "data_sources": ["Q.list_braille_jobs()", "Q.list_lp_jobs()", "Q.list_tactile_jobs()", "Q.list_print_jobs()"]
+          },
+          {
+            "name": "Inventory Health",
+            "description": "Table of all filament with quantity_g and a LOW badge if under 100g. Table of all paper with quantity and a LOW badge if under 50 sheets. Total filament grams consumed (sum of filament_used_g across all print jobs).",
+            "data_sources": ["Q.list_filaments()", "Q.list_paper()", "Q.list_print_jobs()"]
+          },
+          {
+            "name": "QA Pass Rate",
+            "description": "For each QA tool, show total runs, pass count, fail count, and pass rate percentage. Use the last 50 QA runs.",
+            "data_sources": ["Q.list_qa_runs(limit=50)"]
+          },
+          {
+            "name": "Recent Activity",
+            "description": "Last 10 metadata events across all jobs, showing event_datetime, job_type, event_type, event_outcome, and detail.",
+            "data_sources": ["Direct query: SELECT * FROM metadata_event ORDER BY event_datetime DESC LIMIT 10 — add a new query function list_recent_events(limit=10) to queries.py"]
+          }
+        ],
+
+        "new_query_function_required": {
+          "function_name": "list_recent_events",
+          "signature": "def list_recent_events(limit: int = 10) -> list[dict[str, Any]]:",
+          "docstring": "Return the most recent metadata_event rows across all jobs, newest first.",
+          "sql": "SELECT * FROM metadata_event ORDER BY event_datetime DESC LIMIT ?",
+          "file": "accessibility_mgr/db/queries.py",
+          "add_to_all": true
+        },
+
+        "function_name": "reports_page",
+        "function_signature": "def reports_page(content_area: ui.element) -> None:",
+
+        "wire_into_app": {
+          "file": "accessibility_mgr/app.py",
+          "instruction": "Add a new entry to PAGE_DEFINITIONS in the Overview group, between Dashboard and Search:",
+          "new_entry": {
+            "name": "Reports",
+            "icon": "bar_chart",
+            "module": "accessibility_mgr.ui.reports",
+            "function": "reports_page",
+            "description": "Production analytics and inventory health summary",
+            "group": "Overview"
+          }
+        },
+
+        "acceptance_criteria": [
+          "File accessibility_mgr/ui/reports.py exists and defines reports_page(content_area).",
+          "The function list_recent_events() exists in queries.py and is in __all__.",
+          "The Reports entry appears in PAGE_DEFINITIONS in app.py.",
+          "Running `python -c 'from accessibility_mgr.ui.reports import reports_page'` produces no ImportError.",
+          "Running `python -c 'from accessibility_mgr.db.queries import list_recent_events'` produces no ImportError.",
+          "The page renders at least 4 distinct sections (Production Summary, Inventory Health, QA Pass Rate, Recent Activity)."
+        ],
+
+        "test_requirement": {
+          "description": "Add to tests/test_queries.py a test named test_list_recent_events.",
+          "test_outline": [
+            "Add a braille job and call complete_step to generate events",
+            "Call Q.list_recent_events(limit=5)",
+            "Assert the list is not empty",
+            "Assert each item has keys: event_type, job_type, job_id, event_datetime",
+            "Assert results are ordered newest-first (event_datetime descending)"
+          ]
+        }
+      },
+
+      {
+        "id": "7.2",
+        "title": "Wire authentication_page into PAGE_DEFINITIONS as an Admin sub-item",
+        "severity": "LOW",
+        "priority": 7,
+        "status": "TODO",
+
+        "context": {
+          "problem": "authentication_page() exists in ui/authentication.py and AuthService exists in services/auth_service.py, but the page is unreachable because it is not in PAGE_DEFINITIONS. The current auth is a non-persistent user-switcher stub — wiring it in makes the stub visible and sets the foundation for future real auth implementation.",
+          "scope": "This step only wires the existing page into the sidebar. It does NOT implement real session auth — that remains a future item. The page will show the current hardcoded user list and allow switching."
+        },
+
+        "target_file": "accessibility_mgr/app.py",
+
+        "change": {
+          "action": "ADD_TO_PAGE_DEFINITIONS",
+          "instruction": "Add the following entry to PAGE_DEFINITIONS in the Admin group, after the Admin Settings entry:",
+          "new_entry": {
+            "name": "Users",
+            "icon": "manage_accounts",
+            "module": "accessibility_mgr.ui.authentication",
+            "function": "authentication_page",
+            "description": "User accounts and role management (stub)",
+            "group": "Admin"
+          }
+        },
+
+        "acceptance_criteria": [
+          "A PAGE_DEFINITIONS entry with name 'Users' and function 'authentication_page' exists in app.py.",
+          "The module value is 'accessibility_mgr.ui.authentication'.",
+          "Running `python -c 'from accessibility_mgr.ui.authentication import authentication_page'` produces no ImportError.",
+          "The entry is in the 'Admin' group."
+        ],
+
+        "test_requirement": {
+          "description": "No new test needed — import check is sufficient.",
+          "verify_commands": [
+            "python -c 'from accessibility_mgr.ui.authentication import authentication_page; print(\"PASS\")'",
+            "grep -A4 \"'Users'\" accessibility_mgr/app.py"
+          ]
+        }
+      }
+
+    ]
+  },
+
+  "execution_instructions": {
+    "for_local_llm": {
+      "model_recommendation": "Use a code-capable model with at least 32k context (e.g. Qwen2.5-Coder-32B, DeepSeek-Coder-V2, CodeLlama-34B). Each step is designed to fit within a 8k token prompt when combined with the relevant source file.",
+      "prompt_template": "You are implementing a specific change to the Accessibility Project Manager codebase. Follow the step specification exactly. Do not make changes outside the files listed. Do not refactor code unrelated to the step. After making changes, verify all acceptance_criteria are satisfied before outputting the result.\n\nStep: {step.id} - {step.title}\n\n{step as JSON}\n\nCurrent file content:\n{file_content}\n\nOutput: The complete updated file content only. No explanation.",
+      "one_step_at_a_time": "Send one step per prompt. Do not batch multiple steps. Wait for acceptance_criteria verification before proceeding.",
+      "verification_step": "After each step, run the verify_commands or test_requirement before marking status as DONE.",
+      "status_values": ["TODO", "IN_PROGRESS", "DONE", "BLOCKED", "SKIPPED"]
+    },
+    "phase_ordering": {
+      "rule": "Complete all steps in phase_1 before starting phase_2. Steps within the same phase that have no depends_on may be run concurrently.",
+      "dependency_graph": {
+        "1.1": [],
+        "1.2": [],
+        "2.1": [],
+        "2.2": ["2.1"],
+        "3.1": [],
+        "4.1": [],
+        "5.1": ["1.1"],
+        "6.1": [],
+        "6.2": [],
+        "6.3": ["1.2"],
+        "7.1": [],
+        "7.2": []
+      }
+    },
+    "completion_criteria": {
+      "phase_1_complete": "Steps 1.1 and 1.2 both have status DONE and all acceptance_criteria verified.",
+      "phase_2_complete": "Steps 2.1 and 2.2 both DONE.",
+      "phase_3_complete": "Step 3.1 DONE and workflow_step count verified as 14.",
+      "phase_4_complete": "Step 4.1 DONE and no __import__ in dashboard.py.",
+      "phase_5_complete": "Step 5.1 DONE and tactile/print jobs appear in lineage DAG.",
+      "phase_6_complete": "Steps 6.1, 6.2, 6.3 all DONE and pytest passes with 0 failures.",
+      "phase_7_complete": "Steps 7.1 and 7.2 DONE and Reports page visible in sidebar.",
+      "project_complete": "All 12 steps DONE, pytest green, ruff check passes on all modified files."
+    }
+  }
+}

@@ -87,3 +87,35 @@ def test_material_categories():
     Q.set_material_category_active(new_id, 0)
     rows3 = Q.list_material_categories("filament_type")
     assert not any(r["value"] == "wood" for r in rows3)
+
+
+def test_delete_file_object_paths(tmp_path, monkeypatch):
+    import shutil
+    import db.queries as Q
+    # Setup temp dirs
+    files_dir = tmp_path / "job_files"
+    files_dir.mkdir()
+    abs_dir = tmp_path / "artifacts"
+    abs_dir.mkdir()
+    # Monkeypatch FILES_DIR
+    monkeypatch.setattr(Q, "FILES_DIR", files_dir)
+    # Create a dummy file (relative path)
+    rel_file = files_dir / "rel.txt"
+    rel_file.write_text("relative")
+    # Insert fake row with relative path
+    with Q.get_conn() as conn:
+        conn.execute("INSERT INTO file_object (original_name, stored_path) VALUES (?, ?)", ("rel.txt", "rel.txt"))
+        rel_id = conn.execute("SELECT id FROM file_object WHERE stored_path = ?", ("rel.txt",)).fetchone()[0]
+    # Delete relative file
+    Q.delete_file_object(rel_id)
+    assert not rel_file.exists()
+    # Create a dummy file (absolute path)
+    abs_file = abs_dir / "abs.txt"
+    abs_file.write_text("absolute")
+    # Insert fake row with absolute path
+    with Q.get_conn() as conn:
+        conn.execute("INSERT INTO file_object (original_name, stored_path) VALUES (?, ?)", ("abs.txt", str(abs_file)))
+        abs_id = conn.execute("SELECT id FROM file_object WHERE stored_path = ?", (str(abs_file),)).fetchone()[0]
+    # Delete absolute file
+    Q.delete_file_object(abs_id)
+    assert not abs_file.exists()
