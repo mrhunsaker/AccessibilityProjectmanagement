@@ -9,7 +9,6 @@ nav:
   - Home: index.md
   - Overview: overview.md
   - Project Docs:
-      - Audit: AUDIT.md
       - Implementation Plan: IMPLEMENTATION_PLAN.md
   - Reference:
       - Application: reference/app.md
