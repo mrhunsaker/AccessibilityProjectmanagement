@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "project": "Accessibility Project Manager",
+    "created": "2026-05-15",
+    "source": "docs folder + repository audit",
+    "purpose": "Continuation roadmap after initial stabilization phases in NextStep.json"
+  },
+  "implementation_audit": {
+    "verified_complete": [
+      {
+        "id": "1.1",
+        "title": "Remove dead query in lineage_page()",
+        "status": "COMPLETE",
+        "evidence": "lineage.py no longer contains links = Q.list_files_for_job('braille', -1)"
+      }
+    ],
+    "still_pending": [
+      {
+        "id": "2.1",
+        "title": "Create accessibility_mgr/models/inventory.py",
+        "status": "PENDING"
+      },
+      {
+        "id": "2.2",
+        "title": "Update accessibility_mgr/models/__init__.py",
+        "status": "PENDING"
+      },
+      {
+        "id": "4.1",
+        "title": "Replace __import__ dashboard launchers",
+        "status": "PENDING"
+      },
+      {
+        "id": "5.1",
+        "title": "Add tactile and print jobs to lineage DAG",
+        "status": "PENDING"
+      }
+    ]
+  },
+  "phase_8_metadata_governance": {
+    "description": "Expand metadata governance and standards compliance tooling.",
+    "steps": [
+      {
+        "id": "8.1",
+        "title": "Add controlled vocabulary validation service",
+        "targets": [
+          "accessibility_mgr/services/metadata_validation.py",
+          "accessibility_mgr/ui/metadata_editor.py"
+        ],
+        "requirements": [
+          "Validate Dublin Core fields against configured vocabularies",
+          "Highlight invalid metadata inline in forms",
+          "Add remediation suggestions",
+          "Support EPUB accessibility metadata validation"
+        ]
+      },
+      {
+        "id": "8.2",
+        "title": "Add metadata lineage audit history",
+        "targets": [
+          "accessibility_mgr/db/schema.py",
+          "accessibility_mgr/db/queries.py"
+        ],
+        "requirements": [
+          "Track every metadata mutation",
+          "Store previous values and editor identity",
+          "Expose timeline in lineage viewer"
+        ]
+      }
+    ]
+  },
+  "phase_9_pipeline_automation": {
+    "description": "Automate accessibility conversion and QA workflows.",
+    "steps": [
+      {
+        "id": "9.1",
+        "title": "Automated EPUB QA execution",
+        "requirements": [
+          "Run Ace automatically after EPUB ingestion",
+          "Store QA reports in artifacts directory",
+          "Persist pass/fail metrics in database"
+        ]
+      },
+      {
+        "id": "9.2",
+        "title": "DAISY pipeline orchestration",
+        "requirements": [
+          "Queue conversion jobs",
+          "Track execution logs",
+          "Retry failed conversions",
+          "Persist generated outputs as derived assets"
+        ]
+      }
+    ]
+  },
+  "phase_10_accessibility_hardening": {
+    "description": "Improve operator accessibility and compliance.",
+    "steps": [
+      {
+        "id": "10.1",
+        "title": "Keyboard navigation audit",
+        "requirements": [
+          "Every NiceGUI workflow reachable without mouse",
+          "Visible focus indicators",
+          "Shortcut map documentation"
+        ]
+      },
+      {
+        "id": "10.2",
+        "title": "Screen reader semantic pass",
+        "requirements": [
+          "ARIA labeling for dialogs and forms",
+          "Semantic headings on all pages",
+          "Live-region announcements for workflow updates"
+        ]
+      }
+    ]
+  }
+}
