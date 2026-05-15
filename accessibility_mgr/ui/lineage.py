@@ -11,23 +11,64 @@ from ..db import queries as Q
 from .components import section_header
 
 
+def _append_job_edges(
+    mermaid_lines: list[str],
+    seen_nodes: set[str],
+    seen_edges: set[str],
+    files: list[dict],
+    jobs: dict[int, str],
+    job_prefix: str,
+    job_label_prefix: str,
+    job_type: str,
+) -> None:
+    """Append Mermaid graph edges for a job collection."""
+
+    for file_obj in files:
+        fid = file_obj["id"]
+        fnode = f"F{fid}"
+
+        for jid, jtitle in jobs.items():
+            linked_files = Q.list_files_for_job(job_type, jid)
+
+            if not any(linked["id"] == fid for linked in linked_files):
+                continue
+
+            jnode = f"{job_prefix}{jid}"
+            edge = f"  {jnode} --> {fnode}"
+            jlabel = jtitle[:25].replace('"', "")
+            job_decl = f'  {jnode}[/"{job_label_prefix}: {jlabel}"/]'
+
+            if jnode not in seen_nodes:
+                mermaid_lines.append(job_decl)
+                seen_nodes.add(jnode)
+
+            if edge not in seen_edges:
+                mermaid_lines.append(edge)
+                seen_edges.add(edge)
+
+
 def lineage_page(content_area: ui.element) -> None:
     """Render the Asset Lineage Viewer."""
+
     content_area.clear()
+
     with content_area:
         section_header(
             "Lineage Viewer",
             "Derivative relationships and provenance chains across all jobs",
         )
 
-        # ── File registry summary ─────────────────────────────────────────────
         files = Q.list_file_objects()
 
         if not files:
-            with ui.card().classes("p-10 text-center border border-slate-200 rounded-xl w-full"):
-                ui.label("No files ingested yet.").classes("text-slate-400 text-lg")
+            with ui.card().classes(
+                "p-10 text-center border border-slate-200 rounded-xl w-full"
+            ):
+                ui.label("No files ingested yet.").classes(
+                    "text-slate-400 text-lg"
+                )
                 ui.label(
-                    "Attach files to braille or LP jobs to see lineage here."
+                    "Attach files to production jobs to see lineage here."
                 ).classes("text-slate-400 text-sm mt-1")
             return
 
@@ -35,60 +76,87 @@ def lineage_page(content_area: ui.element) -> None:
             "text-sm text-slate-400 mb-4"
         )
 
-        # ── Mermaid DAG from job-file links ───────────────────────────────────
-        braille_jobs = {j["id"]: j["title"] for j in Q.list_braille_jobs()}
-        lp_jobs = {j["id"]: j["title"] for j in Q.list_lp_jobs()}
+        braille_jobs = {
+            job["id"]: job["title"] for job in Q.list_braille_jobs()
+        }
+
+        lp_jobs = {
+            job["id"]: job["title"] for job in Q.list_lp_jobs()
+        }
+
+        tactile_jobs = {
+            job["id"]: job["title"]
+            for job in Q.list_tactile_jobs()
+        }
+
+        print_jobs = {
+            job["id"]: job.get("object_name", "3-D Print Job")
+            for job in Q.list_print_jobs()
+        }
 
         mermaid_lines = ["graph TD"]
+        seen_nodes: set[str] = set()
         seen_edges: set[str] = set()
 
-        # Build nodes for each file
-        for f in files:
-            fnode = f"F{f['id']}"
-            label = f["original_name"][:30].replace('"', "")
-            use = f.get("file_use", "ORIGINAL")
+        for file_obj in files:
+            fnode = f"F{file_obj['id']}"
+            label = file_obj["original_name"][:30].replace('"', "")
+            use = file_obj.get("file_use", "ORIGINAL")
             shape = f'["{label}\\n{use}"]'
             mermaid_lines.append(f"  {fnode}{shape}")
 
+        _append_job_edges(
+            mermaid_lines,
+            seen_nodes,
+            seen_edges,
+            files,
+            braille_jobs,
+            "BJ",
+            "Braille",
+            "braille",
+        )
 
-        # Re-approach: get all links by scanning files
-        for f in files:
-            fid = f["id"]
-            fnode = f"F{fid}"
-            # Check braille jobs
-            for jid, jtitle in braille_jobs.items():
-                jfiles = Q.list_files_for_job("braille", jid)
-                if any(jf["id"] == fid for jf in jfiles):
-                    jnode = f"BJ{jid}"
-                    edge = f"  {jnode} --> {fnode}"
-                    jlabel = jtitle[:25].replace('"', "")
-                    job_decl = f'  {jnode}[/"Braille: {jlabel}"/]'
-                    if jnode not in seen_edges:
-                        mermaid_lines.append(job_decl)
-                        seen_edges.add(jnode)
-                    if edge not in seen_edges:
-                        mermaid_lines.append(edge)
-                        seen_edges.add(edge)
-            # Check lp jobs
-            for jid, jtitle in lp_jobs.items():
-                jfiles = Q.list_files_for_job("lp_ebraille", jid)
-                if any(jf["id"] == fid for jf in jfiles):
-                    jnode = f"LP{jid}"
-                    edge = f"  {jnode} --> {fnode}"
-                    jlabel = jtitle[:25].replace('"', "")
-                    job_decl = f'  {jnode}[/"LP: {jlabel}"/]'
-                    if jnode not in seen_edges:
-                        mermaid_lines.append(job_decl)
-                        seen_edges.add(jnode)
-                    if edge not in seen_edges:
-                        mermaid_lines.append(edge)
-                        seen_edges.add(edge)
+        _append_job_edges(
+            mermaid_lines,
+            seen_nodes,
+            seen_edges,
+            files,
+            lp_jobs,
+            "LP",
+            "LP",
+            "lp_ebraille",
+        )
+
+        _append_job_edges(
+            mermaid_lines,
+            seen_nodes,
+            seen_edges,
+            files,
+            tactile_jobs,
+            "TG",
+            "Tactile",
+            "tactile",
+        )
+
+        _append_job_edges(
+            mermaid_lines,
+            seen_nodes,
+            seen_edges,
+            files,
+            print_jobs,
+            "PJ",
+            "3-D Print",
+            "print",
+        )
 
         if len(mermaid_lines) > 1:
-            with ui.card().classes("p-4 rounded-xl border border-slate-200 w-full mb-6"):
+            with ui.card().classes(
+                "p-4 rounded-xl border border-slate-200 w-full mb-6"
+            ):
                 ui.label("Provenance Graph").classes(
                     "font-semibold text-slate-700 mb-3"
                 )
+
                 try:
                     ui.mermaid("\n".join(mermaid_lines))
                 except Exception:
@@ -96,11 +164,13 @@ def lineage_page(content_area: ui.element) -> None:
                         "text-slate-400 text-sm"
                     )
 
-        # ── File detail list ──────────────────────────────────────────────────
         ui.label("File Registry").classes(
             "text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2"
         )
-        with ui.card().classes("w-full rounded-xl border border-slate-200 overflow-hidden"):
+
+        with ui.card().classes(
+            "w-full rounded-xl border border-slate-200 overflow-hidden"
+        ):
             with ui.row().classes(
                 "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
                 "uppercase tracking-wider border-b"
@@ -112,38 +182,47 @@ def lineage_page(content_area: ui.element) -> None:
                 ui.label("SHA-256").classes("w-40")
                 ui.label("Ingested").classes("w-32")
 
-            for f in files:
-                sz = f.get("size_bytes") or 0
-                sz_str = (
-                    f"{sz // 1_048_576} MB"
-                    if sz >= 1_048_576
-                    else f"{sz // 1024} KB"
-                    if sz >= 1024
-                    else f"{sz} B"
+            for file_obj in files:
+                size = file_obj.get("size_bytes") or 0
+
+                size_str = (
+                    f"{size // 1_048_576} MB"
+                    if size >= 1_048_576
+                    else f"{size // 1024} KB"
+                    if size >= 1024
+                    else f"{size} B"
                 )
-                chk = str(f.get("checksum_sha256") or "—")
-                chk_short = chk[:12] + "…" if len(chk) > 12 else chk
+
+                checksum = str(file_obj.get("checksum_sha256") or "—")
+                checksum_short = (
+                    checksum[:12] + "…"
+                    if len(checksum) > 12
+                    else checksum
+                )
 
                 with ui.row().classes(
                     "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
                 ):
                     with ui.column().classes("flex-1 gap-0 min-w-0"):
-                        ui.label(f["original_name"]).classes(
+                        ui.label(file_obj["original_name"]).classes(
                             "text-sm text-slate-700 truncate"
                         )
-                        ui.label(f.get("mime_type") or "").classes(
+                        ui.label(file_obj.get("mime_type") or "").classes(
                             "text-xs text-slate-400"
                         )
-                    ui.label(f.get("file_use") or "—").classes(
+
+                    ui.label(file_obj.get("file_use") or "—").classes(
                         "w-28 text-xs text-slate-500"
                     )
-                    ui.label(f.get("format_name") or "—").classes(
+                    ui.label(file_obj.get("format_name") or "—").classes(
                         "w-20 text-xs text-slate-500"
                     )
-                    ui.label(sz_str).classes("w-20 text-right text-xs text-slate-500")
-                    ui.label(chk_short).classes(
+                    ui.label(size_str).classes(
+                        "w-20 text-right text-xs text-slate-500"
+                    )
+                    ui.label(checksum_short).classes(
                         "w-40 text-xs font-mono text-slate-400 truncate"
-                    ).tooltip(chk)
-                    ui.label(str(f.get("created_at", ""))[:10]).classes(
+                    ).tooltip(checksum)
+                    ui.label(str(file_obj.get("created_at", ""))[:10]).classes(
                         "w-32 text-xs text-slate-400"
                     )
