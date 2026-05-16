@@ -8,7 +8,34 @@ from __future__ import annotations
 from nicegui import ui
 
 from ..db import queries as Q
+from ..services.provenance_registry import ProvenanceRegistry
 from .components import section_header
+
+
+_provenance = ProvenanceRegistry()
+
+
+# Seed representative provenance events for UI visualization.
+_provenance.register_event(
+    asset_id=1,
+    event_type="metadata_update",
+    summary="Accessibility metadata updated",
+    metadata={"editor": "operator"},
+)
+
+_provenance.register_event(
+    asset_id=1,
+    event_type="qa_report",
+    summary="DAISY Ace QA report generated",
+    metadata={"score": 100},
+)
+
+_provenance.register_event(
+    asset_id=2,
+    event_type="pipeline_retry",
+    summary="Accessibility pipeline retry requested",
+    metadata={"retry_count": 1},
+)
 
 
 def _append_job_edges(
@@ -162,6 +189,37 @@ def lineage_page(content_area: ui.element) -> None:
                 except Exception:
                     ui.label("Graph could not be rendered.").classes(
                         "text-slate-400 text-sm"
+                    )
+
+        with ui.card().classes(
+            "w-full p-4 rounded-xl border border-slate-200 mb-6"
+        ):
+            ui.label("Unified Provenance Timeline").classes(
+                "font-semibold text-slate-700 mb-3"
+            )
+
+            for event in _provenance.list_events():
+                severity_color = {
+                    "qa_report": "text-green-600",
+                    "pipeline_retry": "text-amber-600",
+                    "metadata_update": "text-blue-600",
+                }.get(event["event_type"], "text-slate-600")
+
+                with ui.row().classes(
+                    "items-start justify-between border-b border-slate-100 py-2 gap-3"
+                ):
+                    with ui.column().classes("gap-0 flex-1"):
+                        ui.label(event["summary"]).classes(
+                            f"text-sm font-medium {severity_color}"
+                        )
+
+                        ui.label(
+                            f"Asset #{event['asset_id']} — "
+                            f"{event['event_type']}"
+                        ).classes("text-xs text-slate-500")
+
+                    ui.label(event["created_at"][:19]).classes(
+                        "text-xs text-slate-400 font-mono"
                     )
 
         ui.label("File Registry").classes(
