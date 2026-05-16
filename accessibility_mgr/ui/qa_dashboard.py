@@ -5,11 +5,12 @@ from __future__ import annotations
 from nicegui import ui
 
 from ..services.epub_qa import EPUBQAService
+from ..services.qa_persistence import QAPersistenceService
 from .components import section_header
 
 
 _qa_service = EPUBQAService()
-
+_persistence = QAPersistenceService()
 
 SAMPLE_EPUBS = [
     (1, "accessible_book.epub"),
@@ -31,6 +32,7 @@ def qa_dashboard_page(content_area: ui.element) -> None:
 
         results_box = ui.column().classes("w-full gap-4")
         pipeline_box = ui.column().classes("w-full gap-3")
+        persistence_box = ui.column().classes("w-full gap-3")
 
         with ui.card().classes(
             "w-full p-5 rounded-xl border border-slate-200"
@@ -53,6 +55,7 @@ def qa_dashboard_page(content_area: ui.element) -> None:
             def _run_pipeline() -> None:
                 results_box.clear()
                 pipeline_box.clear()
+                persistence_box.clear()
 
                 aid, epub_name = asset_options[selected.value]
 
@@ -74,6 +77,40 @@ def qa_dashboard_page(content_area: ui.element) -> None:
                 _qa_service.complete_pipeline(
                     run,
                     success=result.passed,
+                )
+
+                persisted = _persistence.persist_report(
+                    asset_id=aid,
+                    pipeline_name=run.pipeline_name,
+                    status=run.status,
+                    score=result.score,
+                    findings=[
+                        {
+                            "severity": issue.severity,
+                            "code": issue.code,
+                            "message": issue.message,
+                        }
+                        for issue in result.issues
+                    ],
+                )
+
+                _persistence.persist_pipeline_run(
+                    pipeline_name=run.pipeline_name,
+                    asset_id=aid,
+                    status=run.status,
+                    logs=run.logs,
+                    retry_count=run.retry_count,
+                )
+
+                artifact = _persistence.register_artifact(
+                    asset_id=aid,
+                    artifact_type="ace_report",
+                    file_name=f"asset_{aid}_ace_report.json",
+                    generated_by="EPUBQAService",
+                    metadata={
+                        "score": result.score,
+                        "passed": result.passed,
+                    },
                 )
 
                 with results_box:
@@ -162,6 +199,34 @@ def qa_dashboard_page(content_area: ui.element) -> None:
                             "Retry Pipeline",
                             on_click=_retry,
                         ).classes("bg-amber-600 text-white mt-3")
+
+                with persistence_box:
+                    ui.label("Persisted QA Records").classes(
+                        "text-sm font-semibold text-slate-700"
+                    )
+
+                    with ui.card().classes(
+                        "w-full p-4 border border-slate-200 rounded-xl"
+                    ):
+                        ui.label(
+                            f"Persisted report created at: {persisted.created_at[:19]}"
+                        ).classes("text-xs text-slate-500")
+
+                        ui.label(
+                            f"Artifact: {artifact.file_name}"
+                        ).classes("text-xs text-slate-500")
+
+                        ui.label(
+                            f"Artifact type: {artifact.artifact_type}"
+                        ).classes("text-xs text-slate-500")
+
+                        ui.label(
+                            f"Stored reports: {len(_persistence.list_reports())}"
+                        ).classes("text-xs text-slate-500")
+
+                        ui.label(
+                            f"Stored artifacts: {len(_persistence.list_artifacts())}"
+                        ).classes("text-xs text-slate-500")
 
             ui.button(
                 "Run QA Pipeline",
