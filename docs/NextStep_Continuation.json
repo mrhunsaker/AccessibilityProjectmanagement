@@ -1,0 +1,106 @@
+{
+  "roadmap_version": "2026.05.operations-platform",
+  "updated_at": "2026-05-16",
+  "implemented": {
+    "governance": [
+      "Metadata validation service",
+      "Metadata audit history service",
+      "Governance-aware metadata editor UI",
+      "Inline remediation and validation rendering",
+      "Metadata provenance event tracking"
+    ],
+    "qa_automation": [
+      "EPUB QA orchestration service",
+      "Pipeline retry workflows",
+      "DAISY Ace abstraction layer",
+      "QA report persistence",
+      "QA artifact registration",
+      "Pipeline execution history tracking",
+      "Operator QA dashboard"
+    ],
+    "provenance": [
+      "Unified provenance registry",
+      "Operational lineage timeline",
+      "QA + governance provenance convergence",
+      "Pipeline event visualization"
+    ],
+    "analytics": [
+      "KPI aggregation service",
+      "Operations analytics dashboard",
+      "QA metrics reporting",
+      "Governance metrics reporting",
+      "Operational timeline analytics"
+    ]
+  },
+  "next_steps": {
+    "persistence_layer": {
+      "priority": "critical",
+      "items": [
+        "Replace in-memory governance services with SQLite-backed persistence",
+        "Persist provenance events in normalized event tables",
+        "Persist QA artifact metadata and report blobs",
+        "Introduce migration/versioning framework for schema evolution"
+      ]
+    },
+    "external_tooling": {
+      "priority": "critical",
+      "items": [
+        "Integrate real DAISY Ace CLI execution",
+        "Integrate EPUBCheck validation workflows",
+        "Integrate DAISY Pipeline orchestration",
+        "Add subprocess execution isolation and timeout handling"
+      ]
+    },
+    "workflow_orchestration": {
+      "priority": "high",
+      "items": [
+        "Background job queue execution",
+        "Distributed pipeline orchestration",
+        "Job dependency scheduling",
+        "Pipeline SLA monitoring",
+        "Failure escalation workflows"
+      ]
+    },
+    "security_and_access": {
+      "priority": "high",
+      "items": [
+        "Role-based access control (RBAC)",
+        "Operator authentication flows",
+        "Audit-safe permission enforcement",
+        "Administrative governance controls"
+      ]
+    },
+    "analytics_and_observability": {
+      "priority": "high",
+      "items": [
+        "Longitudinal KPI trend analysis",
+        "Accessibility compliance scoring dashboards",
+        "Operational forecasting metrics",
+        "Pipeline performance analytics",
+        "Exportable governance reports"
+      ]
+    },
+    "enterprise_platform": {
+      "priority": "medium",
+      "items": [
+        "REST API layer for external integrations",
+        "Multi-tenant organization support",
+        "Cloud object storage abstraction",
+        "Webhook/event subscription architecture",
+        "CI/CD accessibility validation hooks"
+      ]
+    }
+  },
+  "target_architecture": {
+    "platform_type": "Accessibility Production Operations Platform",
+    "capabilities": [
+      "Accessible publishing workflows",
+      "Accessibility governance",
+      "Digital provenance tracking",
+      "Automated accessibility QA",
+      "Operational analytics",
+      "Compliance reporting",
+      "Pipeline orchestration"
+    ]
+  }
+}
