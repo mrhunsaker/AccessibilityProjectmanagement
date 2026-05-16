@@ -2,117 +2,262 @@
   "meta": {
     "project": "Accessibility Project Manager",
     "created": "2026-05-15",
-    "source": "docs folder + repository audit",
-    "purpose": "Continuation roadmap after initial stabilization phases in NextStep.json"
+    "updated": "2026-05-16",
+    "source": "docs folder + repository audit + platform implementation progress",
+    "purpose": "Continuation roadmap after stabilization, orchestration, governance, and enterprise platform expansion"
   },
   "implementation_audit": {
     "verified_complete": [
       {
         "id": "1.1",
         "title": "Remove dead query in lineage_page()",
-        "status": "COMPLETE",
-        "evidence": "lineage.py no longer contains links = Q.list_files_for_job('braille', -1)"
+        "status": "COMPLETE"
+      },
+      {
+        "id": "11.1",
+        "title": "Persistent workflow queue infrastructure",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "11.2",
+        "title": "Workflow runtime monitoring",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "12.1",
+        "title": "Accessibility subprocess execution framework",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "12.2",
+        "title": "Production toolchain hardening",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "13.1",
+        "title": "RBAC authorization infrastructure",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "13.2",
+        "title": "Authentication and audit logging",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "14.1",
+        "title": "Distributed queue coordination",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "14.2",
+        "title": "Compliance export infrastructure",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "15.1",
+        "title": "SLA escalation monitoring",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "15.2",
+        "title": "Notification delivery infrastructure",
+        "status": "COMPLETE"
+      },
+      {
+        "id": "16.1",
+        "title": "Dependency-aware workflow DAG orchestration",
+        "status": "COMPLETE"
       }
     ],
     "still_pending": [
       {
         "id": "2.1",
         "title": "Create accessibility_mgr/models/inventory.py",
-        "status": "PENDING"
-      },
-      {
-        "id": "2.2",
-        "title": "Update accessibility_mgr/models/__init__.py",
-        "status": "PENDING"
+        "priority": "MEDIUM"
       },
       {
         "id": "4.1",
         "title": "Replace __import__ dashboard launchers",
-        "status": "PENDING"
+        "priority": "HIGH"
       },
       {
         "id": "5.1",
         "title": "Add tactile and print jobs to lineage DAG",
-        "status": "PENDING"
+        "priority": "MEDIUM"
       }
     ]
   },
-  "phase_8_metadata_governance": {
-    "description": "Expand metadata governance and standards compliance tooling.",
+  "phase_17_functional_completion": {
+    "description": "Complete enterprise workflow functionality and operational automation.",
+    "goals": [
+      "Eliminate remaining manual orchestration gaps",
+      "Enable production accessibility pipeline execution",
+      "Support end-to-end accessibility publishing workflows"
+    ],
     "steps": [
       {
-        "id": "8.1",
-        "title": "Add controlled vocabulary validation service",
+        "id": "17.1",
+        "title": "Real DAISY Ace binary execution",
         "targets": [
-          "accessibility_mgr/services/metadata_validation.py",
-          "accessibility_mgr/ui/metadata_editor.py"
+          "accessibility_mgr/services/production_toolchain.py"
         ],
         "requirements": [
-          "Validate Dublin Core fields against configured vocabularies",
-          "Highlight invalid metadata inline in forms",
-          "Add remediation suggestions",
-          "Support EPUB accessibility metadata validation"
+          "Execute installed Ace binary",
+          "Validate runtime dependencies",
+          "Capture JSON QA artifacts",
+          "Persist execution telemetry"
         ]
       },
       {
-        "id": "8.2",
-        "title": "Add metadata lineage audit history",
+        "id": "17.2",
+        "title": "Real EPUBCheck execution",
+        "requirements": [
+          "Execute JAR subprocess securely",
+          "Persist validation reports",
+          "Normalize validation severity levels",
+          "Expose structured remediation guidance"
+        ]
+      },
+      {
+        "id": "17.3",
+        "title": "Workflow retry orchestration",
+        "requirements": [
+          "Automatic retry scheduling",
+          "Retry backoff policies",
+          "Escalation after retry exhaustion",
+          "Persistent retry history"
+        ]
+      }
+    ]
+  },
+  "phase_18_performance_optimization": {
+    "description": "Optimize scalability, orchestration throughput, and operational responsiveness.",
+    "targets": [
+      "High-volume accessibility processing",
+      "Reduced workflow latency",
+      "Lower UI rendering overhead",
+      "Improved queue throughput"
+    ],
+    "steps": [
+      {
+        "id": "18.1",
+        "title": "Database indexing and query optimization",
         "targets": [
           "accessibility_mgr/db/schema.py",
           "accessibility_mgr/db/queries.py"
         ],
         "requirements": [
-          "Track every metadata mutation",
-          "Store previous values and editor identity",
-          "Expose timeline in lineage viewer"
+          "Add indexes for workflow queries",
+          "Optimize provenance history retrieval",
+          "Reduce analytics aggregation latency",
+          "Benchmark large queue performance"
+        ],
+        "performance_targets": {
+          "workflow_lookup_ms": "<50ms",
+          "analytics_dashboard_ms": "<250ms"
+        }
+      },
+      {
+        "id": "18.2",
+        "title": "Async workflow execution engine",
+        "requirements": [
+          "Migrate blocking workers to async execution",
+          "Parallelize independent DAG nodes",
+          "Support concurrent QA execution",
+          "Implement worker pool management"
+        ],
+        "performance_targets": {
+          "parallel_jobs": ">=20",
+          "queue_dispatch_ms": "<100ms"
+        }
+      },
+      {
+        "id": "18.3",
+        "title": "UI rendering optimization",
+        "requirements": [
+          "Paginate large operational tables",
+          "Lazy-load analytics panels",
+          "Reduce redundant UI refreshes",
+          "Add cached dashboard summaries"
+        ],
+        "performance_targets": {
+          "dashboard_render_ms": "<300ms",
+          "table_refresh_ms": "<100ms"
+        }
+      }
+    ]
+  },
+  "phase_19_observability_and_metrics": {
+    "description": "Expand operational telemetry and infrastructure observability.",
+    "steps": [
+      {
+        "id": "19.1",
+        "title": "Prometheus metrics exporter",
+        "requirements": [
+          "Expose workflow metrics",
+          "Track SLA breach frequency",
+          "Track worker execution latency",
+          "Publish queue throughput metrics"
+        ]
+      },
+      {
+        "id": "19.2",
+        "title": "Health monitoring endpoints",
+        "requirements": [
+          "Database health checks",
+          "Queue health verification",
+          "Toolchain readiness checks",
+          "Worker availability reporting"
+        ]
+      },
+      {
+        "id": "19.3",
+        "title": "Operational anomaly detection",
+        "requirements": [
+          "Detect abnormal queue growth",
+          "Detect repeated workflow failures",
+          "Detect SLA degradation trends",
+          "Trigger automated escalations"
         ]
       }
     ]
   },
-  "phase_9_pipeline_automation": {
-    "description": "Automate accessibility conversion and QA workflows.",
+  "phase_20_deployment_and_scaling": {
+    "description": "Prepare the platform for production deployment and horizontal scaling.",
     "steps": [
       {
-        "id": "9.1",
-        "title": "Automated EPUB QA execution",
+        "id": "20.1",
+        "title": "Containerized deployment support",
         "requirements": [
-          "Run Ace automatically after EPUB ingestion",
-          "Store QA reports in artifacts directory",
-          "Persist pass/fail metrics in database"
+          "Dockerfile generation",
+          "Compose orchestration",
+          "Persistent volume support",
+          "Environment configuration management"
         ]
       },
       {
-        "id": "9.2",
-        "title": "DAISY pipeline orchestration",
+        "id": "20.2",
+        "title": "Secrets and credential management",
         "requirements": [
-          "Queue conversion jobs",
-          "Track execution logs",
-          "Retry failed conversions",
-          "Persist generated outputs as derived assets"
-        ]
-      }
-    ]
-  },
-  "phase_10_accessibility_hardening": {
-    "description": "Improve operator accessibility and compliance.",
-    "steps": [
-      {
-        "id": "10.1",
-        "title": "Keyboard navigation audit",
-        "requirements": [
-          "Every NiceGUI workflow reachable without mouse",
-          "Visible focus indicators",
-          "Shortcut map documentation"
+          "Encrypted secret storage",
+          "Environment-based credential injection",
+          "Rotation support",
+          "Audit visibility for secret usage"
         ]
       },
       {
-        "id": "10.2",
-        "title": "Screen reader semantic pass",
+        "id": "20.3",
+        "title": "Horizontal worker scaling",
         "requirements": [
-          "ARIA labeling for dialogs and forms",
-          "Semantic headings on all pages",
-          "Live-region announcements for workflow updates"
-        ]
+          "Distributed worker registration",
+          "Lease coordination improvements",
+          "Cross-node workflow ownership",
+          "Scalable orchestration telemetry"
+        ],
+        "performance_targets": {
+          "worker_nodes": ">=10",
+          "queued_jobs": ">=10000"
+        }
       }
     ]
   }
