@@ -1,143 +1,125 @@
 {
   "roadmap_version": "2026.05.enterprise-operations-platform",
-  "updated_at": "2026-05-16",
+  "updated_at": "2026-05-17",
   "implemented": {
     "governance": [
       "Metadata validation service",
       "Metadata audit history service",
       "Governance-aware metadata editor UI",
       "Inline remediation and validation rendering",
-      "Metadata provenance event tracking"
-    ],
-    "qa_automation": [
-      "EPUB QA orchestration service",
-      "Pipeline retry workflows",
-      "DAISY Ace abstraction layer",
-      "QA report persistence",
-      "QA artifact registration",
-      "Pipeline execution history tracking",
-      "Operator QA dashboard",
-      "Persistent QA storage service"
-    ],
-    "provenance": [
-      "Unified provenance registry",
-      "Operational lineage timeline",
-      "QA + governance provenance convergence",
-      "Pipeline event visualization",
-      "Persistent provenance storage"
-    ],
-    "analytics": [
-      "KPI aggregation service",
-      "Operations analytics dashboard",
-      "QA metrics reporting",
-      "Governance metrics reporting",
-      "Operational timeline analytics",
-      "Persistent analytics storage"
-    ],
-    "persistence_and_schema": [
-      "Central SQLite persistence adapter",
-      "Operational database schema initialization",
-      "Schema migration/version tracking framework",
-      "Artifact registry persistence",
-      "Workflow queue schema support"
+      "Metadata provenance event tracking",
+      "Signed event persistence",
+      "Operational audit telemetry"
     ],
     "workflow_orchestration": [
-      "Workflow queue abstraction",
+      "Persistent workflow queues",
       "Threaded background worker runtime",
       "Workflow execution lifecycle tracking",
       "Workflow execution monitoring dashboard",
-      "Priority queue scheduling"
+      "Priority queue scheduling",
+      "Workflow DAG orchestration engine",
+      "Workflow replay and recovery engine",
+      "Distributed reconciliation service",
+      "Worker heartbeat monitoring",
+      "Worker failover detection"
     ],
     "accessibility_toolchain": [
-      "Subprocess execution abstraction",
-      "DAISY Ace execution stubs",
-      "EPUBCheck execution stubs",
+      "Secure subprocess sandboxing",
+      "DAISY Ace binary integration",
+      "EPUBCheck binary integration",
       "Artifact capture and telemetry",
       "Timeout and failure handling",
-      "Toolchain execution dashboard"
+      "Toolchain execution dashboard",
+      "CI/CD accessibility validation hooks",
+      "GitHub Actions accessibility workflow"
     ],
     "security": [
       "Role-based access control service",
-      "Permission evaluation engine",
-      "Seeded governance roles",
-      "Authorization simulation dashboard"
+      "Tenant-aware RBAC enforcement",
+      "Authentication middleware",
+      "API token validation",
+      "Credential vault abstraction",
+      "Permission evaluation engine"
+    ],
+    "reliability": [
+      "Webhook retry engine",
+      "Dead-letter queue handling",
+      "Distributed worker registry",
+      "Artifact retention lifecycle engine",
+      "Persistent event store"
+    ],
+    "multi_tenancy": [
+      "Organization model",
+      "Tenant membership system",
+      "Tenant-aware RBAC mapping"
+    ],
+    "ci_cd_governance": [
+      "Accessibility severity threshold policy engine",
+      "Release-blocking accessibility enforcement",
+      "Pipeline validation orchestration",
+      "Accessibility QA automation"
     ]
   },
   "next_steps": {
-    "production_toolchain_hardening": {
+    "security_hardening": {
       "priority": "critical",
       "items": [
-        "Integrate real DAISY Ace CLI binaries",
-        "Integrate real EPUBCheck execution",
-        "Integrate DAISY Pipeline jobs",
-        "Implement secure subprocess sandboxing",
-        "Add artifact retention lifecycle management"
+        "Replace base64 secret storage with real encryption backend",
+        "KMS/HSM integration support",
+        "Secret rotation workflows",
+        "Secret access audit logging"
       ]
     },
-    "authentication_and_identity": {
+    "distributed_scaling": {
       "priority": "critical",
       "items": [
-        "Session-based authentication",
-        "Encrypted credential management",
-        "Operator identity persistence",
-        "Audit-grade authentication events",
-        "Password reset and MFA support"
+        "Queue partitioning per tenant",
+        "Automatic workload redistribution",
+        "Distributed worker auto-scaling",
+        "Cluster-aware orchestration balancing"
       ]
     },
-    "distributed_orchestration": {
+    "governance_exports": {
       "priority": "high",
       "items": [
-        "Persistent workflow queues",
-        "Distributed worker coordination",
-        "Retry scheduling engine",
-        "Workflow dependency DAG execution",
-        "SLA escalation workflows"
+        "Signed compliance report exports",
+        "Immutable governance snapshots",
+        "Regulatory reporting templates",
+        "Audit bundle generation"
       ]
     },
-    "api_and_integration_layer": {
+    "api_enforcement": {
       "priority": "high",
       "items": [
-        "REST API framework",
-        "Workflow execution endpoints",
-        "Artifact retrieval APIs",
-        "Governance APIs",
-        "Webhook/event streaming"
+        "Tenant-aware API authorization middleware",
+        "Policy-driven API enforcement",
+        "Per-tenant API quotas",
+        "Workflow routing policies"
       ]
     },
-    "observability_and_reporting": {
-      "priority": "high",
-      "items": [
-        "Longitudinal KPI trend analysis",
-        "Accessibility compliance scorecards",
-        "Pipeline performance telemetry",
-        "Exportable governance reports",
-        "Operational forecasting analytics"
-      ]
-    },
-    "enterprise_platform": {
+    "automation": {
       "priority": "medium",
       "items": [
-        "Multi-tenant organization support",
-        "Cloud object storage abstraction",
-        "CI/CD accessibility validation hooks",
-        "Enterprise audit exports",
-        "Disaster recovery workflows"
+        "Workflow auto-remediation routing",
+        "Automated accessibility remediation suggestions",
+        "Policy-based remediation execution",
+        "Adaptive retry orchestration"
       ]
     }
   },
   "target_architecture": {
-    "platform_type": "Enterprise Accessibility Production Operations Platform",
+    "platform_type": "Enterprise Accessibility Governance and Operations Platform",
     "capabilities": [
-      "Accessible publishing workflows",
-      "Accessibility governance",
-      "Digital provenance tracking",
-      "Automated accessibility QA",
-      "Operational analytics",
+      "Distributed workflow orchestration",
+      "Accessibility CI/CD enforcement",
+      "Secure subprocess execution",
+      "Tenant-aware governance",
+      "Audit-grade provenance",
+      "Accessibility automation",
       "Compliance reporting",
-      "Pipeline orchestration",
-      "Security and RBAC",
-      "Distributed workflow execution",
-      "Accessibility toolchain integration"
+      "Operational analytics",
+      "Resilient worker execution",
+      "Enterprise workflow recovery"
     ]
   }
 }
