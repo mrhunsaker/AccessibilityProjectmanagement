@@ -1,250 +1,232 @@
 # Accessibility Project Manager
 
-Accessibility Project Manager is a Python-based production management system
-for accessibility-focused maker and transcription workflows.
-
-The application combines:
-
-- Braille production tracking
-- Large print and eBraille workflow management
-- 3-D print job management
-- Inventory and materials tracking
-- SQLite-backed operational records
-- NiceGUI web frontend
-
-The project originally started as a Textual TUI application and is now being
-migrated into a modular NiceGUI interface while preserving the original
-workflow model.
+A production management system for accessibility materials studios — tracking the full lifecycle of braille, large print, eBraille, EPUB3/DAISY, tactile graphics, and 3-D printed accessibility materials from initial request through auditable delivery.
 
 ---
 
-## Core Features
+## Purpose
 
-## Dashboard
+This application is the operational hub for teams that produce and distribute accessible materials for students and patrons with print disabilities. Every job — whether a braille transcription, a large print document, an eBraille or EPUB3/DAISY file, a tactile graphic, or a 3-D printed assistive device — is tracked through its complete production lifecycle, with a full audit trail attached to every step, every file, and every metadata change.
 
-The dashboard provides operational visibility across the studio:
+The goal is to be able to answer, at any time and from any piece of identifying information:
 
-- Active braille jobs
-- Large print, eBraille, tactile graphics, and 3D print jobs
-- Recent print jobs
-- Inventory alerts
-- Low filament warnings
-- Urgent production items
-- Workflow completion status
+- What materials were produced for this student / school / grade / subject?
+- Where is every file associated with this job, and what happened to it?
+- Who did what, with which tool, at which step, and when?
+- What is the current production status of every active job?
+- What consumables were used, and what is remaining in stock?
+
+---
+
+## Core Concepts
+
+### Jobs
+
+A **job** is the fundamental unit of work. Every request for accessible materials creates a job of the appropriate type. Jobs progress through defined workflow stages, and every stage completion — or reversion — is recorded as a PREMIS-style event in the event log.
+
+| Job Type | Workflow Stages |
+|---|---|
+| Braille | Digitized → Formatted → Brailled → Proofread → Delivered |
+| Large Print | Digitized → Formatted → Converted → Proofread → Delivered |
+| eBraille | Digitized → Formatted → Converted → Proofread → Delivered |
+| EPUB3 / DAISY | Digitized → Formatted → Converted → Proofread → Delivered |
+| Tactile Graphics | Designed → Produced → QA Reviewed → Delivered |
+| 3-D Print | (logged per print run with filament tracking) |
+
+Each job carries:
+- Title, requester, request date, due date, priority
+- Workflow step completion status
+- Linked files with preservation metadata
+- Dublin Core and extended descriptive metadata
+- A full provenance event log
+
+### Files and Preservation
+
+Files are ingested — not just referenced — into a structured artifact store. When a file is attached to a job at any stage, the system:
+
+1. Copies the file into `artifacts/<Project Title>/` with a standardized filename derived from project, student, school, grade, and subject metadata.
+2. Computes a SHA-256 checksum for fixity verification.
+3. Records the MIME type, file size, format name, format version, encoding/code table, file use classification, and any tools or processes applied.
+4. Logs a PREMIS INGEST event in the job's event log.
+
+This means the database always knows exactly where every file is, what it contains, and how it got there.
+
+### Metadata
+
+Descriptive metadata follows three governed vocabularies, all managed through the Admin panel and stored in the `job_metadata` table:
+
+- **Dublin Core** (15-element set): `dc:title`, `dc:creator`, `dc:subject`, `dc:language`, etc.
+- **eBraille Production Profile**: `grade_level`, `subject_area`, `isbn`, `transcriber`, `braille_code`, `contracted_status`, `nemeth_used`, `tactile_graphics_present`, etc.
+- **METS / PREMIS**: `mets:file_group`, `premis:event_type`, `premis:agent`, `premis:storage_location`, etc.
+
+Metadata keys are enforced from an approved list to prevent typos and inconsistent records. An admin backfill tool can detect and normalize non-standard keys already in the database.
+
+### Audit Trail
+
+Every meaningful action generates a record in the `metadata_event` table:
+
+- Job created
+- Workflow step completed or reverted
+- File ingested and linked
+- Manual note added by an operator
+- QA tool run
+- Pipeline executed
+
+Events carry the event type, outcome, agent, timestamp, linked file (if any), and free-text detail. This creates a complete, time-ordered provenance chain for every job.
+
+---
+
+## Production Workflows
+
+### Braille Jobs
+
+Tracks braille transcription from initial receipt of a source document through embossed or electronic delivery. Supports braille types: Literary, Math (Nemeth), Science, Music.
+
+Each job can be linked to a specific embosser (Index, ViewPlus, etc.) and paper type. Files can be attached at any workflow stage — for example, attaching the source PDF at Digitized, a BRF at Brailled, and a final copy at Delivered — each with format, encoding, and tool provenance recorded.
+
+### Large Print Jobs
+
+Tracks large print document production. Format output is typically PDF or DOCX, produced from a source document and proofread before delivery.
+
+### eBraille Jobs
+
+Tracks electronic braille (BRF, EBRF, or PEF) file production, typically produced in BrailleBlaster or similar tools. Separate from embossed braille jobs so each workflow is independently trackable.
+
+### EPUB3 / DAISY Jobs
+
+Tracks accessible digital publication production, including both EPUB3 with accessibility metadata and DAISY talking book formats. Integrates with the QA toolchain (DAISY Ace, EPUBCheck) for automated accessibility validation.
+
+### Tactile Graphics Jobs
+
+Tracks production of tactile graphics by method: Thermoform/SWELL, Hand Tooled, or Embossed Figures. Four-stage workflow: Designed → Produced → QA Reviewed → Delivered.
+
+### 3-D Print Jobs
+
+Logs each print run against a specific printer and filament spool. Records:
+- Object name and linked print file (.3mf, .stl, .gcode)
+- Filament used (grams, automatically deducted from inventory)
+- Success/failure status and failure reason
+- Requester and request date
+
+Print files are stored in `prints_files/` and referenced in the database record.
 
 ---
 
 ## Inventory Management
 
-Tracks production materials and consumables.
-
 ### Filament
 
-Tracks 3-D printer filament inventory.
-
-Supported metadata includes:
-
-- Brand
-- Color
-- Filament type
-- Diameter
-- Remaining grams
-
-Filament quantities are automatically decremented when print jobs are logged.
+Tracks 3-D printer filament by brand, color, type, and diameter. Quantity is automatically decremented when a print job is logged. Low-stock warnings appear on the dashboard and in the inventory view.
 
 ### Braille Paper
 
-Tracks:
-
-- Sheet feed paper
-- Pin feed paper
-- Label stock
-- Specialty braille media
+Tracks sheet feed, pin feed, label stock, and specialty media by type, size, and quantity.
 
 ### Electronics
 
-Tracks electronics and assembly components used in accessibility hardware
-projects.
-
-Category behavior:
-
-- All configured electronics categories are shown on the page, even when empty.
-- Empty category sections display a "No components in this category." message.
-- In Add/Edit Component dialogs, selecting `EMPTY` prompts for a required new
-  category name.
-- Newly entered categories are written to the `material_category` table and are
-  immediately available in the UI.
-
-Examples include:
-
-- Microcontrollers
-- TRRS components
-- Wiring
-- Switches
-- Fasteners
-- Solder
-- Connectors
+Tracks components used in adaptive switch and accessibility hardware assembly projects: microcontrollers, TRRS components, wire, switches, fasteners, solder, connectors, and custom categories. All configured categories are always shown, even when empty.
 
 ---
 
-## Production Workflow Tracking
+## File Organization
 
-## Braille Jobs
+```
+artifacts/
+└── <Project Title>/
+    └── <StudentInitials>_<SchoolName>_Grade<N>_<Subject>.<ext>
 
-Tracks multi-stage braille production workflows.
+prints_files/
+└── <original filename>
 
-Workflow stages:
+job_files/
+└── <uuid>.<ext>          (legacy fallback when no project context is given)
 
-1. Digitized
-2. Formatted
-3. Brailled
-4. Proofread
-5. Delivered
+backups/
+└── accessibility_manager_<YYYYMMDD_HHMMSS>.db
+```
 
-Supports:
+The `artifacts/` directory is the primary storage location for all production files. The structured naming convention — derived from the project title, student initials, school name, grade level, and subject — makes it possible to locate any file on disk without querying the database.
 
-- Job priorities
-- Progress tracking
-- Workflow completion metrics
-- Job categorization
-
-Supported categories include:
-
-- Literary
-- Math
-- Science
-- Music
+The database stores the absolute path to every file, so records always resolve regardless of working directory.
 
 ---
 
-## Large Print / eBraille Jobs
+## Database Structure
 
-Tracks large-print and electronic braille production.
+SQLite database (`accessibility_manager.db`) with WAL journaling and foreign key enforcement.
 
-Also includes an `EPUB3 / DAISY` workflow type for accessible digital delivery.
-
-Workflow stages:
-
-1. Digitized
-2. Formatted
-3. Converted
-4. Proofread
-5. Delivered
-
----
-
-## Tactile Graphics Jobs
-
-Tracks tactile graphics production.
-
-Methods:
-
-- Thermoform / SWELL
-- Hand Tooled
-- Embossed Figures
-
-Workflow stages:
-
-1. Designed
-2. Created
-3. Proofread
-4. Delivered
+| Table | Purpose |
+|---|---|
+| `braille_job` | Braille transcription jobs and workflow step status |
+| `lp_ebraille_job` | Large print, eBraille, and EPUB3/DAISY jobs |
+| `tactile_graphics_job` | Tactile graphics jobs |
+| `print_job` | 3-D print job log |
+| `file_object` | Every ingested file with checksum, path, format, and use |
+| `job_file_link` | Links files to jobs at specific workflow steps |
+| `metadata_event` | PREMIS-style event log for all job actions |
+| `job_metadata` | Dublin Core and extended descriptive metadata (key/value) |
+| `structural_map_node` | METS-inspired structural map for complex documents |
+| `filament` | Filament inventory |
+| `braille_paper` | Paper and label stock |
+| `electronics` | Electronics and hardware components |
+| `printer` | 3-D printer registry |
+| `embosser` | Braille embosser registry |
+| `material_category` | Configurable lookup values for all dropdowns |
+| `workflow_step` | Configurable workflow step definitions |
+| `qa_run` | QA tool execution history |
+| `pipeline_run` | Multi-step pipeline execution records |
+| `pipeline_step_run` | Individual step results within a pipeline run |
+| `backup_log` | Automated and manual backup history |
 
 ---
 
-## 3-D Print Jobs
+## QA and Automation
 
-Tracks fabrication and printer usage.
+### QA Tooling
 
-Features include:
+Run accessibility validation tools directly from the QA page. Every run is persisted with the full command, output, and success/failure status.
 
-- Printer selection
-- Filament usage logging
-- Success/failure tracking
-- Failure reason tracking
-- Linked print files
-- Print history
+| Tool | Domain |
+|---|---|
+| DAISY Ace | EPUB accessibility (WCAG) |
+| EPUBCheck | EPUB structural conformance |
+| Liblouis / file2brl | Braille translation verification |
+| BRLTTY | Braille device validation |
+| Pandoc | Document conversion and format check |
+| ANZAGG Validation | Tactile and accessible 3-D print review (manual) |
 
-Supported print file types:
+### Pipelines
 
-- `.3mf`
-- `.stl`
-- `.gcode`
+Multi-step automated workflows that chain tools together. Each pipeline run logs every step result and overall pass/fail to the database.
 
-Print assets are stored in the `prints_files/` directory.
-
----
-
-## Technology Stack
-
-| Component          | Technology  |
-| ------------------ | ----------- |
-| Frontend           | NiceGUI     |
-| Original UI        | Textual     |
-| Database           | SQLite      |
-| Language           | Python 3.9+ |
-| Package Management | uv          |
+Available pipelines:
+- **DAISY Pipeline** — DAISY Pipeline 2 task execution
+- **Accessible EPUB Pipeline** — Pandoc conversion → EPUBCheck → DAISY Ace
+- **Braille Production Pipeline** — Liblouis translation → BRLTTY device check
 
 ---
-
-## Running the Application
-
-## Recent Workflow and Metadata Updates
-
-- File ingestion now copies assets into `artifacts/<Project Title>/` with
-  structured naming based on project/student/school/grade/subject metadata.
-- Ingested file records are linked to the artifact path in the database for
-  centralized file traceability.
-- Metadata entry uses governed option sets (including Dublin Core and
-  eBraille-profile fields), with helper examples and option popups in UI forms.
-- Admin includes metadata option management and typo-key backfill tooling.
-- `EPUB3 / DAISY Jobs` is available as a first-class production page.
-- `DAISY Pipeline` is classified under Pipelines instead of QA Tooling.
 
 ## System Dependencies
 
-The application requires the following system tools to be installed and available on your PATH:
-
-### Ace (Accessibility Checker for EPUB)
-
-Install via npm:
+The following tools must be installed and on your PATH:
 
 ```bash
+# DAISY Ace (EPUB accessibility checker)
 npm install @daisy/ace -g
+
+# EPUBCheck
+brew install epubcheck          # macOS
+# or download from https://github.com/w3c/epubcheck/releases
+
+# LibLouis
+sudo apt-get install liblouis-bin liblouis-dev    # Ubuntu/Debian
+brew install liblouis                             # macOS
+
+# DAISY Pipeline 2
+# Download from https://daisy.org/activities/software/pipeline/
 ```
 
-### DAISY Pipeline
-
-Download and install from [DAISY Pipeline](https://daisy.org/activities/software/pipeline/) or install via package manager.
-
-### EPUBCheck
-
-Download from [EPUBCheck releases](https://github.com/w3c/epubcheck/releases) or install via package manager.
-
-For macOS or Linux (via Homebrew):
-
-```bash
-brew install epubcheck
-```
-
-### LibLouis
-
-Install the Braille translation library.
-
-For Ubuntu/Debian:
-
-```bash
-sudo apt-get install liblouis-bin liblouis-dev
-```
-
-For macOS (via Homebrew):
-
-```bash
-brew install liblouis
-```
-
-Verify all tools are on your PATH:
-
+Verify all tools:
 ```bash
 ace --version
 pipeline2 --version
@@ -252,178 +234,189 @@ epubcheck --version
 lou_translate --version
 ```
 
----
+### Configuring Non-Standard Paths (`tools.ini`)
 
-## Configuring Tool Paths (`tools.ini`)
-
-If any of the tools above are installed with non-standard executable names or
-in directories not on your login PATH (common with GUI app launchers), create or
-edit `tools.ini` in the project root.
-
-The file is created automatically with defaults on first use. To customise:
+If any tool is installed in a non-standard location, create `tools.ini` in the project root:
 
 ```ini
 [tools]
-# Set to the exact executable name or a full absolute path
-ace       = ace             # or /usr/local/bin/ace
-epubcheck = epubcheck       # or /opt/epubcheck/bin/epubcheck
-pipeline  = pipeline2       # DAISY Pipeline 2 CLI is usually "pipeline2"
-liblouis  = lou_translate   # or file2brl, lou_checktable, etc.
+ace       = ace
+epubcheck = epubcheck
+pipeline  = pipeline2
+liblouis  = lou_translate
 
 [paths]
-# Directories to prepend to PATH at startup (one per line, indent continuations)
 extra =
     /opt/daisy-pipeline2/bin
     /usr/local/share/npm/bin
 ```
 
-At startup the app:
-
-1. Reads `tools.ini`.
-2. Prepends every directory listed under `[paths] extra` to `PATH`.
-3. Resolves each tool via `shutil.which()` (after the PATH update) or directly
-   if an absolute path is given.
-4. Logs a warning for any tool that cannot be found (the app still starts).
-
-Use `tools_service.resolve("ace")` / `resolve("epubcheck")` /
-`resolve("pipeline")` / `resolve("liblouis")` anywhere in the codebase to
-get the confirmed absolute path for a tool before invoking it.
+Use `tools_service.resolve("ace")` anywhere in the codebase to get the confirmed executable path before invoking a tool.
 
 ---
 
-## Install Python Dependencies
+## Installation and Running
+
+### Install Python Dependencies
 
 ```bash
 uv sync
 ```
 
-### Optional: Run a docstring quality pass
-
-The project follows NumPy-style docstring conventions for modules, classes,
-and functions. If you are validating docstrings locally, run your preferred
-linting/checking tools after dependency sync.
-
----
-
-## Run the NiceGUI Frontend
+### Run the Application
 
 ```bash
 uv run python accessibility_mgr/app.py
 ```
 
-## Seed Inventory From CSV
-
-Use the seed importer to load a large initial inventory/purchase list from CSV.
+Or use the launcher scripts:
 
 ```bash
-uv run AccessMan-seed Purchase_Needs_Adaptive_Switches_with_inventory.csv --dry-run
-uv run AccessMan-seed Purchase_Needs_Adaptive_Switches_with_inventory.csv --replace-existing
-uv run AccessMan-seed Purchase_Needs_Adaptive_Switches_with_inventory.csv --replace-existing --filament-spool-cost 9.99 --filament-spool-grams 1000 --verify-totals
-uv run AccessMan-seed Purchase_Needs_Adaptive_Switches_with_inventory.csv --verify-only
+# Linux / macOS
+./accessibility_mgr/run.sh
+
+# Windows
+accessibility_mgr\run.bat
 ```
 
-Notes:
+The application starts a local NiceGUI web server at `http://localhost:8765`.
 
-- `--dry-run` parses and reports counts without writing data.
-- `--replace-existing` clears `electronics`, `filament`, and `braille_paper` before import.
-- Filament spool counts are converted to grams using `--filament-spool-grams` (default `1000`).
-- Use `--filament-spool-cost` to set a default spool price and auto-calculate `cost_per_kg`.
-- Use `--verify-totals` to print post-import table totals.
-- Use `--verify-only` to print totals without importing.
+### Seed Inventory from CSV
 
-The application launches a local NiceGUI web server.
+Import an initial inventory from a CSV purchase list:
+
+```bash
+# Preview without writing
+uv run AccessMan-seed inventory.csv --dry-run
+
+# Import, replacing any existing inventory
+uv run AccessMan-seed inventory.csv --replace-existing
+
+# Import with filament cost calculation
+uv run AccessMan-seed inventory.csv --replace-existing \
+    --filament-spool-cost 9.99 --filament-spool-grams 1000 --verify-totals
+
+# Check current totals without importing
+uv run AccessMan-seed inventory.csv --verify-only
+```
 
 ---
 
-## Documentation Site
+## Backups
 
-The project documentation is generated with MkDocs and published to:
+The application runs an automatic weekly database backup in the background. Backups are stored in `backups/` as `accessibility_manager_<YYYYMMDD_HHMMSS>.db`, with the 10 most recent copies retained. Backup history is logged to the `backup_log` table.
 
-<https://mrhunsaker.github.io/AccessibilityProjectmanagement>
+To trigger a manual backup from Python:
 
-To preview or build the documentation locally:
-
-```bash
-uv sync --group docs
-uv run mkdocs serve
-uv run mkdocs build --strict
+```python
+from accessibility_mgr.services.backup_service import BackupService
+path = BackupService.run_backup(trigger="manual")
 ```
-
-The published site pulls its API reference from the docstrings in the Python
-modules under `accessibility_mgr/`.
 
 ---
 
-## Database
+## Admin Settings
 
-The application automatically initializes a SQLite database on startup.
+The Admin panel manages all configurable lookup data that drives dropdowns throughout the application:
 
-Default database:
+- **Material Categories** — paper types, electronics categories, filament types, diameters, priorities, file use classifications, braille types, tactile methods, LP/eBraille types
+- **Metadata Options** — add or remove allowed Dublin Core, eBraille profile, and METS/PREMIS metadata keys; run the typo backfill tool to normalize non-standard keys already in the database
+- **Workflow Steps** — add, reorder, activate, or deactivate steps for any job type
+- **Printers** — register and manage 3-D printers
+- **Embossers** — register and manage braille embossers with paper type assignments
 
-```text
-project_manager.db
-```
+---
 
-The database uses:
+## Navigation
 
-- WAL journaling
-- Foreign key enforcement
-- Structured relational tables
+| Section | Pages |
+|---|---|
+| Overview | Dashboard, Search |
+| Production | Braille Jobs, Large Print Jobs, eBraille Jobs, EPUB3/DAISY Jobs, Tactile Graphics, 3-D Print Jobs |
+| Inventory | Filament, Braille Paper, Electronics |
+| Metadata & Files | File Ingestion, Metadata Editor, Lineage Viewer |
+| QA & Automation | QA Tooling, Pipelines |
+| Admin | Admin Settings |
+
+The **Search** page performs full-text search across job titles, requester names, filenames, and metadata values simultaneously, returning results grouped by type.
+
+The **Lineage Viewer** generates a Mermaid provenance graph showing which files are linked to which jobs, alongside the unified provenance timeline.
+
+---
+
+## Technology Stack
+
+| Component | Technology |
+|---|---|
+| Frontend | NiceGUI |
+| Database | SQLite (WAL mode, foreign keys enforced) |
+| Language | Python 3.9+ |
+| Package Management | uv |
+| Metadata Standards | Dublin Core, METS, PREMIS, eBraille profile |
 
 ---
 
 ## Repository Structure
 
-```text
-accessibility_mgr/
-├── app.py                # NiceGUI frontend entrypoint
-├── db/
-│   ├── database.py       # Database initialization
-│   ├── queries.py        # Data access layer
-│   └── schema.py         # Schema definitions
-├── ui/
-│   ├── dashboard.py
-│   ├── inventory_panels.py
-│   ├── categories.py
-│   ├── print_jobs.py
-│   ├── braille_jobs.py
-│   ├── lp_ebraille.py
-│   ├── pipelines.py
-│   ├── qa.py
-│   └── metadata_editor.py
-├── services/
-│   ├── pipeline_service.py
-│   ├── qa_service.py
-│   └── tools_service.py
-├── job_files/
-├── artifacts/
-└── prints_files/
 ```
+accessibility_mgr/
+├── app.py                    # Application entry point and page registry
+├── db/
+│   ├── schema.py             # Schema definitions, migrations, directory paths
+│   ├── queries.py            # All SQL — parameterized data access layer
+│   └── seed_import.py        # CSV inventory seeder
+├── ui/
+│   ├── dashboard.py          # Studio overview and quick-launch
+│   ├── braille_jobs.py       # Braille job CRUD and detail view
+│   ├── lp_ebraille.py        # Large print, eBraille, EPUB3/DAISY jobs
+│   ├── tactile_graphics.py   # Tactile graphics jobs
+│   ├── print_jobs.py         # 3-D print job log
+│   ├── inventory_panels.py   # Filament, paper, and electronics inventory
+│   ├── ingestion.py          # File ingestion with preservation metadata
+│   ├── metadata_editor.py    # Standalone metadata editor for any job
+│   ├── metadata_options.py   # Metadata vocabulary catalog
+│   ├── lineage.py            # File lineage and provenance graph
+│   ├── search.py             # Cross-system full-text search
+│   ├── qa.py                 # QA tool execution and history
+│   ├── pipelines.py          # Multi-step pipeline orchestration
+│   ├── admin.py              # Admin settings panel
+│   └── components.py         # Shared UI helpers
+├── services/
+│   ├── backup_service.py     # Automated weekly database backup
+│   ├── pipeline_service.py   # Pipeline definitions and execution
+│   ├── qa_service.py         # QA tool registry and execution
+│   ├── preservation_service.py # SHA-256 fixity and PREMIS event recording
+│   ├── tools_service.py      # External tool path resolution
+│   └── execution_service.py  # Subprocess execution wrapper
+├── artifacts/                # Primary file store (structured by project)
+├── prints_files/             # 3-D print file store
+├── job_files/                # Legacy UUID-based file store
+└── backups/                  # Automated database backups
+```
+
+---
+
+## Documentation
+
+The project documentation is generated with MkDocs:
+
+```bash
+uv sync --group docs
+uv run mkdocs serve          # preview locally
+uv run mkdocs build --strict # build static site
+```
+
+Published at: <https://mrhunsaker.github.io/AccessibilityProjectmanagement>
 
 ---
 
 ## Current Status
 
-The NiceGUI frontend is under active development and is replacing the original
-terminal interface incrementally.
+Active development. The NiceGUI frontend is the primary interface. All core production workflows, inventory management, file ingestion, metadata editing, QA tooling, and pipeline orchestration are implemented.
 
-Current priorities:
-
-- Complete migration of TUI workflows into NiceGUI
-- Expand CRUD interfaces
-- Improve accessibility compliance
-- Add reporting and analytics
-- Add authentication and multi-user support
-
----
-
-## Accessibility Goals
-
-This project is designed for accessibility-focused production environments and
-prioritizes:
-
-- Keyboard accessibility
-- High-contrast interfaces
-- Screen-reader compatibility
-- Efficient operator workflows
-- Reduced operational friction for adaptive production teams
+Planned additions:
+- Authentication and role-based access control
+- Reporting and analytics exports
+- Batch operations across multiple jobs
+- Notification system for due date alerts and SLA tracking
+- Enhanced accessibility compliance in the UI itself
