@@ -1,9 +1,9 @@
 """
 QA service — accessibility validation tool registry and execution.
 
-Each tool definition carries the executable name, parse strategy, and domain.
-Actual invocation goes through ExecutionService; results are persisted via
-db.queries.log_qa_run().
+Changes applied (see fix_specs.json):
+  FIX-012  When job_type and job_id are provided, a QA_RUN event is written
+           to the job's metadata_event record in addition to qa_run table.
 """
 
 from __future__ import annotations
@@ -18,42 +18,18 @@ from .execution_service import ExecutionResult, ExecutionService
 
 @dataclass
 class QATool:
-    """QATool class.
-    
-    """
     name: str
     domain: str
     description: str
-    executable: str          # the binary name checked on PATH
-    command_template: str    # {input} is replaced at runtime
+    executable: str
+    command_template: str
     timeout: int = 120
 
     def build_command(self, input_path: str = "") -> list[str]:
-        """Build command.
-        
-        Parameters
-        ----------
-        input_path : Any
-            input_path parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         cmd = self.command_template.replace("{input}", input_path)
         return shlex.split(cmd)
 
     def is_available(self) -> bool:
-        """Is available.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         return ExecutionService.check_tool_available(self.executable)
 
 
@@ -106,7 +82,7 @@ QA_TOOLS: list[QATool] = [
             "ANZAGG covers tactile readability standards, educational object review, "
             "and tactile pedagogy validation. Manual review workflow."
         ),
-        executable="echo",  # manual review — no dedicated CLI tool
+        executable="echo",
         command_template="echo ANZAGG validation requires manual tactile review of: {input}",
         timeout=5,
     ),
@@ -120,31 +96,10 @@ class QAService:
 
     @staticmethod
     def list_tools() -> list[QATool]:
-        """List tools.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         return QA_TOOLS
 
     @staticmethod
     def get_tool(name: str) -> Optional[QATool]:
-        """Get tool.
-        
-        Parameters
-        ----------
-        name : Any
-            name parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         return _TOOL_MAP.get(name)
 
     @staticmethod
@@ -154,7 +109,12 @@ class QAService:
         job_type: Optional[str] = None,
         job_id: Optional[int] = None,
     ) -> ExecutionResult:
-        """Execute a QA tool, persist the result, and return it."""
+        """Execute a QA tool, persist the result, and return it.
+
+        FIX-012: When job_type and job_id are provided, a QA_RUN event is
+        also written to the job's metadata_event record so the result appears
+        in the job's audit trail.
+        """
         tool = _TOOL_MAP.get(name)
         if tool is None:
             return ExecutionResult(
@@ -167,7 +127,7 @@ class QAService:
         command = tool.build_command(input_path)
         result = ExecutionService.run_command(command, timeout=tool.timeout)
 
-        # Persist to DB
+        # Persist to qa_run table
         Q.log_qa_run(
             tool_name=name,
             command=result.command,
@@ -176,5 +136,20 @@ class QAService:
             job_type=job_type,
             job_id=job_id,
         )
+
+        # FIX-012: also write to the job's event log when linked to a job
+        if job_type and job_id:
+            Q.log_event(
+                job_type, job_id,
+                "QA_RUN",
+                "SUCCESS" if result.success else "FAILURE",
+                agent="system",
+                detail=f"{name}: {'PASS' if result.success else 'FAIL'}",
+                extra_metadata={
+                    "tool": name,
+                    "command": result.command,
+                    "output_preview": result.output[:500] if result.output else "",
+                },
+            )
 
         return result

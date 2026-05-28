@@ -1,4 +1,12 @@
-"""LP / eBraille / EPUB3-DAISY jobs panel — mirrors braille_jobs structure."""
+"""
+LP / eBraille / EPUB3-DAISY jobs panel.
+
+Changes applied (see fix_specs.json):
+  FIX-003  _save_all in metadata dialog now calls Q.log_event (persisted to DB).
+  FIX-008  _ingest_dialog pre-populates project context from job metadata so
+           files land in artifacts/<Project Title>/ not job_files/<uuid>.<ext>.
+  FIX-016  Delivered step opens delivery confirmation dialog instead of direct toggle.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +33,7 @@ from .components import (
     section_header,
     status_chip,
 )
+from .delivery_dialog import open_delivery_dialog
 
 _STEPS = ["digitized", "formatted", "converted", "proofread", "delivered"]
 _STEP_LABELS = {
@@ -35,10 +44,13 @@ _STEP_LABELS = {
     "delivered": "5. Delivered",
 }
 _LP_FORMATS = [
-    "PDF", "DOCX", "ODT", "EPUB", "EPUB3", "DAISY", "HTML", "TXT", "BRF", "EBRF", "Other",
+    "PDF", "DOCX", "ODT", "EPUB", "EPUB3", "DAISY", "HTML", "TXT",
+    "BRF", "EBRF", "Other",
 ]
 _FILE_USES = ["ORIGINAL", "DERIVATIVE", "INTERMEDIATE", "SOURCE", "REFERENCE"]
 
+
+# ── Job form dialog ───────────────────────────────────────────────────────────
 
 def _job_dialog(
     on_save,
@@ -46,29 +58,9 @@ def _job_dialog(
     forced_job_type: str | None = None,
     title_override: str | None = None,
 ) -> None:
-    """ job dialog.
-    
-    Parameters
-    ----------
-    on_save : Any
-        on_save parameter.
-    
-    existing : Any
-        existing parameter.
-    
-    forced_job_type : Any
-        forced_job_type parameter.
-    
-    title_override : Any
-        title_override parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
-    title = title_override or ("Edit Large Print / eBraille Job" if existing else "New Large Print / eBraille Job")
+    title = title_override or (
+        "Edit Large Print / eBraille Job" if existing else "New Large Print / eBraille Job"
+    )
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
         ui.label(title).classes("text-xl font-bold text-slate-800")
 
@@ -78,16 +70,35 @@ def _job_dialog(
 
         types = [r["label"] for r in Q.list_material_categories("lp_type")]
         type_vals = [r["value"] for r in Q.list_material_categories("lp_type")]
-        cur_type = forced_job_type or (existing.get("job_type", "large_print") if existing else "large_print")
+        cur_type = forced_job_type or (
+            existing.get("job_type", "large_print") if existing else "large_print"
+        )
         try:
             cur_label = types[type_vals.index(cur_type)]
         except ValueError:
             cur_label = types[0] if types else "Large Print"
+
         if forced_job_type:
             ui.input("Job Type", value=cur_label).props("readonly").classes("w-full")
             jt_select = None
         else:
             jt_select = ui.select(types, label="Job Type*", value=cur_label).classes("w-full")
+
+        # Student selector
+        students = Q.list_students()
+        student_labels = ["(none)"] + [
+            f"{s['last_name']}, {s['first_name']} — {s.get('school', '')}"
+            for s in students
+        ]
+        student_ids: list[Optional[int]] = [None] + [s["id"] for s in students]
+        cur_sid = existing.get("student_id") if existing else None
+        cur_slbl = (
+            student_labels[student_ids.index(cur_sid)]
+            if cur_sid in student_ids else "(none)"
+        )
+        student_sel = ui.select(
+            student_labels, label="Student", value=cur_slbl
+        ).classes("w-full")
 
         with ui.row().classes("gap-4 w-full"):
             req_input = ui.input(
@@ -110,9 +121,7 @@ def _job_dialog(
                 cur_pri_label = pris[pri_vals.index(cur_pri)]
             except ValueError:
                 cur_pri_label = "Normal"
-            pri_select = ui.select(pris, label="Priority", value=cur_pri_label).classes(
-                "flex-1"
-            )
+            pri_select = ui.select(pris, label="Priority", value=cur_pri_label).classes("flex-1")
 
         notes_input = ui.textarea(
             "Notes", value=existing.get("notes", "") if existing else ""
@@ -122,14 +131,6 @@ def _job_dialog(
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 if not t_input.value.strip():
                     notify_error("Title is required")
                     return
@@ -144,6 +145,10 @@ def _job_dialog(
                     pi_val = pri_vals[pris.index(pri_select.value)]
                 except (ValueError, IndexError):
                     pi_val = "normal"
+                try:
+                    sid = student_ids[student_labels.index(student_sel.value)]
+                except (ValueError, IndexError):
+                    sid = None
                 on_save({
                     "title":        t_input.value.strip(),
                     "job_type":     jt_val,
@@ -152,6 +157,7 @@ def _job_dialog(
                     "due_date":     due_input.value.strip() or None,
                     "priority":     pi_val,
                     "notes":        notes_input.value.strip(),
+                    "student_id":   sid,
                 })
                 dlg.close()
 
@@ -160,23 +166,14 @@ def _job_dialog(
     dlg.open()
 
 
-def _ingest_dialog(job_id: int, on_done) -> None:
-    """ ingest dialog.
-    
-    Parameters
-    ----------
-    job_id : Any
-        job_id parameter.
-    
-    on_done : Any
-        on_done parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
+# ── File ingest dialog ────────────────────────────────────────────────────────
+
+def _ingest_dialog(job_id: int, on_done, existing_meta: Optional[dict] = None) -> None:
+    """Attach a file to an LP/eBraille job.
+
+    FIX-008: project context is pre-populated from the job's existing metadata.
     """
+    meta = existing_meta or {}
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[560px] max-w-full"):
         ui.label("Attach File to Job").classes("text-xl font-bold text-slate-800")
         path_input = ui.input("File Path*").classes("w-full")
@@ -188,6 +185,29 @@ def _ingest_dialog(job_id: int, on_done) -> None:
         fmt_select = ui.select(_LP_FORMATS, label="Format", value="PDF").classes("w-full")
         ver_input = ui.input("Format Version").classes("w-full")
 
+        # FIX-008: project context pre-populated from job metadata
+        ui.separator().classes("my-2")
+        ui.label("Artifact Location").classes(
+            "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+        )
+        ui.label(
+            "File saved as: StudentInitials_SchoolName_GradeN_Subject.ext"
+        ).classes("text-xs text-slate-400 mb-1")
+        project_inp = ui.input(
+            "Project Title*", value=meta.get("dc:title", "")
+        ).classes("w-full")
+        student_inp = ui.input("Student Initials", value="").classes("w-full")
+        school_inp = ui.input(
+            "School Name", value=meta.get("dc:coverage", "")
+        ).classes("w-full")
+        grade_inp = ui.input(
+            "Grade Level", value=meta.get("grade_level", "")
+        ).classes("w-full")
+        subject_inp = ui.input(
+            "Subject", value=meta.get("dc:subject", "")
+        ).classes("w-full")
+
+        ui.separator().classes("my-2")
         ui.label("Tools & Processes").classes(
             "text-xs font-semibold text-slate-500 uppercase tracking-wider"
         )
@@ -201,14 +221,6 @@ def _ingest_dialog(job_id: int, on_done) -> None:
         proc_box = ui.column().classes("w-full gap-1")
 
         def _add_tool() -> None:
-            """ add tool.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             with tool_box:
                 with ui.row().classes("w-full gap-1 items-center") as row:
                     inp = ui.input("Tool", placeholder="e.g. ace by daisy").classes("flex-1")
@@ -216,19 +228,6 @@ def _ingest_dialog(job_id: int, on_done) -> None:
                     tool_rows.append(ref)
 
                     def _rm(r=ref) -> None:
-                        """ rm.
-                        
-                        Parameters
-                        ----------
-                        r : Any
-                            r parameter.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         r["row"].delete()
                         if r in tool_rows:
                             tool_rows.remove(r)
@@ -236,63 +235,40 @@ def _ingest_dialog(job_id: int, on_done) -> None:
                     ui.button("✕", on_click=_rm).props("flat dense").classes("text-red-400")
 
         def _add_proc() -> None:
-            """ add proc.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             with proc_box:
                 with ui.row().classes("w-full gap-1 items-center") as row:
-                    inp = ui.input("Process", placeholder="e.g. daisy conversion").classes("flex-1")
+                    inp = ui.input("Process", placeholder="e.g. daisy conversion").classes(
+                        "flex-1"
+                    )
                     ref = {"row": row, "inp": inp}
                     proc_rows.append(ref)
 
                     def _rm(r=ref) -> None:
-                        """ rm.
-                        
-                        Parameters
-                        ----------
-                        r : Any
-                            r parameter.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         r["row"].delete()
                         if r in proc_rows:
                             proc_rows.remove(r)
 
                     ui.button("✕", on_click=_rm).props("flat dense").classes("text-red-400")
 
-        ui.button("+ Add Tool", on_click=_add_tool).props("flat dense").classes("text-indigo-600 text-sm")
+        ui.button("+ Add Tool", on_click=_add_tool).props("flat dense").classes(
+            "text-indigo-600 text-sm"
+        )
         _add_tool()
-        ui.button("+ Add Process", on_click=_add_proc).props("flat dense").classes("text-indigo-600 text-sm")
+        ui.button("+ Add Process", on_click=_add_proc).props("flat dense").classes(
+            "text-indigo-600 text-sm"
+        )
         _add_proc()
 
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 if not path_input.value.strip():
                     notify_error("File path is required")
                     return
                 tools = [r["inp"].value.strip() for r in tool_rows if r["inp"].value.strip()]
                 procs = [r["inp"].value.strip() for r in proc_rows if r["inp"].value.strip()]
-                extra: dict | None = None
+                extra: Optional[dict] = None
                 if tools or procs:
                     extra = {}
                     if tools:
@@ -312,6 +288,12 @@ def _ingest_dialog(job_id: int, on_done) -> None:
                         format_name=fmt_select.value,
                         format_version=ver_input.value.strip(),
                         extra_metadata=extra,
+                        # FIX-008: pass project context
+                        project_title=project_inp.value.strip(),
+                        student_initials=student_inp.value.strip(),
+                        school_name=school_inp.value.strip(),
+                        grade_level=grade_inp.value.strip(),
+                        subject=subject_inp.value.strip(),
                     )
                     Q.link_file_to_job(fid, "lp_ebraille", job_id, step_key=step_key)
                     Q.log_event(
@@ -333,23 +315,9 @@ def _ingest_dialog(job_id: int, on_done) -> None:
     dlg.open()
 
 
+# ── Metadata dialog ───────────────────────────────────────────────────────────
+
 def _metadata_dialog(job_id: int, on_done) -> None:
-    """ metadata dialog.
-    
-    Parameters
-    ----------
-    job_id : Any
-        job_id parameter.
-    
-    on_done : Any
-        on_done parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     existing_meta = Q.list_job_metadata("lp_ebraille", job_id)
     option_groups = get_option_groups()
     dc_keys = get_dublin_core_keys()
@@ -360,27 +328,18 @@ def _metadata_dialog(job_id: int, on_done) -> None:
         "p-6 gap-4 w-[600px] max-w-full max-h-[90vh] overflow-y-auto"
     ):
         ui.label("Descriptive Metadata").classes("text-xl font-bold text-slate-800")
-        ui.label(
-            "Dublin Core plus controlled eBraille and METS/PREMIS fields."
-        ).classes("text-slate-500 text-sm")
+        ui.label("Dublin Core plus controlled eBraille and METS/PREMIS fields.").classes(
+            "text-slate-500 text-sm"
+        )
 
         def _show_options() -> None:
-            """ show options.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             with ui.dialog() as od, ui.card().classes(
                 "p-5 gap-3 w-[720px] max-w-full max-h-[85vh] overflow-y-auto"
             ):
                 ui.label("Potential Metadata Options").classes("text-lg font-bold text-slate-800")
                 ui.label(
-                    "Use Admin Settings -> Metadata Options to add or remove allowed keys."
+                    "Use Admin Settings → Metadata Options to add or remove allowed keys."
                 ).classes("text-xs text-slate-500")
-
                 for group, keys in option_groups.items():
                     ui.separator()
                     ui.label(group).classes(
@@ -391,10 +350,8 @@ def _metadata_dialog(job_id: int, on_done) -> None:
                             ui.badge(key).classes(
                                 "bg-slate-100 text-slate-700 text-xs rounded px-2 py-1"
                             )
-
                 with ui.row().classes("justify-end mt-2"):
                     ui.button("Close", on_click=od.close).classes("bg-slate-700 text-white")
-
             od.open()
 
         ui.button("Potential Options", on_click=_show_options).props("flat dense").classes(
@@ -408,37 +365,19 @@ def _metadata_dialog(job_id: int, on_done) -> None:
                     inp = ui.input(key, value=existing_meta.get(key, "")).classes(
                         "w-full font-mono text-sm"
                     )
-                    ui.label(dc_examples.get(key, "")).classes(
-                        "text-[11px] text-slate-400"
-                    )
+                    ui.label(dc_examples.get(key, "")).classes("text-[11px] text-slate-400")
                     meta_rows[key] = inp
 
         ui.separator()
         ui.label("Additional Allowed Fields").classes("text-sm font-medium text-slate-600")
-        ui.label(
-            "Choose keys from the approved eBraille and METS/PREMIS list."
-        ).classes("text-xs text-slate-400")
+        ui.label("Choose keys from the approved eBraille and METS/PREMIS list.").classes(
+            "text-xs text-slate-400"
+        )
 
         extra_rows: list[dict[str, ui.element]] = []
         extra_box = ui.column().classes("w-full gap-2")
 
         def _add_extra_row(initial_key: str = "", initial_val: str = "") -> None:
-            """ add extra row.
-            
-            Parameters
-            ----------
-            initial_key : Any
-                initial_key parameter.
-            
-            initial_val : Any
-                initial_val parameter.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             with extra_box:
                 with ui.row().classes("gap-2 w-full items-center") as row:
                     key_sel = ui.select(
@@ -451,19 +390,6 @@ def _metadata_dialog(job_id: int, on_done) -> None:
                     extra_rows.append(ref)
 
                     def _remove(r: dict[str, ui.element] = ref) -> None:
-                        """ remove.
-                        
-                        Parameters
-                        ----------
-                        r : Any
-                            r parameter.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         r["row"].delete()
                         if r in extra_rows:
                             extra_rows.remove(r)
@@ -473,7 +399,6 @@ def _metadata_dialog(job_id: int, on_done) -> None:
         ui.button("+ Add Field", on_click=lambda: _add_extra_row()).props("flat dense").classes(
             "text-indigo-600 text-sm self-start"
         )
-
         for key, value in existing_meta.items():
             if key not in dc_keys and key in non_dc_keys:
                 _add_extra_row(initial_key=key, initial_val=value)
@@ -482,18 +407,12 @@ def _metadata_dialog(job_id: int, on_done) -> None:
             ui.button("Close", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save_all() -> None:
-                """ save all.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                saved_keys: list[str] = []
                 for key, inp in meta_rows.items():
                     v = inp.value.strip()
                     if v:
                         Q.set_job_metadata("lp_ebraille", job_id, key, v)
+                        saved_keys.append(key)
                     else:
                         Q.delete_job_metadata("lp_ebraille", job_id, key)
 
@@ -504,7 +423,15 @@ def _metadata_dialog(job_id: int, on_done) -> None:
                     v = (row["value"].value or "").strip()
                     if k and v and k in non_dc_keys:
                         Q.set_job_metadata("lp_ebraille", job_id, k, v)
+                        saved_keys.append(k)
 
+                # FIX-003: persist audit to DB
+                Q.log_event(
+                    "lp_ebraille", job_id, "METADATA_UPDATE", "SUCCESS",
+                    agent="user",
+                    detail=f"Metadata updated: {len(saved_keys)} field(s)",
+                    extra_metadata={"updated_keys": saved_keys},
+                )
                 notify_success("Metadata saved")
                 dlg.close()
                 on_done()
@@ -514,55 +441,18 @@ def _metadata_dialog(job_id: int, on_done) -> None:
     dlg.open()
 
 
+# ── Job detail view ───────────────────────────────────────────────────────────
+
 def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
-    """ job detail.
-    
-    Parameters
-    ----------
-    job : Any
-        job parameter.
-    
-    content_area : Any
-        content_area parameter.
-    
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     jid = job["id"]
 
     def _refresh() -> None:
-        """ refresh.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         j2 = Q.get_lp_job(jid)
         if j2:
             _render(j2)
 
     def _render(j: dict) -> None:
-        """ render.
-        
-        Parameters
-        ----------
-        j : Any
-            j parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
+        cur_meta = Q.list_job_metadata("lp_ebraille", jid)
         content_area.clear()
         with content_area:
             with ui.row().classes("items-center gap-3 mb-1"):
@@ -573,32 +463,10 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                 priority_badge(j.get("priority", "normal"))
 
                 def _edit() -> None:
-                    """ edit.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
                     def _do(data: dict) -> None:
-                        """ do.
-                        
-                        Parameters
-                        ----------
-                        data : Any
-                            data parameter.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         Q.update_lp_job(jid, **data)
                         notify_success("Updated")
                         _refresh()
-
                     _job_dialog(_do, existing=j)
 
                 ui.button("Edit", on_click=_edit).props("flat").classes("text-blue-600")
@@ -608,9 +476,16 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                 ui.label(f"Requester: {j.get('requester') or '—'}")
                 ui.label(f"Due: {j.get('due_date') or '—'}")
                 ui.label(f"Created: {str(j.get('created_at', ''))[:10]}")
+                if j.get("delivery_date"):
+                    ui.label(
+                        f"Delivered: {j['delivery_date']} via "
+                        f"{j.get('delivery_method', '—')} to "
+                        f"{j.get('delivery_recipient', '—')}"
+                    ).classes("text-green-600")
 
             with ui.row().classes("gap-4 flex-wrap items-start"):
-                # Steps
+
+                # ── Steps ─────────────────────────────────────────────────────
                 with ui.card().classes(
                     "flex-1 min-w-72 p-5 rounded-xl border border-slate-200"
                 ):
@@ -638,32 +513,10 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                     )
                             if is_done:
                                 def _rev(s: str = step) -> None:
-                                    """ rev.
-                                    
-                                    Parameters
-                                    ----------
-                                    s : Any
-                                        s parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
                                     def _do() -> None:
-                                        """ do.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
                                         Q.revert_step("lp_ebraille", jid, s)
                                         notify_success(f"Reverted {s}")
                                         _refresh()
-
                                     confirm_dialog(f"Revert '{_STEP_LABELS[s]}'?", _do)
 
                                 ui.badge("✓ Done").classes(
@@ -671,28 +524,19 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                 ).on("click", _rev)
                             else:
                                 def _comp(s: str = step) -> None:
-                                    """ comp.
-                                    
-                                    Parameters
-                                    ----------
-                                    s : Any
-                                        s parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
-                                    Q.complete_step("lp_ebraille", jid, s)
-                                    notify_success(f"Completed {s}")
-                                    _refresh()
+                                    # FIX-016
+                                    if s == "delivered":
+                                        open_delivery_dialog("lp_ebraille", jid, _refresh)
+                                    else:
+                                        Q.complete_step("lp_ebraille", jid, s)
+                                        notify_success(f"Completed {s}")
+                                        _refresh()
 
                                 ui.button("Mark Done", on_click=_comp).props(
                                     "flat dense"
                                 ).classes("text-blue-600 text-xs")
 
-                # Files
+                # ── Files ─────────────────────────────────────────────────────
                 with ui.card().classes(
                     "flex-1 min-w-80 p-5 rounded-xl border border-slate-200"
                 ):
@@ -700,7 +544,7 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                         ui.label("Files").classes("font-semibold text-slate-700 flex-1")
                         ui.button(
                             "+ Attach File",
-                            on_click=lambda: _ingest_dialog(jid, _refresh),
+                            on_click=lambda: _ingest_dialog(jid, _refresh, cur_meta),
                         ).props("flat dense").classes("text-indigo-600 text-sm")
 
                     files = Q.list_files_for_job("lp_ebraille", jid)
@@ -723,39 +567,17 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                             )
 
                                 def _df(lid: int = f["link_id"]) -> None:
-                                    """ df.
-                                    
-                                    Parameters
-                                    ----------
-                                    lid : Any
-                                        lid parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
                                     def _do() -> None:
-                                        """ do.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
                                         Q.unlink_file_from_job(lid)
                                         notify_success("Unlinked")
                                         _refresh()
-
                                     confirm_dialog("Unlink this file?", _do)
 
                                 ui.button("✕", on_click=_df).props("flat dense").classes(
                                     "text-red-400 text-xs"
                                 )
 
-                # Metadata
+                # ── Metadata ──────────────────────────────────────────────────
                 with ui.card().classes(
                     "flex-1 min-w-64 p-5 rounded-xl border border-slate-200"
                 ):
@@ -781,20 +603,12 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                 )
                                 ui.label(v).classes("text-xs text-slate-700 break-all")
 
-            # Event log
+            # ── Event log ─────────────────────────────────────────────────────
             with ui.card().classes("mt-4 p-5 rounded-xl border border-slate-200"):
                 with ui.row().classes("items-center mb-3"):
                     ui.label("Event Log").classes("font-semibold text-slate-700 flex-1")
 
                     def _note() -> None:
-                        """ note.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         with ui.dialog() as nd, ui.card().classes("p-5 gap-3 w-96"):
                             ui.label("Add Note").classes("font-semibold text-slate-800")
                             nt = ui.textarea("Note").classes("w-full").props("rows=3")
@@ -803,14 +617,6 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                                 ui.button("Cancel", on_click=nd.close).props("flat")
 
                                 def _sn() -> None:
-                                    """ sn.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
                                     Q.log_event(
                                         "lp_ebraille", jid, "NOTE", "SUCCESS",
                                         agent=ag.value, detail=nt.value,
@@ -857,6 +663,8 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
     _render(job)
 
 
+# ── Shared list renderer ──────────────────────────────────────────────────────
+
 def _lp_jobs_page(
     content_area: ui.element,
     job_type_filter: str | None,
@@ -864,31 +672,6 @@ def _lp_jobs_page(
     description: str,
     accent_class: str,
 ) -> None:
-    """ lp jobs page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    job_type_filter : Any
-        job_type_filter parameter.
-    
-    page_title : Any
-        page_title parameter.
-    
-    description : Any
-        description parameter.
-    
-    accent_class : Any
-        accent_class parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -896,38 +679,12 @@ def _lp_jobs_page(
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
-                """ new.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 def _do(data: dict) -> None:
-                    """ do.
-                    
-                    Parameters
-                    ----------
-                    data : Any
-                        data parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
                     Q.add_lp_job(**data)
                     notify_success("Job created")
                     _lp_jobs_page(
-                        content_area,
-                        job_type_filter,
-                        page_title,
-                        description,
-                        accent_class,
+                        content_area, job_type_filter, page_title, description, accent_class
                     )
-
                 _job_dialog(
                     _do,
                     forced_job_type=job_type_filter,
@@ -962,6 +719,10 @@ def _lp_jobs_page(
                             ui.badge(
                                 job.get("job_type", "").replace("_", " ").title()
                             ).classes("text-xs bg-green-50 text-green-700 rounded px-2")
+                            if job.get("delivery_date"):
+                                ui.badge("✓ Delivered").classes(
+                                    "text-xs bg-green-100 text-green-700 rounded px-2"
+                                )
                         with ui.row().classes("gap-4 text-xs text-slate-500 flex-wrap"):
                             if job.get("requester"):
                                 ui.label(f"→ {job['requester']}")
@@ -976,27 +737,11 @@ def _lp_jobs_page(
 
                     with ui.column().classes("gap-1 shrink-0"):
                         def _view(j: dict = job) -> None:
-                            """ view.
-                            
-                            Parameters
-                            ----------
-                            j : Any
-                                j parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             _job_detail(
                                 j, content_area,
                                 lambda: _lp_jobs_page(
-                                    content_area,
-                                    job_type_filter,
-                                    page_title,
-                                    description,
-                                    accent_class,
+                                    content_area, job_type_filter,
+                                    page_title, description, accent_class,
                                 ),
                             )
 
@@ -1005,38 +750,13 @@ def _lp_jobs_page(
                         )
 
                         def _del(j: dict = job) -> None:
-                            """ del.
-                            
-                            Parameters
-                            ----------
-                            j : Any
-                                j parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             def _do() -> None:
-                                """ do.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 Q.delete_lp_job(j["id"])
                                 notify_success("Deleted")
                                 _lp_jobs_page(
-                                    content_area,
-                                    job_type_filter,
-                                    page_title,
-                                    description,
-                                    accent_class,
+                                    content_area, job_type_filter,
+                                    page_title, description, accent_class,
                                 )
-
                             confirm_dialog(f"Delete '{j['title']}'?", _do)
 
                         ui.button("Delete", on_click=_del).props("flat dense").classes(
@@ -1045,92 +765,28 @@ def _lp_jobs_page(
 
 
 def large_print_jobs_page(content_area: ui.element) -> None:
-    """Large print jobs page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     _lp_jobs_page(
-        content_area,
-        "large_print",
-        "Large Print Jobs",
-        "Large print production tracking",
-        "bg-green-600",
+        content_area, "large_print", "Large Print Jobs",
+        "Large print production tracking", "bg-green-600",
     )
 
 
 def ebraille_jobs_page(content_area: ui.element) -> None:
-    """Ebraille jobs page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     _lp_jobs_page(
-        content_area,
-        "ebraille",
-        "eBraille Jobs",
-        "eBraille production tracking",
-        "bg-emerald-600",
+        content_area, "ebraille", "eBraille Jobs",
+        "eBraille production tracking", "bg-emerald-600",
     )
 
 
 def epub3_daisy_jobs_page(content_area: ui.element) -> None:
-    """Epub3 daisy jobs page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     _lp_jobs_page(
-        content_area,
-        "epub3_daisy",
-        "EPUB3 / DAISY Jobs",
-        "EPUB3 and DAISY production tracking",
-        "bg-teal-600",
+        content_area, "epub3_daisy", "EPUB3 / DAISY Jobs",
+        "EPUB3 and DAISY production tracking", "bg-teal-600",
     )
 
 
 def lp_ebraille_page(content_area: ui.element) -> None:
-    """Lp ebraille page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     _lp_jobs_page(
-        content_area,
-        None,
-        "Large Print / eBraille Jobs",
-        "Large print and eBraille production tracking",
-        "bg-green-600",
+        content_area, None, "Large Print / eBraille Jobs",
+        "Large print and eBraille production tracking", "bg-green-600",
     )

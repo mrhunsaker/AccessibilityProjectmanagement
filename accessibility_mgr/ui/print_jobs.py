@@ -1,4 +1,12 @@
-"""Print Jobs panel — log and manage 3-D print jobs."""
+"""
+Print Jobs panel — log and manage 3-D print jobs with full workflow tracking.
+
+Changes applied (see fix_specs.json):
+  FIX-003  Metadata save now calls Q.log_event (persisted to DB).
+  FIX-007  Job detail view added with five workflow step columns
+           (designed, sliced, printed, inspected, delivered).
+  FIX-016  Delivered step opens delivery confirmation dialog.
+"""
 
 from __future__ import annotations
 
@@ -14,26 +22,32 @@ from .metadata_options import (
     get_non_dc_allowed_keys,
     get_option_groups,
 )
-from .components import confirm_dialog, notify_error, notify_success, section_header
+from .components import (
+    OUTCOME_COLORS,
+    confirm_dialog,
+    notify_error,
+    notify_success,
+    priority_badge,
+    progress_bar,
+    section_header,
+    status_chip,
+)
+from .delivery_dialog import open_delivery_dialog
 
+# FIX-007: step constants for print jobs
+_PRINT_STEPS = ["designed", "sliced", "printed", "inspected", "delivered"]
+_PRINT_STEP_LABELS = {
+    "designed":  "1. Designed",
+    "sliced":    "2. Sliced",
+    "printed":   "3. Printed",
+    "inspected": "4. Inspected",
+    "delivered": "5. Delivered",
+}
+
+
+# ── Metadata dialog ───────────────────────────────────────────────────────────
 
 def _metadata_dialog(print_job_id: int, on_done) -> None:
-    """ metadata dialog.
-    
-    Parameters
-    ----------
-    print_job_id : Any
-        print_job_id parameter.
-    
-    on_done : Any
-        on_done parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     existing_meta = Q.list_job_metadata("print", print_job_id)
     option_groups = get_option_groups()
     dc_keys = get_dublin_core_keys()
@@ -49,22 +63,13 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
         ).classes("text-slate-500 text-sm")
 
         def _show_options() -> None:
-            """ show options.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             with ui.dialog() as od, ui.card().classes(
                 "p-5 gap-3 w-[720px] max-w-full max-h-[85vh] overflow-y-auto"
             ):
                 ui.label("Potential Metadata Options").classes("text-lg font-bold text-slate-800")
                 ui.label(
-                    "Use Admin Settings -> Metadata Options to add or remove allowed keys."
+                    "Use Admin Settings → Metadata Options to add or remove allowed keys."
                 ).classes("text-xs text-slate-500")
-
                 for group, keys in option_groups.items():
                     ui.separator()
                     ui.label(group).classes(
@@ -75,10 +80,8 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
                             ui.badge(key).classes(
                                 "bg-slate-100 text-slate-700 text-xs rounded px-2 py-1"
                             )
-
                 with ui.row().classes("justify-end mt-2"):
                     ui.button("Close", on_click=od.close).classes("bg-slate-700 text-white")
-
             od.open()
 
         ui.button("Potential Options", on_click=_show_options).props("flat dense").classes(
@@ -92,37 +95,19 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
                     inp = ui.input(key, value=existing_meta.get(key, "")).classes(
                         "w-full font-mono text-sm"
                     )
-                    ui.label(dc_examples.get(key, "")).classes(
-                        "text-[11px] text-slate-400"
-                    )
+                    ui.label(dc_examples.get(key, "")).classes("text-[11px] text-slate-400")
                     meta_rows[key] = inp
 
         ui.separator()
         ui.label("Additional Allowed Fields").classes("text-sm font-medium text-slate-600")
-        ui.label(
-            "Choose keys from the approved eBraille and METS/PREMIS list."
-        ).classes("text-xs text-slate-400")
+        ui.label("Choose keys from the approved eBraille and METS/PREMIS list.").classes(
+            "text-xs text-slate-400"
+        )
 
         extra_rows: list[dict[str, ui.element]] = []
         extra_box = ui.column().classes("w-full gap-2")
 
         def _add_extra_row(initial_key: str = "", initial_val: str = "") -> None:
-            """ add extra row.
-            
-            Parameters
-            ----------
-            initial_key : Any
-                initial_key parameter.
-            
-            initial_val : Any
-                initial_val parameter.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             with extra_box:
                 with ui.row().classes("gap-2 w-full items-center") as row:
                     key_sel = ui.select(
@@ -135,19 +120,6 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
                     extra_rows.append(ref)
 
                     def _remove(r: dict[str, ui.element] = ref) -> None:
-                        """ remove.
-                        
-                        Parameters
-                        ----------
-                        r : Any
-                            r parameter.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         r["row"].delete()
                         if r in extra_rows:
                             extra_rows.remove(r)
@@ -157,7 +129,6 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
         ui.button("+ Add Field", on_click=lambda: _add_extra_row()).props("flat dense").classes(
             "text-indigo-600 text-sm self-start"
         )
-
         for key, value in existing_meta.items():
             if key not in dc_keys and key in non_dc_keys:
                 _add_extra_row(initial_key=key, initial_val=value)
@@ -166,18 +137,12 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
             ui.button("Close", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save_all() -> None:
-                """ save all.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                saved_keys: list[str] = []
                 for key, inp in meta_rows.items():
                     v = inp.value.strip()
                     if v:
                         Q.set_job_metadata("print", print_job_id, key, v)
+                        saved_keys.append(key)
                     else:
                         Q.delete_job_metadata("print", print_job_id, key)
 
@@ -188,7 +153,15 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
                     v = (row["value"].value or "").strip()
                     if k and v and k in non_dc_keys:
                         Q.set_job_metadata("print", print_job_id, k, v)
+                        saved_keys.append(k)
 
+                # FIX-003: persist audit to DB
+                Q.log_event(
+                    "print", print_job_id, "METADATA_UPDATE", "SUCCESS",
+                    agent="user",
+                    detail=f"Metadata updated: {len(saved_keys)} field(s)",
+                    extra_metadata={"updated_keys": saved_keys},
+                )
                 notify_success("Metadata saved")
                 dlg.close()
                 on_done()
@@ -198,23 +171,9 @@ def _metadata_dialog(print_job_id: int, on_done) -> None:
     dlg.open()
 
 
+# ── Print job form dialog ─────────────────────────────────────────────────────
+
 def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
-    """ print job dialog.
-    
-    Parameters
-    ----------
-    on_save : Any
-        on_save parameter.
-    
-    existing : Any
-        existing parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[560px] max-w-full"):
         ui.label("Edit Print Job" if is_edit else "Log Print Job").classes(
@@ -225,9 +184,9 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
         pnames = [p["name"] for p in printers]
         pids = [p["id"] for p in printers]
         cur_p = existing.get("printer_name", "") if is_edit else (pnames[0] if pnames else "")
-        pr_sel = ui.select(pnames or ["(no printers)"], label="Printer*", value=cur_p).classes(
-            "w-full"
-        )
+        pr_sel = ui.select(
+            pnames or ["(no printers)"], label="Printer*", value=cur_p
+        ).classes("w-full")
 
         filaments = Q.list_filaments()
         fdescs = ["(none)"] + [
@@ -236,6 +195,22 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
         fids: list[Optional[int]] = [None] + [f["id"] for f in filaments]
         cur_fd = existing.get("filament_desc", "(none)") if is_edit else "(none)"
         fil_sel = ui.select(fdescs, label="Filament Used", value=cur_fd).classes("w-full")
+
+        # Student selector
+        students = Q.list_students()
+        student_labels = ["(none)"] + [
+            f"{s['last_name']}, {s['first_name']} — {s.get('school', '')}"
+            for s in students
+        ]
+        student_ids: list[Optional[int]] = [None] + [s["id"] for s in students]
+        cur_sid = existing.get("student_id") if is_edit else None
+        cur_slbl = (
+            student_labels[student_ids.index(cur_sid)]
+            if cur_sid in student_ids else "(none)"
+        )
+        student_sel = ui.select(
+            student_labels, label="Student", value=cur_slbl
+        ).classes("w-full")
 
         with ui.row().classes("gap-4 w-full"):
             obj_name = ui.input(
@@ -274,14 +249,6 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 if not pnames:
                     notify_error("No printers configured. Add one in Admin Settings first.")
                     return
@@ -294,20 +261,23 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
                     f_id = fids[fdescs.index(fil_sel.value)]
                 except (ValueError, IndexError):
                     f_id = None
-                on_save(
-                    dict(
-                        printer_id=pr_id,
-                        filament_id=f_id,
-                        filament_used_g=float(used_g.value or 0),
-                        file_source_path=file_path.value.strip() or None,
-                        successful=1 if success_chk.value else 0,
-                        failure_reason=fail_reason.value.strip() or None,
-                        object_name=obj_name.value.strip(),
-                        requester=req.value.strip(),
-                        request_date=rdate.value.strip() or None,
-                        notes=notes.value.strip(),
-                    )
-                )
+                try:
+                    sid = student_ids[student_labels.index(student_sel.value)]
+                except (ValueError, IndexError):
+                    sid = None
+                on_save(dict(
+                    printer_id=pr_id,
+                    filament_id=f_id,
+                    filament_used_g=float(used_g.value or 0),
+                    file_source_path=file_path.value.strip() or None,
+                    successful=1 if success_chk.value else 0,
+                    failure_reason=fail_reason.value.strip() or None,
+                    object_name=obj_name.value.strip(),
+                    requester=req.value.strip(),
+                    request_date=rdate.value.strip() or None,
+                    notes=notes.value.strip(),
+                    student_id=sid,
+                ))
                 dlg.close()
 
             ui.button("Save", on_click=_save).classes("bg-blue-600 text-white")
@@ -315,59 +285,236 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
     dlg.open()
 
 
+# ── Job detail view (FIX-007) ─────────────────────────────────────────────────
+
+def _print_job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
+    """Detail view for a print job showing workflow steps, metadata, and event log."""
+    jid = job["id"]
+
+    def _refresh() -> None:
+        updated = Q.get_print_job(jid)
+        if updated:
+            _render(updated)
+
+    def _render(j: dict) -> None:
+        content_area.clear()
+        with content_area:
+            with ui.row().classes("items-center gap-3 mb-1"):
+                ui.button("← Back", on_click=refresh_cb).props("flat").classes(
+                    "text-blue-600 text-sm"
+                )
+                ui.label(
+                    j.get("object_name") or j.get("file_name") or f"Print Job #{jid}"
+                ).classes("text-2xl font-bold text-slate-800 flex-1")
+
+                def _edit() -> None:
+                    def _do(data: dict) -> None:
+                        old_grams = float(j.get("filament_used_g") or 0)
+                        new_grams = float(data.get("filament_used_g") or 0)
+                        delta = new_grams - old_grams
+                        fid = data.get("filament_id")
+                        if fid and delta != 0:
+                            Q.deduct_filament(fid, delta)
+                        edit_fields = {
+                            k: v for k, v in data.items() if k != "file_source_path"
+                        }
+                        Q.update_print_job(j["id"], **edit_fields)
+                        notify_success("Updated")
+                        _refresh()
+                    _print_job_dialog(_do, existing=j)
+
+                ui.button("Edit", on_click=_edit).props("flat").classes("text-blue-600")
+
+            with ui.row().classes("gap-6 text-sm text-slate-500 mb-6 flex-wrap"):
+                ui.label(f"Printer: {j.get('printer_name') or '—'}")
+                ui.label(f"Filament: {j.get('filament_desc') or '—'}")
+                ui.label(f"Used: {j.get('filament_used_g', 0):,.0f} g")
+                ui.label(f"Requester: {j.get('requester') or '—'}")
+                ui.badge(
+                    "✓ Successful" if j.get("successful") else "✗ Failed"
+                ).classes(
+                    "text-xs rounded px-2 "
+                    + ("bg-green-100 text-green-700" if j.get("successful")
+                       else "bg-red-100 text-red-700")
+                )
+                if j.get("failure_reason"):
+                    ui.label(f"Failure: {j['failure_reason']}").classes("text-red-600")
+                if j.get("delivery_date"):
+                    ui.label(
+                        f"Delivered: {j['delivery_date']} via "
+                        f"{j.get('delivery_method', '—')} to "
+                        f"{j.get('delivery_recipient', '—')}"
+                    ).classes("text-green-600")
+
+            with ui.row().classes("gap-4 flex-wrap items-start"):
+
+                # ── Workflow steps (FIX-007) ───────────────────────────────────
+                with ui.card().classes(
+                    "flex-1 min-w-72 p-5 rounded-xl border border-slate-200"
+                ):
+                    ui.label("Workflow Steps").classes("font-semibold text-slate-700 mb-3")
+                    done_count = sum(j.get(s, 0) for s in _PRINT_STEPS)
+                    progress_bar(done_count, len(_PRINT_STEPS))
+                    ui.element("div").classes("h-3")
+
+                    for step in _PRINT_STEPS:
+                        is_done = bool(j.get(step, 0))
+                        with ui.row().classes(
+                            "items-center gap-3 py-2 border-b border-slate-50 last:border-0"
+                        ):
+                            ui.label(_PRINT_STEP_LABELS[step]).classes(
+                                "flex-1 text-sm font-medium text-slate-700"
+                            )
+                            if is_done:
+                                def _revert(s: str = step) -> None:
+                                    def _do() -> None:
+                                        Q.revert_step("print", jid, s)
+                                        notify_success(f"Reverted: {s}")
+                                        _refresh()
+                                    confirm_dialog(
+                                        f"Revert '{_PRINT_STEP_LABELS[s]}'?",
+                                        _do, "Revert Step",
+                                    )
+
+                                ui.badge("✓ Done").classes(
+                                    "bg-green-100 text-green-700 text-xs rounded px-2 cursor-pointer"
+                                ).on("click", _revert)
+                            else:
+                                def _complete(s: str = step) -> None:
+                                    # FIX-016: delivered opens delivery dialog
+                                    if s == "delivered":
+                                        open_delivery_dialog("print", jid, _refresh)
+                                    else:
+                                        Q.complete_step("print", jid, s)
+                                        notify_success(f"Completed: {s}")
+                                        _refresh()
+
+                                ui.button("Mark Done", on_click=_complete).props(
+                                    "flat dense"
+                                ).classes("text-amber-600 text-xs")
+
+                # ── Metadata ──────────────────────────────────────────────────
+                with ui.card().classes(
+                    "flex-1 min-w-64 p-5 rounded-xl border border-slate-200"
+                ):
+                    with ui.row().classes("items-center mb-3"):
+                        ui.label("Descriptive Metadata").classes(
+                            "font-semibold text-slate-700 flex-1"
+                        )
+                        ui.button(
+                            "Edit",
+                            on_click=lambda: _metadata_dialog(jid, _refresh),
+                        ).props("flat dense").classes("text-blue-600 text-sm")
+
+                    meta = Q.list_job_metadata("print", jid)
+                    if not meta:
+                        ui.label("No metadata yet.").classes("text-slate-400 text-sm")
+                    else:
+                        for k, v in meta.items():
+                            with ui.row().classes(
+                                "gap-2 py-1 border-b border-slate-50 last:border-0"
+                            ):
+                                ui.label(k).classes(
+                                    "text-xs text-slate-400 font-mono w-36 shrink-0"
+                                )
+                                ui.label(v).classes("text-xs text-slate-700 break-all")
+
+            if j.get("notes"):
+                with ui.card().classes(
+                    "mt-4 p-4 rounded-xl border border-slate-200 bg-amber-50"
+                ):
+                    ui.label("Notes").classes("text-sm font-semibold text-amber-800 mb-1")
+                    ui.label(j["notes"]).classes("text-sm text-amber-700")
+
+            # ── Event log ─────────────────────────────────────────────────────
+            with ui.card().classes("mt-4 p-5 rounded-xl border border-slate-200"):
+                with ui.row().classes("items-center mb-3"):
+                    ui.label("Provenance / Event Log").classes(
+                        "font-semibold text-slate-700 flex-1"
+                    )
+
+                    def _add_note() -> None:
+                        with ui.dialog() as nd, ui.card().classes("p-5 gap-3 w-96"):
+                            ui.label("Add Note Event").classes("font-semibold text-slate-800")
+                            note_txt = ui.textarea("Note").classes("w-full").props("rows=3")
+                            agent_txt = ui.input("Agent/Author", value="user").classes("w-full")
+                            with ui.row().classes("justify-end gap-2"):
+                                ui.button("Cancel", on_click=nd.close).props("flat")
+
+                                def _save_note() -> None:
+                                    Q.log_event(
+                                        "print", jid, "NOTE", "SUCCESS",
+                                        agent=agent_txt.value.strip() or "user",
+                                        detail=note_txt.value.strip(),
+                                    )
+                                    nd.close()
+                                    _refresh()
+
+                                ui.button("Save", on_click=_save_note).classes(
+                                    "bg-slate-700 text-white"
+                                )
+                        nd.open()
+
+                    ui.button("+ Add Note", on_click=_add_note).props(
+                        "flat dense"
+                    ).classes("text-slate-600 text-sm")
+
+                events = Q.list_events_for_job("print", jid)
+                if not events:
+                    ui.label("No events recorded.").classes("text-slate-400 text-sm")
+                else:
+                    for ev in events:
+                        oc = ev.get("event_outcome", "SUCCESS")
+                        clr = OUTCOME_COLORS.get(oc, "text-slate-700")
+                        with ui.row().classes(
+                            "items-start gap-3 py-2 border-b border-slate-50 last:border-0"
+                        ):
+                            with ui.column().classes("gap-0 w-36 shrink-0"):
+                                ui.label(str(ev.get("event_datetime", ""))[:19]).classes(
+                                    "text-xs text-slate-400 font-mono"
+                                )
+                                ui.label(ev.get("agent", "system")).classes(
+                                    "text-xs text-slate-400 italic"
+                                )
+                            with ui.column().classes("flex-1 gap-0"):
+                                with ui.row().classes("gap-2 items-center"):
+                                    ui.badge(ev["event_type"]).classes(
+                                        "text-xs bg-slate-100 text-slate-700 rounded px-1"
+                                    )
+                                    if ev.get("step_key"):
+                                        ui.badge(
+                                            _PRINT_STEP_LABELS.get(
+                                                ev["step_key"], ev["step_key"]
+                                            )
+                                        ).classes(
+                                            "text-xs bg-amber-50 text-amber-700 rounded px-1"
+                                        )
+                                if ev.get("detail"):
+                                    ui.label(ev["detail"]).classes(f"text-sm {clr}")
+
+    _render(job)
+
+
+# ── Main list view ────────────────────────────────────────────────────────────
+
 def print_jobs_page(content_area: ui.element) -> None:
-    """Print jobs page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
             section_header(
                 "3-D Print Jobs",
-                "Log every print run with filament tracking and file attachment",
+                "Log every print run with filament tracking and workflow steps",
             )
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
-                """ new.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 def _do(data: dict) -> None:
-                    """ do.
-                    
-                    Parameters
-                    ----------
-                    data : Any
-                        data parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
                     try:
                         Q.add_print_job(**data)
                         notify_success("Print job logged")
                         print_jobs_page(content_area)
                     except Exception as exc:
                         notify_error(f"Error: {exc}")
-
                 _print_job_dialog(_do)
 
             ui.button("+ Log Print Job", on_click=_new).classes(
@@ -380,9 +527,9 @@ def print_jobs_page(content_area: ui.element) -> None:
                 "p-10 text-center border border-slate-200 rounded-xl w-full"
             ):
                 ui.label("No print jobs yet.").classes("text-slate-400 text-lg")
-                ui.label("Click '+ Log Print Job' to record your first print run.").classes(
-                    "text-slate-400 text-sm mt-1"
-                )
+                ui.label(
+                    "Click '+ Log Print Job' to record your first print run."
+                ).classes("text-slate-400 text-sm mt-1")
             return
 
         with ui.card().classes("w-full rounded-xl border border-slate-200 overflow-hidden"):
@@ -394,12 +541,14 @@ def print_jobs_page(content_area: ui.element) -> None:
                 ui.label("Printer").classes("w-40")
                 ui.label("Filament").classes("w-48")
                 ui.label("Used (g)").classes("w-20 text-right")
+                ui.label("Progress").classes("w-32")
                 ui.label("Result").classes("w-24 text-center")
-                ui.label("Requester").classes("w-32")
                 ui.label("Date").classes("w-28")
-                ui.label("").classes("w-20")
+                ui.label("").classes("w-24")
 
             for job in jobs:
+                # FIX-007: compute step progress
+                done = sum(job.get(s, 0) for s in _PRINT_STEPS)
                 with ui.row().classes(
                     "items-center gap-2 px-4 py-3 border-b border-slate-50 "
                     "last:border-0 hover:bg-slate-50"
@@ -412,6 +561,10 @@ def print_jobs_page(content_area: ui.element) -> None:
                             ui.label(f"📎 {job['file_name']}").classes(
                                 "text-xs text-indigo-500 truncate"
                             )
+                        if job.get("delivery_date"):
+                            ui.label(f"✓ Delivered {job['delivery_date']}").classes(
+                                "text-xs text-green-600"
+                            )
                     ui.label(job.get("printer_name") or "—").classes(
                         "w-40 text-sm text-slate-500 truncate"
                     )
@@ -421,118 +574,47 @@ def print_jobs_page(content_area: ui.element) -> None:
                     ui.label(f"{job.get('filament_used_g', 0):,.0f}").classes(
                         "w-20 text-right text-sm text-slate-700"
                     )
+                    # FIX-007: progress bar in list view
+                    with ui.element("div").classes("w-32"):
+                        with ui.row().classes("items-center gap-1"):
+                            with ui.element("div").classes(
+                                "flex-1 bg-slate-200 rounded-full h-1.5"
+                            ):
+                                pct = int(done / len(_PRINT_STEPS) * 100)
+                                ui.element("div").classes(
+                                    f"h-1.5 rounded-full "
+                                    f"{'bg-green-500' if pct == 100 else 'bg-amber-500'}"
+                                ).style(f"width:{pct}%")
+                            ui.label(f"{done}/{len(_PRINT_STEPS)}").classes(
+                                "text-xs text-slate-400 whitespace-nowrap"
+                            )
                     if job.get("successful"):
                         ui.badge("✓ OK").classes(
                             "w-24 text-center bg-green-100 text-green-700 rounded text-xs"
                         )
                     else:
-                        with ui.element("div").classes("w-24"):
-                            ui.badge("✗ FAIL").classes(
-                                "w-full text-center bg-red-100 text-red-700 rounded text-xs"
-                            )
-                    ui.label(job.get("requester") or "—").classes(
-                        "w-32 text-sm text-slate-500 truncate"
-                    )
+                        ui.badge("✗ FAIL").classes(
+                            "w-24 text-center bg-red-100 text-red-700 rounded text-xs"
+                        )
                     ui.label(str(job.get("printed_at", ""))[:10]).classes(
                         "w-28 text-xs text-slate-400"
                     )
-                    with ui.row().classes("w-20 gap-1 justify-end"):
-                        def _meta(j: dict = job) -> None:
-                            """ meta.
-                            
-                            Parameters
-                            ----------
-                            j : Any
-                                j parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
-                            _metadata_dialog(j["id"], lambda: print_jobs_page(content_area))
+                    with ui.row().classes("w-24 gap-1 justify-end"):
+                        def _view(j: dict = job) -> None:
+                            _print_job_detail(
+                                j, content_area,
+                                lambda: print_jobs_page(content_area),
+                            )
 
-                        ui.button("Meta", on_click=_meta).props("flat dense").classes(
-                            "text-indigo-600 text-xs"
-                        )
-
-                        def _edit(j: dict = job) -> None:
-                            """ edit.
-                            
-                            Parameters
-                            ----------
-                            j : Any
-                                j parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
-                            def _do(data: dict) -> None:
-                                # Recalculate filament delta on edit
-                                """ do.
-                                
-                                Parameters
-                                ----------
-                                data : Any
-                                    data parameter.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
-                                old_grams = float(j.get("filament_used_g") or 0)
-                                new_grams = float(data.get("filament_used_g") or 0)
-                                delta = new_grams - old_grams
-                                fid = data.get("filament_id")
-                                if fid and delta != 0:
-                                    Q.deduct_filament(fid, delta)
-                                edit_fields = {
-                                    k: v for k, v in data.items()
-                                    if k not in {"file_source_path"}
-                                }
-                                Q.update_print_job(j["id"], **edit_fields)
-                                notify_success("Updated")
-                                print_jobs_page(content_area)
-
-                            _print_job_dialog(_do, existing=j)
-
-                        ui.button("Edit", on_click=_edit).props("flat dense").classes(
-                            "text-blue-600 text-xs"
+                        ui.button("View", on_click=_view).props("flat dense").classes(
+                            "text-amber-600 text-xs"
                         )
 
                         def _del(j: dict = job) -> None:
-                            """ del.
-                            
-                            Parameters
-                            ----------
-                            j : Any
-                                j parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             def _do() -> None:
-                                """ do.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 Q.delete_print_job(j["id"])
                                 notify_success("Deleted")
                                 print_jobs_page(content_area)
-
                             confirm_dialog("Delete this print job?", _do)
 
                         ui.button("Del", on_click=_del).props("flat dense").classes(

@@ -1,9 +1,9 @@
 """
 Accessibility Project Manager — NiceGUI application entry point.
 
-All pages are registered here in PAGE_DEFINITIONS and rendered via the
-sidebar.  The database is initialised once on startup via db.schema.init_db().
-The weekly backup scheduler is started immediately after init_db().
+Changes applied (see fix_specs.json):
+  FIX-010  Students page added to Production group.
+  FIX-015  Reports page added to Overview group.
 """
 
 from __future__ import annotations
@@ -22,7 +22,6 @@ from accessibility_mgr.services.backup_service import BackupService
 
 APP_TITLE = "Accessibility Document Generation Project Manager"
 
-# ── Page registry ─────────────────────────────────────────────────────────────
 PAGE_DEFINITIONS: list[dict] = [
     # ── Overview ──────────────────────────────────────────────────────────────
     {
@@ -38,10 +37,26 @@ PAGE_DEFINITIONS: list[dict] = [
         "icon": "search",
         "module": "accessibility_mgr.ui.search",
         "function": "search_page",
-        "description": "Search jobs, files, and metadata",
+        "description": "Search jobs, files, metadata, and event log",
+        "group": "Overview",
+    },
+    {
+        "name": "Reports",                          # FIX-015
+        "icon": "summarize",
+        "module": "accessibility_mgr.ui.reports",
+        "function": "reports_page",
+        "description": "Filter and export jobs by school, grade, type, and status",
         "group": "Overview",
     },
     # ── Production Jobs ───────────────────────────────────────────────────────
+    {
+        "name": "Students",                         # FIX-010
+        "icon": "person",
+        "module": "accessibility_mgr.ui.students",
+        "function": "students_page",
+        "description": "Student records and cross-job production history",
+        "group": "Production",
+    },
     {
         "name": "Braille Jobs",
         "icon": "article",
@@ -163,29 +178,13 @@ PAGE_DEFINITIONS: list[dict] = [
         "icon": "settings",
         "module": "accessibility_mgr.ui.admin",
         "function": "admin_page",
-        "description": "Material categories, steps, printers, and embossers",
+        "description": "Categories, metadata, steps, printers, embossers, and backups",
         "group": "Admin",
     },
 ]
 
 
 def _load_handler(module_name: str, function_name: str) -> Callable | None:
-    """ load handler.
-    
-    Parameters
-    ----------
-    module_name : Any
-        module_name parameter.
-    
-    function_name : Any
-        function_name parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     try:
         mod = import_module(module_name)
     except Exception as exc:
@@ -194,7 +193,6 @@ def _load_handler(module_name: str, function_name: str) -> Callable | None:
     return getattr(mod, function_name, None)
 
 
-# Resolve handlers at startup
 PAGES: list[dict] = []
 for _defn in PAGE_DEFINITIONS:
     _handler = _load_handler(_defn["module"], _defn["function"])
@@ -204,31 +202,12 @@ for _defn in PAGE_DEFINITIONS:
         print(f"[app] WARNING: handler not found for {_defn['name']}")
 
 
-# ── Startup ───────────────────────────────────────────────────────────────────
 tools_service.bootstrap()
 init_db()
-BackupService.start()   # weekly background backup scheduler
+BackupService.start()
 
-
-# ── Rendering ─────────────────────────────────────────────────────────────────
 
 def render_page(content: ui.column, page: dict) -> None:
-    """Render page.
-    
-    Parameters
-    ----------
-    content : Any
-        content parameter.
-    
-    page : Any
-        page parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     content.clear()
     handler = page["handler"]
     try:
@@ -241,33 +220,26 @@ def render_page(content: ui.column, page: dict) -> None:
     except Exception as exc:
         import traceback
         content.clear()
-        with content, ui.card().classes("w-full border border-red-200 bg-red-50 p-4 rounded-xl"):
-            ui.label(f"Error loading '{page['name']}'").classes("text-red-700 font-semibold")
+        with content, ui.card().classes(
+            "w-full border border-red-200 bg-red-50 p-4 rounded-xl"
+        ):
+            ui.label(f"Error loading '{page['name']}'").classes(
+                "text-red-700 font-semibold"
+            )
             ui.label(str(exc)).classes("text-sm text-red-600 mt-1")
-            ui.code(traceback.format_exc()).classes("text-xs mt-2 overflow-auto max-h-48")
+            ui.code(traceback.format_exc()).classes(
+                "text-xs mt-2 overflow-auto max-h-48"
+            )
 
-
-# ── Shutdown handler ──────────────────────────────────────────────────────────
 
 def _shutdown() -> None:
-    """Gracefully stop the backup scheduler and shut down the app."""
     BackupService.stop()
-    ui.notify("Shutting down...", position="top")
+    ui.notify("Shutting down…", position="top")
     nicegui_app.shutdown()
 
 
-# ── Main page ─────────────────────────────────────────────────────────────────
-
 @ui.page("/")
 def index() -> None:
-    """Index.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     ui.page_title(APP_TITLE)
 
     groups: dict[str, list[dict]] = {}
@@ -275,20 +247,16 @@ def index() -> None:
         groups.setdefault(page["group"], []).append(page)
 
     with ui.column().classes("w-full h-[100dvh] overflow-hidden min-h-0"):
-        # ── Header ────────────────────────────────────────────────────────────
         with ui.row().classes(
             "w-full bg-white border-b border-slate-200 px-6 py-3 items-center justify-end shadow-sm"
         ):
-            ui.button(
-                icon="logout",
-                on_click=_shutdown,
-            ).props("flat round dense").classes(
+            ui.button(icon="logout", on_click=_shutdown).props(
+                "flat round dense"
+            ).classes(
                 "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             ).tooltip("Shutdown app")
 
         with ui.row().classes("flex-1 w-full no-wrap overflow-hidden min-h-0"):
-
-            # ── Sidebar ───────────────────────────────────────────────────────
             with ui.column().classes(
                 "h-full bg-slate-900 text-white p-4 gap-1 shadow-xl overflow-y-auto min-h-0"
             ).style("min-width:240px; max-width:240px"):
@@ -307,28 +275,7 @@ def index() -> None:
                     )
                     for page in group_pages:
                         def _make_click(p: dict) -> Callable:
-                            """ make click.
-                            
-                            Parameters
-                            ----------
-                            p : Any
-                                p parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             def _click() -> None:
-                                """ click.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 for b in btn_refs.values():
                                     b.classes(
                                         remove="bg-slate-700 text-white",
@@ -356,7 +303,6 @@ def index() -> None:
                         )
                         btn_refs[page["name"]] = btn
 
-            # ── Content area ──────────────────────────────────────────────────
             with ui.column().classes(
                 "flex-1 h-full overflow-auto bg-slate-50 min-h-0"
             ):
@@ -370,7 +316,6 @@ def index() -> None:
                     )
                     render_page(content_area, first)
 
-        # ── Footer ────────────────────────────────────────────────────────────
         with ui.row().classes(
             "w-full shrink-0 items-center justify-between gap-4 border-t border-slate-200 "
             "bg-white px-6 py-3 text-xs text-slate-500"

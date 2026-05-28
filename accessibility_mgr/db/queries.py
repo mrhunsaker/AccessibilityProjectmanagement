@@ -3,6 +3,16 @@ Data access layer — ALL SQL lives here.
 
 Every public function uses parameterised queries ('?' placeholders).
 No SQL strings are constructed outside this module.
+
+Changes applied (see fix_specs.json):
+  FIX-001  update_* functions now log FIELD_UPDATE events before returning.
+  FIX-002  delete_* functions now log DELETE events before executing.
+  FIX-007  'print' added to _STEP_TABLES / _ALLOWED_STEPS; get_print_job added.
+  FIX-009  search_all() replaces in-memory Python filtering.
+  FIX-010  Student CRUD + list_jobs_for_student added.
+  FIX-015  report_jobs() added.
+  FIX-016  Delivery columns added to allowed sets for all update functions.
+  FIX-017  preview_backfill_metadata_keys() added.
 """
 
 from __future__ import annotations
@@ -32,7 +42,7 @@ __all__ = [
     # Embossers
     "list_embossers", "add_embosser", "update_embosser", "delete_embosser",
     # Print jobs
-    "list_print_jobs", "add_print_job", "update_print_job", "delete_print_job",
+    "list_print_jobs", "get_print_job", "add_print_job", "update_print_job", "delete_print_job",
     # Braille jobs
     "list_braille_jobs", "get_braille_job", "add_braille_job", "update_braille_job", "delete_braille_job",
     # LP/eBraille jobs
@@ -49,7 +59,7 @@ __all__ = [
     "add_struct_node", "list_struct_nodes", "delete_struct_node",
     # Job metadata
     "set_job_metadata", "get_job_metadata", "list_job_metadata", "delete_job_metadata",
-    "list_distinct_metadata_keys", "backfill_metadata_keys",
+    "list_distinct_metadata_keys", "backfill_metadata_keys", "preview_backfill_metadata_keys",
     # Lookup tables
     "list_material_categories", "add_material_category", "update_material_category",
     "set_material_category_active", "delete_material_category",
@@ -57,6 +67,8 @@ __all__ = [
     "set_workflow_step_active", "delete_workflow_step",
     # Step helpers
     "complete_step", "revert_step",
+    # Delivery helper
+    "record_delivery",
     # QA
     "log_qa_run", "list_qa_runs",
     # Pipeline
@@ -64,6 +76,11 @@ __all__ = [
     "list_pipeline_runs", "list_pipeline_step_runs",
     # Backup log
     "log_backup", "list_backup_log",
+    # Students
+    "list_students", "get_student", "add_student", "update_student", "delete_student",
+    "list_jobs_for_student",
+    # Search & reports
+    "search_all", "report_jobs",
     # Paths
     "ARTIFACTS_DIR", "FILES_DIR", "PRINTS_DIR",
 ]
@@ -71,39 +88,23 @@ __all__ = [
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-# Tables that have an updated_at column and should receive automatic timestamp updates
 _TABLES_WITH_UPDATED_AT = {
     "filament", "braille_paper", "electronics",
     "printer", "embosser",
     "print_job", "braille_job", "lp_ebraille_job", "tactile_graphics_job",
     "file_object", "job_metadata", "material_category", "workflow_step",
+    "student",
 }
 
-# All tables safe to use in dynamic UPDATE construction
-_SAFE_TABLES = _TABLES_WITH_UPDATED_AT | {
-    "structural_map_node",
-}
+_SAFE_TABLES = _TABLES_WITH_UPDATED_AT | {"structural_map_node"}
 
 
 def _sanitize_name(value: str) -> str:
-    """Strip characters unsafe for file/directory names, preserving alphanumerics and hyphens."""
+    """Strip characters unsafe for file/directory names."""
     return re.sub(r"[^\w\-]", "", value.replace(" ", "")) or "_"
 
 
 def _rows(cur: Any) -> list[dict[str, Any]]:
-    """ rows.
-    
-    Parameters
-    ----------
-    cur : Any
-        cur parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     cols = [c[0] for c in cur.description]
     return [{cols[i]: row[i] for i in range(len(cols))} for row in cur.fetchall()]
 
@@ -114,14 +115,6 @@ def _build_update_sql(
     allowed: set[str],
     has_updated_at: bool = True,
 ) -> tuple[str, list[Any]]:
-    """Build a safe parameterised UPDATE statement.
-
-    Column names are validated against `allowed`; values are always bound
-    parameters, never interpolated.  When `has_updated_at` is True (default),
-    ``updated_at = datetime('now')`` is appended automatically — pass False for
-    tables that lack this column (printer, embosser in older DB schemas will
-    receive the column via migration, but the flag remains for safety).
-    """
     if table not in _SAFE_TABLES:
         raise ValueError(f"Disallowed table '{table}'")
     safe = {k: v for k, v in fields.items() if k in allowed}
@@ -133,19 +126,6 @@ def _build_update_sql(
 
 
 def _sha256(path: Path) -> str:
-    """ sha256.
-    
-    Parameters
-    ----------
-    path : Any
-        path parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
@@ -156,14 +136,7 @@ def _sha256(path: Path) -> str:
 # ── Filament ──────────────────────────────────────────────────────────────────
 
 def list_filaments() -> list[dict[str, Any]]:
-    """List filaments.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return all filament records ordered by brand and colour."""
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM filament ORDER BY brand, color"))
 
@@ -173,40 +146,6 @@ def add_filament(
     diameter_mm: float = 1.75, quantity_g: float = 0,
     cost_per_kg: Optional[float] = None, supplier: str = "", notes: str = "",
 ) -> int:
-    """Add filament.
-    
-    Parameters
-    ----------
-    brand : Any
-        brand parameter.
-    
-    color : Any
-        color parameter.
-    
-    filament_type : Any
-        filament_type parameter.
-    
-    diameter_mm : Any
-        diameter_mm parameter.
-    
-    quantity_g : Any
-        quantity_g parameter.
-    
-    cost_per_kg : Any
-        cost_per_kg parameter.
-    
-    supplier : Any
-        supplier parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO filament (brand,color,filament_type,diameter_mm,quantity_g,"
@@ -217,19 +156,6 @@ def add_filament(
 
 
 def update_filament(row_id: int, **fields: Any) -> None:
-    """Update filament.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     allowed = {"brand", "color", "filament_type", "diameter_mm", "quantity_g",
                "cost_per_kg", "supplier", "notes"}
     sql, vals = _build_update_sql("filament", fields, allowed)
@@ -238,40 +164,11 @@ def update_filament(row_id: int, **fields: Any) -> None:
 
 
 def delete_filament(row_id: int) -> None:
-    """Delete filament.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM filament WHERE id = ?", (row_id,))
 
 
 def deduct_filament(row_id: int, grams: float) -> None:
-    """Deduct filament.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    grams : Any
-        grams parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute(
             "UPDATE filament SET quantity_g = MAX(0, quantity_g - ?), "
@@ -283,14 +180,6 @@ def deduct_filament(row_id: int, grams: float) -> None:
 # ── Paper ─────────────────────────────────────────────────────────────────────
 
 def list_paper() -> list[dict[str, Any]]:
-    """List paper.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM braille_paper ORDER BY paper_type"))
 
@@ -300,34 +189,6 @@ def add_paper(
     size: Optional[str] = None, label_type: Optional[str] = None,
     supplier: str = "", notes: str = "",
 ) -> int:
-    """Add paper.
-    
-    Parameters
-    ----------
-    paper_type : Any
-        paper_type parameter.
-    
-    quantity : Any
-        quantity parameter.
-    
-    size : Any
-        size parameter.
-    
-    label_type : Any
-        label_type parameter.
-    
-    supplier : Any
-        supplier parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO braille_paper (paper_type,size,label_type,quantity,supplier,notes) "
@@ -338,19 +199,6 @@ def add_paper(
 
 
 def update_paper(row_id: int, **fields: Any) -> None:
-    """Update paper.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     allowed = {"paper_type", "size", "label_type", "quantity", "supplier", "notes"}
     sql, vals = _build_update_sql("braille_paper", fields, allowed)
     with get_conn() as conn:
@@ -358,19 +206,6 @@ def update_paper(row_id: int, **fields: Any) -> None:
 
 
 def delete_paper(row_id: int) -> None:
-    """Delete paper.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM braille_paper WHERE id = ?", (row_id,))
 
@@ -378,19 +213,6 @@ def delete_paper(row_id: int) -> None:
 # ── Electronics ───────────────────────────────────────────────────────────────
 
 def list_electronics(category: Optional[str] = None) -> list[dict[str, Any]]:
-    """List electronics.
-    
-    Parameters
-    ----------
-    category : Any
-        category parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         if category:
             return _rows(conn.execute(
@@ -405,43 +227,6 @@ def add_electronic(
     unit: str = "pcs", cost_each: Optional[float] = None,
     supplier: str = "", notes: str = "",
 ) -> int:
-    """Add electronic.
-    
-    Parameters
-    ----------
-    category : Any
-        category parameter.
-    
-    name : Any
-        name parameter.
-    
-    quantity : Any
-        quantity parameter.
-    
-    brand : Any
-        brand parameter.
-    
-    spec : Any
-        spec parameter.
-    
-    unit : Any
-        unit parameter.
-    
-    cost_each : Any
-        cost_each parameter.
-    
-    supplier : Any
-        supplier parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO electronics (category,name,brand,spec,quantity,unit,"
@@ -452,19 +237,6 @@ def add_electronic(
 
 
 def update_electronic(row_id: int, **fields: Any) -> None:
-    """Update electronic.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     allowed = {"category", "name", "brand", "spec", "quantity", "unit",
                "cost_each", "supplier", "notes"}
     sql, vals = _build_update_sql("electronics", fields, allowed)
@@ -473,19 +245,6 @@ def update_electronic(row_id: int, **fields: Any) -> None:
 
 
 def delete_electronic(row_id: int) -> None:
-    """Delete electronic.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM electronics WHERE id = ?", (row_id,))
 
@@ -493,38 +252,11 @@ def delete_electronic(row_id: int) -> None:
 # ── Printers ──────────────────────────────────────────────────────────────────
 
 def list_printers() -> list[dict[str, Any]]:
-    """List printers.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM printer ORDER BY name"))
 
 
 def add_printer(name: str, model: str = "", notes: str = "") -> int:
-    """Add printer.
-    
-    Parameters
-    ----------
-    name : Any
-        name parameter.
-    
-    model : Any
-        model parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO printer (name,model,notes) VALUES (?,?,?)", (name, model, notes),
@@ -533,7 +265,6 @@ def add_printer(name: str, model: str = "", notes: str = "") -> int:
 
 
 def update_printer(row_id: int, **fields: Any) -> None:
-    """Update a printer record.  printer now has updated_at after migration."""
     allowed = {"name", "model", "notes"}
     sql, vals = _build_update_sql("printer", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
@@ -541,19 +272,6 @@ def update_printer(row_id: int, **fields: Any) -> None:
 
 
 def delete_printer(row_id: int) -> None:
-    """Delete printer.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM printer WHERE id = ?", (row_id,))
 
@@ -561,41 +279,11 @@ def delete_printer(row_id: int) -> None:
 # ── Embossers ─────────────────────────────────────────────────────────────────
 
 def list_embossers() -> list[dict[str, Any]]:
-    """List embossers.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM embosser ORDER BY name"))
 
 
 def add_embosser(name: str, model: str = "", paper_type: str = "", notes: str = "") -> int:
-    """Add embosser.
-    
-    Parameters
-    ----------
-    name : Any
-        name parameter.
-    
-    model : Any
-        model parameter.
-    
-    paper_type : Any
-        paper_type parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO embosser (name,model,paper_type,notes) VALUES (?,?,?,?)",
@@ -605,7 +293,6 @@ def add_embosser(name: str, model: str = "", paper_type: str = "", notes: str = 
 
 
 def update_embosser(row_id: int, **fields: Any) -> None:
-    """Update an embosser record.  embosser now has updated_at after migration."""
     allowed = {"name", "model", "paper_type", "notes"}
     sql, vals = _build_update_sql("embosser", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
@@ -613,19 +300,6 @@ def update_embosser(row_id: int, **fields: Any) -> None:
 
 
 def delete_embosser(row_id: int) -> None:
-    """Delete embosser.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM embosser WHERE id = ?", (row_id,))
 
@@ -633,14 +307,6 @@ def delete_embosser(row_id: int) -> None:
 # ── Print jobs ────────────────────────────────────────────────────────────────
 
 def list_print_jobs() -> list[dict[str, Any]]:
-    """List print jobs.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT pj.*,
@@ -653,52 +319,28 @@ def list_print_jobs() -> list[dict[str, Any]]:
         """))
 
 
+def get_print_job(row_id: int) -> Optional[dict[str, Any]]:
+    """Fetch a single print job by id (FIX-001: needed for pre-update snapshot)."""
+    with get_conn() as conn:
+        rows = _rows(conn.execute("""
+            SELECT pj.*,
+                   p.name  AS printer_name,
+                   f.brand || ' ' || f.color || ' ' || f.filament_type AS filament_desc
+            FROM print_job pj
+            LEFT JOIN printer  p ON p.id = pj.printer_id
+            LEFT JOIN filament f ON f.id = pj.filament_id
+            WHERE pj.id = ?
+        """, (row_id,)))
+        return rows[0] if rows else None
+
+
 def add_print_job(
     printer_id: int, filament_id: Optional[int], filament_used_g: float,
     file_source_path: Optional[str] = None, successful: int = 1,
     failure_reason: Optional[str] = None, object_name: str = "",
     requester: str = "", request_date: Optional[str] = None, notes: str = "",
+    student_id: Optional[int] = None,
 ) -> int:
-    """Add print job.
-    
-    Parameters
-    ----------
-    printer_id : Any
-        printer_id parameter.
-    
-    filament_id : Any
-        filament_id parameter.
-    
-    filament_used_g : Any
-        filament_used_g parameter.
-    
-    file_source_path : Any
-        file_source_path parameter.
-    
-    successful : Any
-        successful parameter.
-    
-    failure_reason : Any
-        failure_reason parameter.
-    
-    object_name : Any
-        object_name parameter.
-    
-    requester : Any
-        requester parameter.
-    
-    request_date : Any
-        request_date parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     file_path: Optional[str] = None
     file_name: Optional[str] = None
     if file_source_path:
@@ -720,10 +362,10 @@ def add_print_job(
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO print_job (printer_id,filament_id,filament_used_g,file_path,"
-            "file_name,successful,failure_reason,object_name,requester,request_date,notes) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "file_name,successful,failure_reason,object_name,requester,request_date,notes,student_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (printer_id, filament_id, filament_used_g, file_path, file_name,
-             successful, failure_reason, object_name, requester, request_date, notes),
+             successful, failure_reason, object_name, requester, request_date, notes, student_id),
         )
         new_id = int(cur.lastrowid)
 
@@ -736,28 +378,44 @@ def add_print_job(
 
 
 def update_print_job(row_id: int, **fields: Any) -> None:
-    """Update mutable fields on a print job record."""
-    allowed = {"printer_id", "filament_id", "filament_used_g", "successful",
-               "failure_reason", "object_name", "requester", "request_date", "notes"}
+    """Update a print job and log a FIELD_UPDATE audit event (FIX-001, FIX-016)."""
+    # FIX-001: snapshot before update
+    old = get_print_job(row_id)
+    allowed = {
+        "printer_id", "filament_id", "filament_used_g", "successful",
+        "failure_reason", "object_name", "requester", "request_date", "notes",
+        "student_id",
+        # FIX-007: step columns
+        "designed", "sliced", "printed", "inspected", "delivered",
+        # FIX-016: delivery columns
+        "delivery_date", "delivery_method", "delivery_recipient", "delivery_notes",
+    }
     sql, vals = _build_update_sql("print_job", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
+    # FIX-001: log what changed
+    log_event(
+        "print", row_id, "FIELD_UPDATE", "SUCCESS",
+        agent="system",
+        detail=f"Updated fields: {list(fields.keys())}",
+        extra_metadata={
+            "changed_fields": list(fields.keys()),
+            "previous_values": {k: old.get(k) for k in fields if old},
+        },
+    )
 
 
 def delete_print_job(row_id: int) -> None:
-    """Delete print job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Delete a print job, logging a DELETE audit event first (FIX-002)."""
+    old = get_print_job(row_id)
+    if old:
+        log_event(
+            "print", row_id, "DELETE", "SUCCESS",
+            agent="system",
+            detail=f"Print job deleted: {old.get('object_name') or old.get('file_name') or 'unnamed'}",
+            extra_metadata={k: old.get(k) for k in
+                            ["object_name", "printer_id", "filament_used_g", "successful", "printed_at"]},
+        )
     with get_conn() as conn:
         conn.execute("DELETE FROM print_job WHERE id = ?", (row_id,))
 
@@ -765,14 +423,6 @@ def delete_print_job(row_id: int) -> None:
 # ── Braille jobs ──────────────────────────────────────────────────────────────
 
 def list_braille_jobs() -> list[dict[str, Any]]:
-    """List braille jobs.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT bj.*, e.name AS embosser_name, e.paper_type AS embosser_paper_type
@@ -783,19 +433,6 @@ def list_braille_jobs() -> list[dict[str, Any]]:
 
 
 def get_braille_job(row_id: int) -> Optional[dict[str, Any]]:
-    """Get braille job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         rows = _rows(conn.execute("""
             SELECT bj.*, e.name AS embosser_name, e.paper_type AS embosser_paper_type
@@ -811,46 +448,14 @@ def add_braille_job(
     embosser_id: Optional[int] = None,
     requester: str = "", request_date: Optional[str] = None,
     due_date: Optional[str] = None, priority: str = "normal", notes: str = "",
+    student_id: Optional[int] = None,
 ) -> int:
-    """Add braille job.
-    
-    Parameters
-    ----------
-    title : Any
-        title parameter.
-    
-    braille_type : Any
-        braille_type parameter.
-    
-    embosser_id : Any
-        embosser_id parameter.
-    
-    requester : Any
-        requester parameter.
-    
-    request_date : Any
-        request_date parameter.
-    
-    due_date : Any
-        due_date parameter.
-    
-    priority : Any
-        priority parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO braille_job (title,braille_type,embosser_id,requester,request_date,"
-            "due_date,priority,notes) VALUES (?,?,?,?,?,?,?,?)",
-            (title, braille_type, embosser_id, requester, request_date, due_date, priority, notes),
+            "due_date,priority,notes,student_id) VALUES (?,?,?,?,?,?,?,?,?)",
+            (title, braille_type, embosser_id, requester, request_date, due_date, priority,
+             notes, student_id),
         )
         new_id = int(cur.lastrowid)
     log_event("braille", new_id, "CREATE", "SUCCESS", detail=f"Job created: {title}")
@@ -858,41 +463,40 @@ def add_braille_job(
 
 
 def update_braille_job(row_id: int, **fields: Any) -> None:
-    """Update braille job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
-    allowed = {"title", "braille_type", "embosser_id", "requester", "request_date", "due_date",
-               "priority", "digitized", "formatted", "brailled", "proofread",
-               "delivered", "notes"}
+    """Update a braille job and log a FIELD_UPDATE audit event (FIX-001, FIX-016)."""
+    old = get_braille_job(row_id)
+    allowed = {
+        "title", "braille_type", "embosser_id", "requester", "request_date", "due_date",
+        "priority", "digitized", "formatted", "brailled", "proofread", "delivered",
+        "notes", "student_id",
+        # FIX-016: delivery columns
+        "delivery_date", "delivery_method", "delivery_recipient", "delivery_notes",
+    }
     sql, vals = _build_update_sql("braille_job", fields, allowed)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
+    log_event(
+        "braille", row_id, "FIELD_UPDATE", "SUCCESS",
+        agent="system",
+        detail=f"Updated fields: {list(fields.keys())}",
+        extra_metadata={
+            "changed_fields": list(fields.keys()),
+            "previous_values": {k: old.get(k) for k in fields if old},
+        },
+    )
 
 
 def delete_braille_job(row_id: int) -> None:
-    """Delete braille job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Delete a braille job, logging a DELETE audit event first (FIX-002)."""
+    old = get_braille_job(row_id)
+    if old:
+        log_event(
+            "braille", row_id, "DELETE", "SUCCESS",
+            agent="system",
+            detail=f"Job deleted: {old.get('title', '')}",
+            extra_metadata={k: old.get(k) for k in
+                            ["title", "braille_type", "requester", "priority", "created_at"]},
+        )
     with get_conn() as conn:
         conn.execute("DELETE FROM braille_job WHERE id = ?", (row_id,))
 
@@ -900,19 +504,6 @@ def delete_braille_job(row_id: int) -> None:
 # ── LP/eBraille jobs ──────────────────────────────────────────────────────────
 
 def list_lp_jobs(job_type: Optional[str] = None) -> list[dict[str, Any]]:
-    """List lp jobs.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         if job_type:
             return _rows(conn.execute(
@@ -923,19 +514,6 @@ def list_lp_jobs(job_type: Optional[str] = None) -> list[dict[str, Any]]:
 
 
 def get_lp_job(row_id: int) -> Optional[dict[str, Any]]:
-    """Get lp job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         rows = _rows(conn.execute("SELECT * FROM lp_ebraille_job WHERE id = ?", (row_id,)))
         return rows[0] if rows else None
@@ -945,43 +523,13 @@ def add_lp_job(
     title: str, job_type: str,
     requester: str = "", request_date: Optional[str] = None,
     due_date: Optional[str] = None, priority: str = "normal", notes: str = "",
+    student_id: Optional[int] = None,
 ) -> int:
-    """Add lp job.
-    
-    Parameters
-    ----------
-    title : Any
-        title parameter.
-    
-    job_type : Any
-        job_type parameter.
-    
-    requester : Any
-        requester parameter.
-    
-    request_date : Any
-        request_date parameter.
-    
-    due_date : Any
-        due_date parameter.
-    
-    priority : Any
-        priority parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO lp_ebraille_job (title,job_type,requester,request_date,"
-            "due_date,priority,notes) VALUES (?,?,?,?,?,?,?)",
-            (title, job_type, requester, request_date, due_date, priority, notes),
+            "due_date,priority,notes,student_id) VALUES (?,?,?,?,?,?,?,?)",
+            (title, job_type, requester, request_date, due_date, priority, notes, student_id),
         )
         new_id = int(cur.lastrowid)
     log_event("lp_ebraille", new_id, "CREATE", "SUCCESS", detail=f"Job created: {title}")
@@ -989,41 +537,40 @@ def add_lp_job(
 
 
 def update_lp_job(row_id: int, **fields: Any) -> None:
-    """Update lp job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
-    allowed = {"title", "job_type", "requester", "request_date", "due_date",
-               "priority", "digitized", "formatted", "converted", "proofread",
-               "delivered", "notes"}
+    """Update an LP/eBraille job and log a FIELD_UPDATE audit event (FIX-001, FIX-016)."""
+    old = get_lp_job(row_id)
+    allowed = {
+        "title", "job_type", "requester", "request_date", "due_date",
+        "priority", "digitized", "formatted", "converted", "proofread",
+        "delivered", "notes", "student_id",
+        # FIX-016
+        "delivery_date", "delivery_method", "delivery_recipient", "delivery_notes",
+    }
     sql, vals = _build_update_sql("lp_ebraille_job", fields, allowed)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
+    log_event(
+        "lp_ebraille", row_id, "FIELD_UPDATE", "SUCCESS",
+        agent="system",
+        detail=f"Updated fields: {list(fields.keys())}",
+        extra_metadata={
+            "changed_fields": list(fields.keys()),
+            "previous_values": {k: old.get(k) for k in fields if old},
+        },
+    )
 
 
 def delete_lp_job(row_id: int) -> None:
-    """Delete lp job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Delete an LP/eBraille job, logging a DELETE audit event first (FIX-002)."""
+    old = get_lp_job(row_id)
+    if old:
+        log_event(
+            "lp_ebraille", row_id, "DELETE", "SUCCESS",
+            agent="system",
+            detail=f"Job deleted: {old.get('title', '')}",
+            extra_metadata={k: old.get(k) for k in
+                            ["title", "job_type", "requester", "priority", "created_at"]},
+        )
     with get_conn() as conn:
         conn.execute("DELETE FROM lp_ebraille_job WHERE id = ?", (row_id,))
 
@@ -1031,32 +578,11 @@ def delete_lp_job(row_id: int) -> None:
 # ── Tactile graphics jobs ─────────────────────────────────────────────────────
 
 def list_tactile_jobs() -> list[dict[str, Any]]:
-    """List tactile jobs.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM tactile_graphics_job ORDER BY created_at DESC"))
 
 
 def get_tactile_job(row_id: int) -> Optional[dict[str, Any]]:
-    """Get tactile job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         rows = _rows(conn.execute("SELECT * FROM tactile_graphics_job WHERE id = ?", (row_id,)))
         return rows[0] if rows else None
@@ -1066,43 +592,13 @@ def add_tactile_job(
     title: str, tactile_type: str,
     requester: str = "", request_date: Optional[str] = None,
     due_date: Optional[str] = None, priority: str = "normal", notes: str = "",
+    student_id: Optional[int] = None,
 ) -> int:
-    """Add tactile job.
-    
-    Parameters
-    ----------
-    title : Any
-        title parameter.
-    
-    tactile_type : Any
-        tactile_type parameter.
-    
-    requester : Any
-        requester parameter.
-    
-    request_date : Any
-        request_date parameter.
-    
-    due_date : Any
-        due_date parameter.
-    
-    priority : Any
-        priority parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO tactile_graphics_job (title,tactile_type,requester,request_date,"
-            "due_date,priority,notes) VALUES (?,?,?,?,?,?,?)",
-            (title, tactile_type, requester, request_date, due_date, priority, notes),
+            "due_date,priority,notes,student_id) VALUES (?,?,?,?,?,?,?,?)",
+            (title, tactile_type, requester, request_date, due_date, priority, notes, student_id),
         )
         new_id = int(cur.lastrowid)
     log_event("tactile", new_id, "CREATE", "SUCCESS", detail=f"Job created: {title}")
@@ -1110,40 +606,40 @@ def add_tactile_job(
 
 
 def update_tactile_job(row_id: int, **fields: Any) -> None:
-    """Update tactile job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
-    allowed = {"title", "tactile_type", "requester", "request_date", "due_date",
-               "priority", "designed", "produced", "qa_reviewed", "delivered", "notes"}
+    """Update a tactile job and log a FIELD_UPDATE audit event (FIX-001, FIX-016)."""
+    old = get_tactile_job(row_id)
+    allowed = {
+        "title", "tactile_type", "requester", "request_date", "due_date",
+        "priority", "designed", "produced", "qa_reviewed", "delivered",
+        "notes", "student_id",
+        # FIX-016
+        "delivery_date", "delivery_method", "delivery_recipient", "delivery_notes",
+    }
     sql, vals = _build_update_sql("tactile_graphics_job", fields, allowed)
     with get_conn() as conn:
         conn.execute(sql, vals + [row_id])
+    log_event(
+        "tactile", row_id, "FIELD_UPDATE", "SUCCESS",
+        agent="system",
+        detail=f"Updated fields: {list(fields.keys())}",
+        extra_metadata={
+            "changed_fields": list(fields.keys()),
+            "previous_values": {k: old.get(k) for k in fields if old},
+        },
+    )
 
 
 def delete_tactile_job(row_id: int) -> None:
-    """Delete tactile job.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Delete a tactile job, logging a DELETE audit event first (FIX-002)."""
+    old = get_tactile_job(row_id)
+    if old:
+        log_event(
+            "tactile", row_id, "DELETE", "SUCCESS",
+            agent="system",
+            detail=f"Job deleted: {old.get('title', '')}",
+            extra_metadata={k: old.get(k) for k in
+                            ["title", "tactile_type", "requester", "priority", "created_at"]},
+        )
     with get_conn() as conn:
         conn.execute("DELETE FROM tactile_graphics_job WHERE id = ?", (row_id,))
 
@@ -1151,32 +647,11 @@ def delete_tactile_job(row_id: int) -> None:
 # ── File objects ──────────────────────────────────────────────────────────────
 
 def list_file_objects() -> list[dict[str, Any]]:
-    """List file objects.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("SELECT * FROM file_object ORDER BY created_at DESC"))
 
 
 def get_file_object(file_id: int) -> Optional[dict[str, Any]]:
-    """Get file object.
-    
-    Parameters
-    ----------
-    file_id : Any
-        file_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         rows = _rows(conn.execute("SELECT * FROM file_object WHERE id = ?", (file_id,)))
         return rows[0] if rows else None
@@ -1184,7 +659,7 @@ def get_file_object(file_id: int) -> Optional[dict[str, Any]]:
 
 def ingest_file(
     source_path: str,
-    file_use: str = "MASTER",
+    file_use: str = "ORIGINAL",
     format_name: str = "",
     format_version: str = "",
     encoding: str = "",
@@ -1195,16 +670,7 @@ def ingest_file(
     grade_level: str = "",
     subject: str = "",
 ) -> int:
-    """Copy a file into the artifact store (preferred) or job-files store, compute SHA-256.
-
-    When *project_title* is supplied the file is placed under::
-
-        artifacts/<project_title>/<student_initials>_<school_name>_Grade<grade_level>_<subject><ext>
-
-    The database stores the **absolute** path so the record always resolves
-    regardless of the working directory.  The legacy UUID-named copy in
-    ``job_files/`` is still used when no project context is provided.
-    """
+    """Copy a file into the artifact store, compute SHA-256, and create a file_object record."""
     src = Path(source_path)
     if not src.exists():
         raise FileNotFoundError(f"Source file not found: {src}")
@@ -1212,7 +678,6 @@ def ingest_file(
     file_uuid = str(uuid.uuid4())
 
     if project_title:
-        # ── Artifact-based storage ────────────────────────────────────────
         project_dir = ARTIFACTS_DIR / _sanitize_name(project_title)
         project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1228,14 +693,12 @@ def ingest_file(
 
         artifact_stem = "_".join(name_parts) if name_parts else file_uuid
         dest = project_dir / f"{artifact_stem}{src.suffix}"
-        # Avoid silent overwrites — append short UUID on collision
         if dest.exists():
             dest = project_dir / f"{artifact_stem}_{file_uuid[:8]}{src.suffix}"
-        stored_path_val = str(dest)  # absolute path
+        stored_path_val = str(dest)
     else:
-        # ── Legacy UUID-based storage in job_files/ ───────────────────────
         dest = FILES_DIR / f"{file_uuid}{src.suffix}"
-        stored_path_val = dest.name  # relative name, resolved via FILES_DIR
+        stored_path_val = dest.name
 
     shutil.copy2(src, dest)
     checksum = _sha256(dest)
@@ -1255,19 +718,6 @@ def ingest_file(
 
 
 def update_file_object(file_id: int, **fields: Any) -> None:
-    """Update file object.
-    
-    Parameters
-    ----------
-    file_id : Any
-        file_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     allowed = {"file_use", "format_name", "format_version", "encoding", "extra_metadata"}
     sql, vals = _build_update_sql("file_object", fields, allowed)
     with get_conn() as conn:
@@ -1275,26 +725,19 @@ def update_file_object(file_id: int, **fields: Any) -> None:
 
 
 def delete_file_object(file_id: int) -> None:
-    """Delete file object.
-    
-    Parameters
-    ----------
-    file_id : Any
-        file_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Delete a file object, logging a DELETE audit event first (FIX-002)."""
     row = get_file_object(file_id)
     if row:
+        # FIX-002: log before deleting
+        log_event(
+            "file", file_id, "DELETE", "SUCCESS",
+            agent="system",
+            detail=f"File object deleted: {row.get('original_name', '')}",
+            extra_metadata={k: row.get(k) for k in
+                            ["original_name", "stored_path", "checksum_sha256", "file_use"]},
+        )
         _sp = Path(row["stored_path"])
-        if _sp.is_absolute():
-            stored = _sp
-        else:
-            stored = FILES_DIR / _sp
+        stored = _sp if _sp.is_absolute() else FILES_DIR / _sp
         stored.unlink(missing_ok=True)
     with get_conn() as conn:
         conn.execute("DELETE FROM file_object WHERE id = ?", (file_id,))
@@ -1306,31 +749,6 @@ def link_file_to_job(
     file_object_id: int, job_type: str, job_id: int,
     step_key: Optional[str] = None, sequence_num: int = 0,
 ) -> int:
-    """Link file to job.
-    
-    Parameters
-    ----------
-    file_object_id : Any
-        file_object_id parameter.
-    
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    step_key : Any
-        step_key parameter.
-    
-    sequence_num : Any
-        sequence_num parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO job_file_link (file_object_id,job_type,job_id,step_key,sequence_num) "
@@ -1341,22 +759,6 @@ def link_file_to_job(
 
 
 def list_files_for_job(job_type: str, job_id: int) -> list[dict[str, Any]]:
-    """List files for job.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT fo.*, jfl.id AS link_id, jfl.step_key, jfl.sequence_num
@@ -1368,19 +770,6 @@ def list_files_for_job(job_type: str, job_id: int) -> list[dict[str, Any]]:
 
 
 def unlink_file_from_job(link_id: int) -> None:
-    """Unlink file from job.
-    
-    Parameters
-    ----------
-    link_id : Any
-        link_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM job_file_link WHERE id = ?", (link_id,))
 
@@ -1396,43 +785,6 @@ def log_event(
     detail: str = "",
     extra_metadata: Optional[dict[str, Any]] = None,
 ) -> int:
-    """Log event.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    event_type : Any
-        event_type parameter.
-    
-    event_outcome : Any
-        event_outcome parameter.
-    
-    step_key : Any
-        step_key parameter.
-    
-    file_object_id : Any
-        file_object_id parameter.
-    
-    agent : Any
-        agent parameter.
-    
-    detail : Any
-        detail parameter.
-    
-    extra_metadata : Any
-        extra_metadata parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO metadata_event (job_type,job_id,event_type,event_outcome,"
@@ -1444,22 +796,6 @@ def log_event(
 
 
 def list_events_for_job(job_type: str, job_id: int) -> list[dict[str, Any]]:
-    """List events for job.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT me.*, fo.original_name AS file_name
@@ -1477,37 +813,6 @@ def add_struct_node(
     parent_id: Optional[int] = None, div_type: str = "section",
     order_num: int = 0, file_object_id: Optional[int] = None,
 ) -> int:
-    """Add struct node.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    label : Any
-        label parameter.
-    
-    parent_id : Any
-        parent_id parameter.
-    
-    div_type : Any
-        div_type parameter.
-    
-    order_num : Any
-        order_num parameter.
-    
-    file_object_id : Any
-        file_object_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO structural_map_node (job_type,job_id,parent_id,label,"
@@ -1518,22 +823,6 @@ def add_struct_node(
 
 
 def list_struct_nodes(job_type: str, job_id: int) -> list[dict[str, Any]]:
-    """List struct nodes.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute("""
             SELECT sn.*, fo.original_name AS file_name
@@ -1545,19 +834,6 @@ def list_struct_nodes(job_type: str, job_id: int) -> list[dict[str, Any]]:
 
 
 def delete_struct_node(node_id: int) -> None:
-    """Delete struct node.
-    
-    Parameters
-    ----------
-    node_id : Any
-        node_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("DELETE FROM structural_map_node WHERE id = ?", (node_id,))
 
@@ -1565,28 +841,6 @@ def delete_struct_node(node_id: int) -> None:
 # ── Job metadata ──────────────────────────────────────────────────────────────
 
 def set_job_metadata(job_type: str, job_id: int, meta_key: str, meta_value: str) -> None:
-    """Set job metadata.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    meta_key : Any
-        meta_key parameter.
-    
-    meta_value : Any
-        meta_value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute("""
             INSERT INTO job_metadata (job_type,job_id,meta_key,meta_value) VALUES (?,?,?,?)
@@ -1597,25 +851,6 @@ def set_job_metadata(job_type: str, job_id: int, meta_key: str, meta_value: str)
 
 
 def get_job_metadata(job_type: str, job_id: int, meta_key: str) -> Optional[str]:
-    """Get job metadata.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    meta_key : Any
-        meta_key parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         rows = _rows(conn.execute(
             "SELECT meta_value FROM job_metadata WHERE job_type=? AND job_id=? AND meta_key=?",
@@ -1625,22 +860,6 @@ def get_job_metadata(job_type: str, job_id: int, meta_key: str) -> Optional[str]
 
 
 def list_job_metadata(job_type: str, job_id: int) -> dict[str, str]:
-    """List job metadata.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         rows = _rows(conn.execute(
             "SELECT meta_key, meta_value FROM job_metadata "
@@ -1651,25 +870,6 @@ def list_job_metadata(job_type: str, job_id: int) -> dict[str, str]:
 
 
 def delete_job_metadata(job_type: str, job_id: int, meta_key: str) -> None:
-    """Delete job metadata.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    meta_key : Any
-        meta_key parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute(
             "DELETE FROM job_metadata WHERE job_type=? AND job_id=? AND meta_key=?",
@@ -1687,30 +887,11 @@ def list_distinct_metadata_keys() -> list[dict[str, Any]]:
 
 
 def backfill_metadata_keys(approved_keys: list[str]) -> dict[str, Any]:
-    """Normalize and backfill typo'd metadata keys into approved keys.
-
-    Strategy:
-    - For each non-approved key, find the closest approved key by normalized form.
-    - Move data to the matched key.
-    - When source and target already exist for the same job row, merge values.
-    """
+    """Normalise and backfill typo'd metadata keys into approved keys (writes to DB)."""
     if not approved_keys:
         return {"updated_rows": 0, "deleted_rows": 0, "mappings": {}, "skipped_keys": []}
 
     def _norm(k: str) -> str:
-        """ norm.
-        
-        Parameters
-        ----------
-        k : Any
-            k parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         k = k.strip().lower().replace(" ", "_").replace("-", "_")
         return re.sub(r"[^a-z0-9_:]", "", k)
 
@@ -1791,43 +972,70 @@ def backfill_metadata_keys(approved_keys: list[str]) -> dict[str, Any]:
         }
 
 
+def preview_backfill_metadata_keys(approved_keys: list[str]) -> dict[str, Any]:
+    """Return proposed key mappings without writing to the database (FIX-017 dry-run)."""
+    if not approved_keys:
+        return {"mappings": {}, "skipped_keys": [], "usage_counts": {}}
+
+    def _norm(k: str) -> str:
+        k = k.strip().lower().replace(" ", "_").replace("-", "_")
+        return re.sub(r"[^a-z0-9_:]", "", k)
+
+    approved_set = set(approved_keys)
+    norm_to_key = {_norm(k): k for k in approved_keys}
+    norm_candidates = list(norm_to_key.keys())
+
+    with get_conn() as conn:
+        distinct = _rows(conn.execute(
+            "SELECT meta_key, COUNT(*) AS usage_count FROM job_metadata "
+            "GROUP BY meta_key ORDER BY meta_key"
+        ))
+
+    mappings: dict[str, str] = {}
+    skipped: list[str] = []
+    usage_counts: dict[str, int] = {r["meta_key"]: r["usage_count"] for r in distinct}
+
+    for row in distinct:
+        source = row["meta_key"]
+        if source in approved_set:
+            continue
+        nsrc = _norm(source)
+
+        if nsrc in norm_to_key:
+            mappings[source] = norm_to_key[nsrc]
+            continue
+
+        closest = difflib.get_close_matches(nsrc, norm_candidates, n=1, cutoff=0.8)
+        if closest:
+            mappings[source] = norm_to_key[closest[0]]
+        else:
+            skipped.append(source)
+
+    return {
+        "mappings": mappings,
+        "skipped_keys": skipped,
+        "usage_counts": usage_counts,
+    }
+
+
 # ── Step helpers ──────────────────────────────────────────────────────────────
 
 _STEP_TABLES: dict[str, str] = {
     "braille": "braille_job",
     "lp_ebraille": "lp_ebraille_job",
     "tactile": "tactile_graphics_job",
+    "print": "print_job",   # FIX-007
 }
 _ALLOWED_STEPS: dict[str, list[str]] = {
-    "braille": ["digitized", "formatted", "brailled", "proofread", "delivered"],
+    "braille":     ["digitized", "formatted", "brailled", "proofread", "delivered"],
     "lp_ebraille": ["digitized", "formatted", "converted", "proofread", "delivered"],
-    "tactile": ["designed", "produced", "qa_reviewed", "delivered"],
+    "tactile":     ["designed", "produced", "qa_reviewed", "delivered"],
+    "print":       ["designed", "sliced", "printed", "inspected", "delivered"],  # FIX-007
 }
 
 
 def complete_step(job_type: str, job_id: int, step_key: str, agent: str = "user") -> None:
-    """Complete step.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    step_key : Any
-        step_key parameter.
-    
-    agent : Any
-        agent parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Mark a workflow step as complete and log a STEP_COMPLETE event."""
     table = _STEP_TABLES.get(job_type)
     if not table or step_key not in _ALLOWED_STEPS.get(job_type, []):
         raise ValueError(f"Unknown step '{step_key}' for job type '{job_type}'")
@@ -1844,31 +1052,7 @@ def revert_step(
     job_type: str, job_id: int, step_key: str,
     agent: str = "user", reason: str = "",
 ) -> None:
-    """Revert step.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    step_key : Any
-        step_key parameter.
-    
-    agent : Any
-        agent parameter.
-    
-    reason : Any
-        reason parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Revert a workflow step and log a STEP_REVERT event."""
     table = _STEP_TABLES.get(job_type)
     if not table or step_key not in _ALLOWED_STEPS.get(job_type, []):
         raise ValueError(f"Unknown step '{step_key}' for job type '{job_type}'")
@@ -1882,27 +1066,54 @@ def revert_step(
               detail=f"Step '{step_key}' reverted" + (f": {reason}" if reason else ""))
 
 
+def record_delivery(
+    job_type: str, job_id: int,
+    delivery_method: str,
+    delivery_recipient: str,
+    delivery_date: Optional[str] = None,
+    delivery_notes: str = "",
+    agent: str = "user",
+) -> None:
+    """Record delivery details, complete the 'delivered' step, and log a DELIVERY event (FIX-016)."""
+    from datetime import date
+    d_date = delivery_date or date.today().isoformat()
+
+    update_fn_map = {
+        "braille":     update_braille_job,
+        "lp_ebraille": update_lp_job,
+        "tactile":     update_tactile_job,
+        "print":       update_print_job,
+    }
+    update_fn = update_fn_map.get(job_type)
+    if update_fn:
+        update_fn(
+            job_id,
+            delivered=1,
+            delivery_date=d_date,
+            delivery_method=delivery_method,
+            delivery_recipient=delivery_recipient,
+            delivery_notes=delivery_notes,
+        )
+
+    log_event(
+        job_type, job_id, "DELIVERY", "SUCCESS",
+        step_key="delivered",
+        agent=agent,
+        detail=f"Delivered to {delivery_recipient} via {delivery_method} on {d_date}",
+        extra_metadata={
+            "delivery_method": delivery_method,
+            "delivery_recipient": delivery_recipient,
+            "delivery_date": d_date,
+            "delivery_notes": delivery_notes,
+        },
+    )
+
+
 # ── Lookup tables ─────────────────────────────────────────────────────────────
 
 def list_material_categories(
     section: Optional[str] = None, active_only: bool = True,
 ) -> list[dict[str, Any]]:
-    """List material categories.
-    
-    Parameters
-    ----------
-    section : Any
-        section parameter.
-    
-    active_only : Any
-        active_only parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         filters: list[str] = []
         params: list[Any] = []
@@ -1918,31 +1129,7 @@ def list_material_categories(
         ))
 
 
-def add_material_category(
-    section: str, value: str, label: str, sort_order: int = 0,
-) -> int:
-    """Add material category.
-    
-    Parameters
-    ----------
-    section : Any
-        section parameter.
-    
-    value : Any
-        value parameter.
-    
-    label : Any
-        label parameter.
-    
-    sort_order : Any
-        sort_order parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+def add_material_category(section: str, value: str, label: str, sort_order: int = 0) -> int:
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO material_category (section,value,label,sort_order) VALUES (?,?,?,?)",
@@ -1952,19 +1139,6 @@ def add_material_category(
 
 
 def update_material_category(row_id: int, **fields: Any) -> None:
-    """Update material category.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     allowed = {"section", "value", "label", "sort_order", "active"}
     sql, vals = _build_update_sql("material_category", fields, allowed)
     with get_conn() as conn:
@@ -1972,22 +1146,6 @@ def update_material_category(row_id: int, **fields: Any) -> None:
 
 
 def set_material_category_active(row_id: int, active: int) -> None:
-    """Set material category active.
-    
-    Parameters
-    ----------
-    row_id : Any
-        row_id parameter.
-    
-    active : Any
-        active parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute(
             "UPDATE material_category SET active=?, updated_at=datetime('now') WHERE id=?",
@@ -2003,22 +1161,6 @@ def delete_material_category(row_id: int) -> None:
 def list_workflow_steps(
     job_type: Optional[str] = None, active_only: bool = True,
 ) -> list[dict[str, Any]]:
-    """List workflow steps.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    active_only : Any
-        active_only parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         filters: list[str] = []
         params: list[Any] = []
@@ -2038,31 +1180,6 @@ def add_workflow_step(
     job_type: str, step_key: str, label: str,
     description: str = "", sort_order: int = 0,
 ) -> int:
-    """Add workflow step.
-    
-    Parameters
-    ----------
-    job_type : Any
-        job_type parameter.
-    
-    step_key : Any
-        step_key parameter.
-    
-    label : Any
-        label parameter.
-    
-    description : Any
-        description parameter.
-    
-    sort_order : Any
-        sort_order parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO workflow_step (job_type,step_key,label,description,sort_order) "
@@ -2073,7 +1190,6 @@ def add_workflow_step(
 
 
 def update_workflow_step(row_id: int, **fields: Any) -> None:
-    """Update a workflow step record.  workflow_step.updated_at is guaranteed by schema/migration."""
     allowed = {"job_type", "step_key", "label", "description", "sort_order", "active"}
     sql, vals = _build_update_sql("workflow_step", fields, allowed, has_updated_at=True)
     with get_conn() as conn:
@@ -2081,7 +1197,6 @@ def update_workflow_step(row_id: int, **fields: Any) -> None:
 
 
 def set_workflow_step_active(row_id: int, active: int) -> None:
-    """Enable or disable a workflow step.  Uses updated_at which now exists after migration."""
     with get_conn() as conn:
         conn.execute(
             "UPDATE workflow_step SET active=?, updated_at=datetime('now') WHERE id=?",
@@ -2101,34 +1216,6 @@ def log_qa_run(
     success: bool, output: str,
     job_type: Optional[str] = None, job_id: Optional[int] = None,
 ) -> int:
-    """Log qa run.
-    
-    Parameters
-    ----------
-    tool_name : Any
-        tool_name parameter.
-    
-    command : Any
-        command parameter.
-    
-    success : Any
-        success parameter.
-    
-    output : Any
-        output parameter.
-    
-    job_type : Any
-        job_type parameter.
-    
-    job_id : Any
-        job_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO qa_run (tool_name,command,job_type,job_id,success,output) "
@@ -2141,22 +1228,6 @@ def log_qa_run(
 def list_qa_runs(
     tool_name: Optional[str] = None, limit: int = 100,
 ) -> list[dict[str, Any]]:
-    """List qa runs.
-    
-    Parameters
-    ----------
-    tool_name : Any
-        tool_name parameter.
-    
-    limit : Any
-        limit parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         if tool_name:
             return _rows(conn.execute(
@@ -2171,19 +1242,6 @@ def list_qa_runs(
 # ── Pipeline runs ─────────────────────────────────────────────────────────────
 
 def start_pipeline_run(pipeline_name: str) -> int:
-    """Start pipeline run.
-    
-    Parameters
-    ----------
-    pipeline_name : Any
-        pipeline_name parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO pipeline_run (pipeline_name,status) VALUES (?,?)",
@@ -2193,22 +1251,6 @@ def start_pipeline_run(pipeline_name: str) -> int:
 
 
 def finish_pipeline_run(run_id: int, status: str = "completed") -> None:
-    """Finish pipeline run.
-    
-    Parameters
-    ----------
-    run_id : Any
-        run_id parameter.
-    
-    status : Any
-        status parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         conn.execute(
             "UPDATE pipeline_run SET status=?, finished_at=datetime('now') WHERE id=?",
@@ -2220,34 +1262,6 @@ def log_pipeline_step(
     pipeline_run_id: int, step_name: str, tool: str,
     command: str, success: bool, output: str,
 ) -> int:
-    """Log pipeline step.
-    
-    Parameters
-    ----------
-    pipeline_run_id : Any
-        pipeline_run_id parameter.
-    
-    step_name : Any
-        step_name parameter.
-    
-    tool : Any
-        tool parameter.
-    
-    command : Any
-        command parameter.
-    
-    success : Any
-        success parameter.
-    
-    output : Any
-        output parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO pipeline_step_run (pipeline_run_id,step_name,tool,command,success,output) "
@@ -2258,19 +1272,6 @@ def log_pipeline_step(
 
 
 def list_pipeline_runs(limit: int = 50) -> list[dict[str, Any]]:
-    """List pipeline runs.
-    
-    Parameters
-    ----------
-    limit : Any
-        limit parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute(
             "SELECT * FROM pipeline_run ORDER BY started_at DESC LIMIT ?", (limit,),
@@ -2278,19 +1279,6 @@ def list_pipeline_runs(limit: int = 50) -> list[dict[str, Any]]:
 
 
 def list_pipeline_step_runs(pipeline_run_id: int) -> list[dict[str, Any]]:
-    """List pipeline step runs.
-    
-    Parameters
-    ----------
-    pipeline_run_id : Any
-        pipeline_run_id parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         return _rows(conn.execute(
             "SELECT * FROM pipeline_step_run WHERE pipeline_run_id=? ORDER BY ran_at",
@@ -2302,7 +1290,6 @@ def list_pipeline_step_runs(pipeline_run_id: int) -> list[dict[str, Any]]:
 
 def log_backup(backup_path: str, size_bytes: int, trigger: str = "scheduled",
                status: str = "ok") -> int:
-    """Record a completed backup in the backup_log table."""
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO backup_log (backup_path, size_bytes, trigger, status) VALUES (?,?,?,?)",
@@ -2312,8 +1299,308 @@ def log_backup(backup_path: str, size_bytes: int, trigger: str = "scheduled",
 
 
 def list_backup_log(limit: int = 50) -> list[dict[str, Any]]:
-    """Return recent backup log entries, newest first."""
     with get_conn() as conn:
         return _rows(conn.execute(
             "SELECT * FROM backup_log ORDER BY created_at DESC LIMIT ?", (limit,),
         ))
+
+
+# ── Students (FIX-010) ────────────────────────────────────────────────────────
+
+def list_students(active_only: bool = True) -> list[dict[str, Any]]:
+    """Return student records ordered by last name, first name."""
+    with get_conn() as conn:
+        where = "WHERE active = 1" if active_only else ""
+        return _rows(conn.execute(
+            f"SELECT * FROM student {where} ORDER BY last_name, first_name"  # noqa: S608
+        ))
+
+
+def get_student(student_id: int) -> Optional[dict[str, Any]]:
+    """Fetch a single student record by id."""
+    with get_conn() as conn:
+        rows = _rows(conn.execute("SELECT * FROM student WHERE id = ?", (student_id,)))
+        return rows[0] if rows else None
+
+
+def add_student(
+    last_name: str, first_name: str,
+    school: str = "", grade: str = "",
+    preferred_formats: str = "", notes: str = "",
+) -> int:
+    """Create a student record and return the new id."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO student (last_name,first_name,school,grade,preferred_formats,notes) "
+            "VALUES (?,?,?,?,?,?)",
+            (last_name, first_name, school, grade, preferred_formats, notes),
+        )
+        return int(cur.lastrowid)
+
+
+def update_student(student_id: int, **fields: Any) -> None:
+    """Update a student record."""
+    allowed = {"last_name", "first_name", "school", "grade", "preferred_formats",
+               "notes", "active"}
+    sql, vals = _build_update_sql("student", fields, allowed)
+    with get_conn() as conn:
+        conn.execute(sql, vals + [student_id])
+
+
+def delete_student(student_id: int) -> None:
+    """Soft-delete a student (sets active=0)."""
+    update_student(student_id, active=0)
+
+
+def list_jobs_for_student(student_id: int) -> dict[str, list[dict[str, Any]]]:
+    """Return all jobs linked to a student, grouped by type."""
+    with get_conn() as conn:
+        braille = _rows(conn.execute(
+            "SELECT *, 'braille' AS job_type FROM braille_job WHERE student_id = ? ORDER BY created_at DESC",
+            (student_id,),
+        ))
+        lp = _rows(conn.execute(
+            "SELECT *, job_type FROM lp_ebraille_job WHERE student_id = ? ORDER BY created_at DESC",
+            (student_id,),
+        ))
+        tactile = _rows(conn.execute(
+            "SELECT *, 'tactile' AS job_type FROM tactile_graphics_job WHERE student_id = ? ORDER BY created_at DESC",
+            (student_id,),
+        ))
+        print_jobs = _rows(conn.execute(
+            "SELECT *, 'print' AS job_type FROM print_job WHERE student_id = ? ORDER BY printed_at DESC",
+            (student_id,),
+        ))
+    return {
+        "braille": braille,
+        "lp_ebraille": lp,
+        "tactile": tactile,
+        "print": print_jobs,
+    }
+
+
+# ── Search (FIX-009, FIX-014) ─────────────────────────────────────────────────
+
+def search_all(query: str, limit: int = 200) -> dict[str, list[dict[str, Any]]]:
+    """Search all job tables, files, metadata, and event log using SQL LIKE queries.
+
+    Replaces the in-memory Python filtering in the UI layer (FIX-009).
+    Also searches event log detail text (FIX-014) and file checksums.
+
+    Parameters
+    ----------
+    query : str
+        The search term. Applied with LIKE '%term%' across text columns.
+        If exactly 64 hex characters, also tested as an exact SHA-256 match.
+    limit : int
+        Maximum rows returned per result category.
+    """
+    term = f"%{query}%"
+    # SHA-256 exact match for 64-char hex strings
+    is_checksum = len(query) == 64 and all(c in "0123456789abcdefABCDEF" for c in query)
+
+    with get_conn() as conn:
+        braille_jobs = _rows(conn.execute(
+            "SELECT id, title, braille_type, requester, priority, created_at "
+            "FROM braille_job WHERE title LIKE ? OR requester LIKE ? OR notes LIKE ? "
+            "ORDER BY created_at DESC LIMIT ?",
+            (term, term, term, limit),
+        ))
+
+        lp_jobs = _rows(conn.execute(
+            "SELECT id, title, job_type, requester, priority, created_at "
+            "FROM lp_ebraille_job WHERE title LIKE ? OR requester LIKE ? OR notes LIKE ? "
+            "ORDER BY created_at DESC LIMIT ?",
+            (term, term, term, limit),
+        ))
+
+        tactile_jobs = _rows(conn.execute(
+            "SELECT id, title, tactile_type, requester, priority, created_at "
+            "FROM tactile_graphics_job WHERE title LIKE ? OR requester LIKE ? OR notes LIKE ? "
+            "ORDER BY created_at DESC LIMIT ?",
+            (term, term, term, limit),
+        ))
+
+        print_jobs = _rows(conn.execute(
+            "SELECT id, object_name, file_name, requester, successful, printed_at "
+            "FROM print_job WHERE object_name LIKE ? OR requester LIKE ? "
+            "OR file_name LIKE ? OR notes LIKE ? ORDER BY printed_at DESC LIMIT ?",
+            (term, term, term, term, limit),
+        ))
+
+        if is_checksum:
+            files = _rows(conn.execute(
+                "SELECT id, original_name, stored_path, file_use, format_name, "
+                "checksum_sha256, created_at FROM file_object "
+                "WHERE original_name LIKE ? OR stored_path LIKE ? OR format_name LIKE ? "
+                "OR encoding LIKE ? OR checksum_sha256 = ? ORDER BY created_at DESC LIMIT ?",
+                (term, term, term, term, query, limit),
+            ))
+        else:
+            files = _rows(conn.execute(
+                "SELECT id, original_name, stored_path, file_use, format_name, "
+                "checksum_sha256, created_at FROM file_object "
+                "WHERE original_name LIKE ? OR stored_path LIKE ? OR format_name LIKE ? "
+                "OR encoding LIKE ? ORDER BY created_at DESC LIMIT ?",
+                (term, term, term, term, limit),
+            ))
+
+        metadata = _rows(conn.execute(
+            "SELECT jm.job_type, jm.job_id, jm.meta_key, jm.meta_value "
+            "FROM job_metadata jm WHERE jm.meta_key LIKE ? OR jm.meta_value LIKE ? "
+            "ORDER BY jm.job_type, jm.job_id LIMIT ?",
+            (term, term, limit),
+        ))
+
+        # FIX-014: event log search
+        events = _rows(conn.execute(
+            "SELECT me.id, me.job_type, me.job_id, me.event_type, me.agent, "
+            "me.detail, me.event_datetime "
+            "FROM metadata_event me "
+            "WHERE me.detail LIKE ? OR me.agent LIKE ? OR me.event_type LIKE ? "
+            "ORDER BY me.event_datetime DESC LIMIT ?",
+            (term, term, term, limit),
+        ))
+
+        students = _rows(conn.execute(
+            "SELECT id, last_name, first_name, school, grade "
+            "FROM student WHERE last_name LIKE ? OR first_name LIKE ? "
+            "OR school LIKE ? OR notes LIKE ? ORDER BY last_name LIMIT ?",
+            (term, term, term, term, limit),
+        ))
+
+    return {
+        "braille_jobs": braille_jobs,
+        "lp_jobs": lp_jobs,
+        "tactile_jobs": tactile_jobs,
+        "print_jobs": print_jobs,
+        "files": files,
+        "metadata": metadata,
+        "events": events,
+        "students": students,
+    }
+
+
+# ── Reporting (FIX-015) ───────────────────────────────────────────────────────
+
+def report_jobs(
+    school: Optional[str] = None,
+    grade: Optional[str] = None,
+    job_type: Optional[str] = None,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    student_id: Optional[int] = None,
+) -> dict[str, Any]:
+    """Return filtered job lists grouped by type with summary counts.
+
+    Parameters
+    ----------
+    school : str, optional
+        Filter by student.school (exact) or dc:coverage metadata value (LIKE).
+    grade : str, optional
+        Filter by student.grade or grade_level metadata value (LIKE).
+    job_type : str, optional
+        One of 'braille', 'lp_ebraille', 'tactile', 'print'. If None, all types returned.
+    status : str, optional
+        'not_started', 'in_progress', or 'delivered'.
+    date_from : str, optional
+        ISO date string — jobs created on or after this date.
+    date_to : str, optional
+        ISO date string — jobs created on or before this date.
+    student_id : int, optional
+        Return only jobs for this student.
+    """
+
+    def _step_status_expr(steps: list[str]) -> str:
+        """Build SQL CASE expression deriving a status label from step columns."""
+        delivered_col = steps[-1]
+        any_done = " + ".join(f"COALESCE({s}, 0)" for s in steps)
+        return (
+            f"CASE WHEN {delivered_col} = 1 THEN 'delivered' "
+            f"WHEN ({any_done}) > 0 THEN 'in_progress' "
+            f"ELSE 'not_started' END"
+        )
+
+    def _run(table: str, type_label: str, steps: list[str],
+             title_col: str = "title") -> list[dict[str, Any]]:
+        filters: list[str] = []
+        params: list[Any] = []
+
+        if student_id is not None:
+            filters.append("j.student_id = ?")
+            params.append(student_id)
+        if date_from:
+            filters.append("j.created_at >= ?")
+            params.append(date_from)
+        if date_to:
+            filters.append("j.created_at <= ?")
+            params.append(date_to)
+        if school:
+            filters.append(
+                "(s.school LIKE ? OR EXISTS ("
+                "  SELECT 1 FROM job_metadata jm "
+                "  WHERE jm.job_type=? AND jm.job_id=j.id "
+                "  AND jm.meta_key='dc:coverage' AND jm.meta_value LIKE ?"
+                "))"
+            )
+            params += [f"%{school}%", type_label, f"%{school}%"]
+        if grade:
+            filters.append(
+                "(s.grade LIKE ? OR EXISTS ("
+                "  SELECT 1 FROM job_metadata jm "
+                "  WHERE jm.job_type=? AND jm.job_id=j.id "
+                "  AND jm.meta_key='grade_level' AND jm.meta_value LIKE ?"
+                "))"
+            )
+            params += [f"%{grade}%", type_label, f"%{grade}%"]
+
+        status_expr = _step_status_expr(steps)
+        if status:
+            filters.append(f"({status_expr}) = ?")
+            params.append(status)
+
+        where = ("WHERE " + " AND ".join(filters)) if filters else ""
+
+        sql = f"""
+            SELECT j.id, j.{title_col} AS title, '{type_label}' AS job_type,
+                   j.requester, j.priority, j.created_at,
+                   s.last_name, s.first_name, s.school, s.grade,
+                   ({status_expr}) AS status
+            FROM {table} j
+            LEFT JOIN student s ON s.id = j.student_id
+            {where}
+            ORDER BY j.created_at DESC
+        """  # noqa: S608
+        with get_conn() as conn:
+            return _rows(conn.execute(sql, params))
+
+    b_steps   = ["digitized", "formatted", "brailled", "proofread", "delivered"]
+    lp_steps  = ["digitized", "formatted", "converted", "proofread", "delivered"]
+    tac_steps = ["designed", "produced", "qa_reviewed", "delivered"]
+    prt_steps = ["designed", "sliced", "printed", "inspected", "delivered"]
+
+    results: dict[str, list[dict[str, Any]]] = {}
+
+    if job_type in (None, "braille"):
+        results["braille"] = _run("braille_job", "braille", b_steps)
+    if job_type in (None, "lp_ebraille"):
+        results["lp_ebraille"] = _run("lp_ebraille_job", "lp_ebraille", lp_steps)
+    if job_type in (None, "tactile"):
+        results["tactile"] = _run("tactile_graphics_job", "tactile", tac_steps)
+    if job_type in (None, "print"):
+        results["print"] = _run(
+            "print_job", "print", prt_steps, title_col="object_name"
+        )
+
+    all_jobs: list[dict[str, Any]] = []
+    for rows in results.values():
+        all_jobs.extend(rows)
+
+    by_type = {k: len(v) for k, v in results.items()}
+    return {
+        "total_jobs": len(all_jobs),
+        "by_type": by_type,
+        "jobs": all_jobs,
+        "by_type_lists": results,
+    }

@@ -1,11 +1,14 @@
 """
 QA Tooling page — runs accessibility validation tools and shows history.
 
-Each tool button calls QAService.run_tool() which invokes the real executable
-via ExecutionService and persists the result via db.queries.log_qa_run().
+Changes applied (see fix_specs.json):
+  FIX-012  Run dialog now has optional job-type selector and job-ID input.
+           When a job is linked, the result appears in that job's event log.
 """
 
 from __future__ import annotations
+
+import threading
 
 from nicegui import ui
 
@@ -15,22 +18,6 @@ from .components import notify_error, notify_success, section_header
 
 
 def _tool_card(tool: QATool, result_area: ui.element) -> None:
-    """ tool card.
-    
-    Parameters
-    ----------
-    tool : Any
-        tool parameter.
-    
-    result_area : Any
-        result_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     available = tool.is_available()
     border = "border-slate-200" if available else "border-amber-200 bg-amber-50"
     with ui.card().classes(f"p-4 rounded-xl border {border} w-full"):
@@ -51,42 +38,14 @@ def _tool_card(tool: QATool, result_area: ui.element) -> None:
                 )
 
             with ui.column().classes("gap-2 shrink-0"):
-                # Run button
                 def _run(t: QATool = tool) -> None:
-                    """ run.
-                    
-                    Parameters
-                    ----------
-                    t : Any
-                        t parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
                     _run_tool_dialog(t, result_area)
 
                 ui.button("▶ Run Validation", on_click=_run).classes(
                     "bg-blue-600 text-white text-sm rounded-lg px-3 py-1"
                 )
 
-                # History button
                 def _hist(t: QATool = tool) -> None:
-                    """ hist.
-                    
-                    Parameters
-                    ----------
-                    t : Any
-                        t parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
                     _show_history(t.name, result_area)
 
                 ui.button("📋 View History", on_click=_hist).props("flat dense").classes(
@@ -95,22 +54,6 @@ def _tool_card(tool: QATool, result_area: ui.element) -> None:
 
 
 def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
-    """ run tool dialog.
-    
-    Parameters
-    ----------
-    tool : Any
-        tool parameter.
-    
-    result_area : Any
-        result_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[540px] max-w-full"):
         ui.label(f"Run: {tool.name}").classes("text-xl font-bold text-slate-800")
         ui.label(tool.description).classes("text-sm text-slate-500")
@@ -120,49 +63,54 @@ def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
             placeholder="/path/to/file.epub",
         ).classes("w-full")
 
-        with ui.row().classes("justify-end gap-3 mt-2"):
+        # FIX-012: optional job link
+        ui.separator().classes("my-2")
+        ui.label("Link to Job (optional)").classes(
+            "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+        )
+        ui.label(
+            "When linked, this QA result will appear in that job's event log."
+        ).classes("text-xs text-slate-400 mb-1")
+
+        with ui.row().classes("gap-3 w-full"):
+            job_type_sel = ui.select(
+                ["(none)", "braille", "lp_ebraille", "tactile", "print"],
+                value="(none)",
+                label="Job Type",
+            ).classes("flex-1")
+            job_id_inp = ui.input(
+                "Job ID", placeholder="numeric ID"
+            ).classes("flex-1")
+
+        with ui.row().classes("justify-end gap-3 mt-4"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
-            spinner_holder: list[ui.element] = []
-
             def _execute() -> None:
-                """ execute.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 dlg.close()
                 result_area.clear()
                 with result_area:
-                    with ui.card().classes(
-                        "p-4 rounded-xl border border-slate-200 w-full"
-                    ):
+                    with ui.card().classes("p-4 rounded-xl border border-slate-200 w-full"):
                         ui.label(f"Running: {tool.name}…").classes(
                             "text-slate-600 font-medium"
                         )
-                        spin = ui.spinner("dots", size="sm")
-                        spinner_holder.append(spin)
+                        ui.spinner("dots", size="sm")
+
+                # FIX-012: parse job link before threading
+                jtype_val = job_type_sel.value if job_type_sel.value != "(none)" else None
+                jid_str = job_id_inp.value.strip()
+                jid_val = int(jid_str) if jtype_val and jid_str.isdigit() else None
 
                 def _do() -> None:
-                    """ do.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
-                    result = QAService.run_tool(
-                        tool.name, input_path=input_path.value.strip()
+                    res = QAService.run_tool(
+                        tool.name,
+                        input_path=input_path.value.strip(),
+                        job_type=jtype_val,
+                        job_id=jid_val,
                     )
                     result_area.clear()
                     with result_area:
-                        _render_result(tool.name, result)
+                        _render_result(tool.name, res, jtype_val, jid_val)
 
-                import threading
                 threading.Thread(target=_do, daemon=True).start()
 
             ui.button("Run", on_click=_execute).classes("bg-blue-600 text-white")
@@ -170,34 +118,28 @@ def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:
     dlg.open()
 
 
-def _render_result(tool_name: str, result: object) -> None:
-    """ render result.
-    
-    Parameters
-    ----------
-    tool_name : Any
-        tool_name parameter.
-    
-    result : Any
-        result parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+def _render_result(
+    tool_name: str,
+    result: object,
+    job_type: str | None = None,
+    job_id: int | None = None,
+) -> None:
     success = getattr(result, "success", False)
     output = getattr(result, "output", "")
     command = getattr(result, "command", "")
     border = "border-green-200 bg-green-50" if success else "border-red-200 bg-red-50"
     label_cls = "text-green-700" if success else "text-red-700"
     icon = "✅" if success else "❌"
+
     with ui.card().classes(f"p-5 rounded-xl border {border} w-full"):
-        ui.label(f"{icon} {tool_name} — {'SUCCESS' if success else 'FAILED'}").classes(
-            f"font-bold {label_cls} text-base mb-1"
-        )
-        ui.label(f"Command: {command}").classes("text-xs text-slate-500 font-mono mb-2")
+        ui.label(
+            f"{icon} {tool_name} — {'SUCCESS' if success else 'FAILED'}"
+        ).classes(f"font-bold {label_cls} text-base mb-1")
+        ui.label(f"Command: {command}").classes("text-xs text-slate-500 font-mono mb-1")
+        if job_type and job_id:
+            ui.label(
+                f"Linked to {job_type} job #{job_id} — result recorded in event log"
+            ).classes("text-xs text-indigo-600 mb-2")
         if output:
             ui.code(output).classes("text-xs w-full overflow-auto max-h-64")
         else:
@@ -205,22 +147,6 @@ def _render_result(tool_name: str, result: object) -> None:
 
 
 def _show_history(tool_name: str, result_area: ui.element) -> None:
-    """ show history.
-    
-    Parameters
-    ----------
-    tool_name : Any
-        tool_name parameter.
-    
-    result_area : Any
-        result_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     runs = Q.list_qa_runs(tool_name=tool_name, limit=20)
     result_area.clear()
     with result_area:
@@ -234,14 +160,16 @@ def _show_history(tool_name: str, result_area: ui.element) -> None:
             for run in runs:
                 ok = bool(run.get("success"))
                 border = "border-green-100" if ok else "border-red-100"
-                with ui.card().classes(
-                    f"p-3 rounded-lg border {border} mb-2"
-                ):
+                with ui.card().classes(f"p-3 rounded-lg border {border} mb-2"):
                     with ui.row().classes("items-center gap-3"):
                         ui.label("✅" if ok else "❌")
                         ui.label(str(run.get("ran_at", ""))[:19]).classes(
                             "text-xs text-slate-400 font-mono"
                         )
+                        if run.get("job_type") and run.get("job_id"):
+                            ui.badge(
+                                f"{run['job_type']} #{run['job_id']}"
+                            ).classes("text-xs bg-indigo-50 text-indigo-700 rounded px-1")
                         ui.label(run.get("command", "")).classes(
                             "text-xs text-slate-500 font-mono flex-1 truncate"
                         )
@@ -265,7 +193,6 @@ def qa_page(content_area: ui.element) -> None:
         ui.label("Available Tools").classes(
             "text-sm font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-2"
         )
-
         for tool in QAService.list_tools():
             _tool_card(tool, result_area)
 
@@ -284,16 +211,22 @@ def qa_page(content_area: ui.element) -> None:
                     "uppercase tracking-wider border-b"
                 ):
                     ui.label("Tool").classes("w-44")
+                    ui.label("Linked Job").classes("w-36")
                     ui.label("Time").classes("w-36")
                     ui.label("Result").classes("w-20")
                     ui.label("Command").classes("flex-1")
                 for run in recent:
                     ok = bool(run.get("success"))
                     with ui.row().classes(
-                        "items-center px-4 py-2 border-b border-slate-50 "
-                        "last:border-0 gap-2"
+                        "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
                     ):
                         ui.label(run.get("tool_name", "—")).classes("w-44 text-sm")
+                        if run.get("job_type") and run.get("job_id"):
+                            ui.label(
+                                f"{run['job_type']} #{run['job_id']}"
+                            ).classes("w-36 text-xs font-mono text-indigo-600")
+                        else:
+                            ui.label("—").classes("w-36 text-xs text-slate-400")
                         ui.label(str(run.get("ran_at", ""))[:19]).classes(
                             "w-36 text-xs text-slate-400 font-mono"
                         )
@@ -304,5 +237,3 @@ def qa_page(content_area: ui.element) -> None:
                         ui.label(run.get("command", "")).classes(
                             "flex-1 text-xs font-mono text-slate-500 truncate"
                         )
-
-        result_area  # keep reference so closures can update it

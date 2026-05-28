@@ -1,15 +1,11 @@
 """
 Database schema, connection helpers, and initialisation.
 
-This is the SOLE database initialisation path.  All other modules that
-previously imported from db.database should import from here instead.
-
-Schema is METS/PREMIS-inspired:
-  file_object         ≈  METS <fileSec>/<file>
-  job_file_link       ≈  METS <structMap> pointer
-  structural_map_node ≈  METS <structMap>/<div> hierarchy
-  metadata_event      ≈  PREMIS event record
-  job_metadata        ≈  Dublin-Core descriptive metadata
+Changes applied (see fix_specs.json):
+  FIX-007  print_job gains five workflow step columns.
+  FIX-010  student table added; all job tables gain student_id FK.
+  FIX-011  file_use seed value changed from MASTER → ORIGINAL.
+  FIX-016  All job tables gain delivery_date/method/recipient/notes columns.
 """
 
 from __future__ import annotations
@@ -23,8 +19,6 @@ DB_PATH       = Path(__file__).parent.parent / "accessibility_manager.db"
 PRINTS_DIR    = Path(__file__).parent.parent / "prints_files"
 FILES_DIR     = Path(__file__).parent.parent / "job_files"
 BACKUPS_DIR   = Path(__file__).parent.parent / "backups"
-# Artifacts are stored one level above the package so the folder lives at the
-# repository / project root: <repo root>/artifacts/<project title>/
 ARTIFACTS_DIR = Path(__file__).parent.parent.parent / "artifacts"
 
 
@@ -46,6 +40,23 @@ def get_conn() -> Generator[sqlite3.Connection, None, None]:
 
 
 _SCHEMA_SQL = """
+-- ═══════════════════════════════════════════════════════════════
+-- STUDENTS (FIX-010)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS student (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    last_name         TEXT NOT NULL,
+    first_name        TEXT NOT NULL,
+    school            TEXT,
+    grade             TEXT,
+    preferred_formats TEXT,
+    notes             TEXT,
+    active            INTEGER DEFAULT 1,
+    created_at        TEXT DEFAULT (datetime('now')),
+    updated_at        TEXT DEFAULT (datetime('now'))
+);
+
 -- ═══════════════════════════════════════════════════════════════
 -- INVENTORY
 -- ═══════════════════════════════════════════════════════════════
@@ -119,20 +130,32 @@ CREATE TABLE IF NOT EXISTS embosser (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS print_job (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    printer_id      INTEGER NOT NULL REFERENCES printer(id),
-    filament_id     INTEGER REFERENCES filament(id),
-    filament_used_g REAL,
-    file_path       TEXT,
-    file_name       TEXT,
-    successful      INTEGER NOT NULL DEFAULT 1,
-    failure_reason  TEXT,
-    object_name     TEXT,
-    requester       TEXT,
-    request_date    TEXT,
-    notes           TEXT,
-    printed_at      TEXT DEFAULT (datetime('now')),
-    updated_at      TEXT DEFAULT (datetime('now'))
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    printer_id       INTEGER NOT NULL REFERENCES printer(id),
+    filament_id      INTEGER REFERENCES filament(id),
+    filament_used_g  REAL,
+    file_path        TEXT,
+    file_name        TEXT,
+    successful       INTEGER NOT NULL DEFAULT 1,
+    failure_reason   TEXT,
+    object_name      TEXT,
+    requester        TEXT,
+    request_date     TEXT,
+    notes            TEXT,
+    student_id       INTEGER REFERENCES student(id),
+    -- FIX-007: workflow step columns for print jobs
+    designed         INTEGER DEFAULT 0,
+    sliced           INTEGER DEFAULT 0,
+    printed          INTEGER DEFAULT 0,
+    inspected        INTEGER DEFAULT 0,
+    delivered        INTEGER DEFAULT 0,
+    -- FIX-016: delivery tracking
+    delivery_date      TEXT,
+    delivery_method    TEXT,
+    delivery_recipient TEXT,
+    delivery_notes     TEXT,
+    printed_at       TEXT DEFAULT (datetime('now')),
+    updated_at       TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS braille_job (
@@ -150,6 +173,12 @@ CREATE TABLE IF NOT EXISTS braille_job (
     proofread    INTEGER DEFAULT 0,
     delivered    INTEGER DEFAULT 0,
     notes        TEXT,
+    student_id   INTEGER REFERENCES student(id),
+    -- FIX-016: delivery tracking
+    delivery_date      TEXT,
+    delivery_method    TEXT,
+    delivery_recipient TEXT,
+    delivery_notes     TEXT,
     created_at   TEXT DEFAULT (datetime('now')),
     updated_at   TEXT DEFAULT (datetime('now'))
 );
@@ -167,6 +196,12 @@ CREATE TABLE IF NOT EXISTS tactile_graphics_job (
     qa_reviewed  INTEGER DEFAULT 0,
     delivered    INTEGER DEFAULT 0,
     notes        TEXT,
+    student_id   INTEGER REFERENCES student(id),
+    -- FIX-016: delivery tracking
+    delivery_date      TEXT,
+    delivery_method    TEXT,
+    delivery_recipient TEXT,
+    delivery_notes     TEXT,
     created_at   TEXT DEFAULT (datetime('now')),
     updated_at   TEXT DEFAULT (datetime('now'))
 );
@@ -185,6 +220,12 @@ CREATE TABLE IF NOT EXISTS lp_ebraille_job (
     proofread    INTEGER DEFAULT 0,
     delivered    INTEGER DEFAULT 0,
     notes        TEXT,
+    student_id   INTEGER REFERENCES student(id),
+    -- FIX-016: delivery tracking
+    delivery_date      TEXT,
+    delivery_method    TEXT,
+    delivery_recipient TEXT,
+    delivery_notes     TEXT,
     created_at   TEXT DEFAULT (datetime('now')),
     updated_at   TEXT DEFAULT (datetime('now'))
 );
@@ -239,7 +280,7 @@ CREATE TABLE IF NOT EXISTS file_object (
     mime_type        TEXT,
     size_bytes       INTEGER,
     checksum_sha256  TEXT,
-    file_use         TEXT NOT NULL DEFAULT 'MASTER',
+    file_use         TEXT NOT NULL DEFAULT 'ORIGINAL',
     format_name      TEXT,
     format_version   TEXT,
     encoding         TEXT,
@@ -311,7 +352,6 @@ CREATE TABLE IF NOT EXISTS material_category (
     UNIQUE(section, value)
 );
 
--- workflow_step now includes updated_at for consistency with all other mutable tables
 CREATE TABLE IF NOT EXISTS workflow_step (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     job_type    TEXT NOT NULL,
@@ -326,7 +366,7 @@ CREATE TABLE IF NOT EXISTS workflow_step (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- BACKUP LOG (tracks automated and manual backup runs)
+-- BACKUP LOG
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS backup_log (
@@ -435,7 +475,8 @@ INSERT OR IGNORE INTO material_category (section, value, label, sort_order) VALU
     ('priority','normal', 'Normal', 2),
     ('priority','high',   'High',   3),
     ('priority','urgent', 'Urgent', 4),
-    ('file_use','MASTER',       'Master',       1),
+    -- FIX-011: standardised on ORIGINAL (was MASTER)
+    ('file_use','ORIGINAL',     'Original',     1),
     ('file_use','DERIVATIVE',   'Derivative',   2),
     ('file_use','INTERMEDIATE', 'Intermediate', 3),
     ('file_use','SOURCE',       'Source',       4),
@@ -448,7 +489,14 @@ INSERT OR IGNORE INTO material_category (section, value, label, sort_order) VALU
     ('braille_format','EPUB', 'EPUB', 6),
     ('print_format','3MF',   '3MF',   1),
     ('print_format','STL',   'STL',   2),
-    ('print_format','GCODE', 'G-Code',3);
+    ('print_format','GCODE', 'G-Code',3),
+    -- FIX-016: delivery method options
+    ('delivery_method','physical',  'Physical Copy',             1),
+    ('delivery_method','email',     'Email',                     2),
+    ('delivery_method','lms',       'Learning Management System',3),
+    ('delivery_method','usb',       'USB / Media',               4),
+    ('delivery_method','pickup',    'Pickup',                    5),
+    ('delivery_method','other',     'Other',                     6);
 
 INSERT OR IGNORE INTO workflow_step (job_type, step_key, label, description, sort_order) VALUES
     ('braille','digitized','Digitized', 'Source document scanned or received',          1),
@@ -465,6 +513,7 @@ INSERT OR IGNORE INTO workflow_step (job_type, step_key, label, description, sor
     ('tactile','produced',   'Produced',    'Tactile graphic manufactured',                       2),
     ('tactile','qa_reviewed','QA Reviewed', 'Tactile output checked for accessibility',           3),
     ('tactile','delivered',  'Delivered',   'Final tactile graphic delivered',                    4),
+    -- FIX-007: print workflow steps now enforced in schema
     ('print','designed',  'Designed',  'CAD/3D model obtained or designed',             1),
     ('print','sliced',    'Sliced',    'Model sliced; G-code generated',                2),
     ('print','printed',   'Printed',   'Print job completed',                           3),
@@ -474,57 +523,31 @@ INSERT OR IGNORE INTO workflow_step (job_type, step_key, label, description, sor
 
 
 def _table_has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
-    """ table has column.
-    
-    Parameters
-    ----------
-    conn : Any
-        conn parameter.
-    
-    table : Any
-        table parameter.
-    
-    column : Any
-        column parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
     return any(row[1] == column for row in rows)
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Apply incremental schema migrations to existing databases."""
-    # braille_job.embosser_id — added post-initial release
+
+    # ── Pre-existing migrations ───────────────────────────────────────────────
     if not _table_has_column(conn, "braille_job", "embosser_id"):
         conn.execute(
             "ALTER TABLE braille_job ADD COLUMN embosser_id INTEGER REFERENCES embosser(id)"
         )
 
-    # printer / embosser — add created_at / updated_at if absent (older DBs)
     for tbl in ("printer", "embosser"):
         if not _table_has_column(conn, tbl, "created_at"):
             conn.execute(f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")  # noqa: S608
         if not _table_has_column(conn, tbl, "updated_at"):
             conn.execute(f"ALTER TABLE {tbl} ADD COLUMN updated_at TEXT")  # noqa: S608
 
-    # workflow_step — add updated_at if absent (pre-fix databases)
     if not _table_has_column(conn, "workflow_step", "updated_at"):
-        conn.execute(
-            "ALTER TABLE workflow_step ADD COLUMN updated_at TEXT"
-        )
+        conn.execute("ALTER TABLE workflow_step ADD COLUMN updated_at TEXT")
 
-    # workflow_step — add description if absent
     if not _table_has_column(conn, "workflow_step", "description"):
-        conn.execute(
-            "ALTER TABLE workflow_step ADD COLUMN description TEXT"
-        )
+        conn.execute("ALTER TABLE workflow_step ADD COLUMN description TEXT")
 
-    # backup_log — new table added for automated backup tracking
     conn.execute("""
         CREATE TABLE IF NOT EXISTS backup_log (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -535,6 +558,58 @@ def _migrate(conn: sqlite3.Connection) -> None:
             created_at  TEXT DEFAULT (datetime('now'))
         )
     """)
+
+    # ── FIX-010: student table and student_id FK columns ─────────────────────
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS student (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            last_name         TEXT NOT NULL,
+            first_name        TEXT NOT NULL,
+            school            TEXT,
+            grade             TEXT,
+            preferred_formats TEXT,
+            notes             TEXT,
+            active            INTEGER DEFAULT 1,
+            created_at        TEXT DEFAULT (datetime('now')),
+            updated_at        TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+    for tbl in ("braille_job", "lp_ebraille_job", "tactile_graphics_job", "print_job"):
+        if not _table_has_column(conn, tbl, "student_id"):
+            conn.execute(
+                f"ALTER TABLE {tbl} ADD COLUMN student_id INTEGER REFERENCES student(id)"  # noqa: S608
+            )
+
+    # ── FIX-007: print_job workflow step columns ──────────────────────────────
+    for col in ("designed", "sliced", "printed", "inspected", "delivered"):
+        if not _table_has_column(conn, "print_job", col):
+            conn.execute(
+                f"ALTER TABLE print_job ADD COLUMN {col} INTEGER DEFAULT 0"  # noqa: S608
+            )
+
+    # ── FIX-016: delivery tracking columns on all job tables ─────────────────
+    delivery_cols = [
+        ("delivery_date",      "TEXT"),
+        ("delivery_method",    "TEXT"),
+        ("delivery_recipient", "TEXT"),
+        ("delivery_notes",     "TEXT"),
+    ]
+    for tbl in ("braille_job", "lp_ebraille_job", "tactile_graphics_job", "print_job"):
+        for col, col_type in delivery_cols:
+            if not _table_has_column(conn, tbl, col):
+                conn.execute(
+                    f"ALTER TABLE {tbl} ADD COLUMN {col} {col_type}"  # noqa: S608
+                )
+
+    # ── FIX-011: normalise MASTER → ORIGINAL in existing records ─────────────
+    conn.execute(
+        "UPDATE file_object SET file_use = 'ORIGINAL' WHERE file_use = 'MASTER'"
+    )
+    conn.execute(
+        "UPDATE material_category SET value='ORIGINAL', label='Original' "
+        "WHERE section='file_use' AND value='MASTER'"
+    )
 
 
 def init_db() -> None:

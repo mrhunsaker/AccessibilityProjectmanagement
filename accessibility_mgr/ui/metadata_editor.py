@@ -1,5 +1,9 @@
 """
 Metadata editor — edit and inspect Dublin Core and custom metadata for any job.
+
+Changes applied (see fix_specs.json):
+  FIX-003  Metadata saves now call Q.log_event (persisted to DB) instead of the
+           in-memory MetadataAuditService.  MetadataAuditService import removed.
 """
 
 from __future__ import annotations
@@ -7,7 +11,6 @@ from __future__ import annotations
 from nicegui import ui
 
 from ..db import queries as Q
-from ..services.metadata_audit import MetadataAuditService
 from ..services.metadata_validation import MetadataValidationService
 from .metadata_options import (
     get_dublin_core_examples,
@@ -19,7 +22,6 @@ from .components import notify_success, section_header
 
 
 _validation_service = MetadataValidationService()
-_audit_service = MetadataAuditService()
 
 
 def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
@@ -38,7 +40,6 @@ def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
         )
 
         validation_box = ui.column().classes("w-full gap-1 mb-3")
-        audit_box = ui.column().classes("w-full gap-1 mb-3")
 
         def _show_options() -> None:
             with ui.dialog() as od, ui.card().classes(
@@ -47,28 +48,21 @@ def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
                 ui.label("Potential Metadata Options").classes(
                     "text-lg font-bold text-slate-800"
                 )
-
                 ui.label(
-                    "Use Admin Settings -> Metadata Options to add or remove allowed keys."
+                    "Use Admin Settings → Metadata Options to add or remove allowed keys."
                 ).classes("text-xs text-slate-500")
-
                 for group, keys in option_groups.items():
                     ui.separator()
                     ui.label(group).classes(
                         "text-sm font-semibold text-slate-600 uppercase tracking-wider"
                     )
-
                     with ui.row().classes("gap-2 flex-wrap"):
                         for key in keys:
                             ui.badge(key).classes(
                                 "bg-slate-100 text-slate-700 text-xs rounded px-2 py-1"
                             )
-
                 with ui.row().classes("justify-end mt-2"):
-                    ui.button("Close", on_click=od.close).classes(
-                        "bg-slate-700 text-white"
-                    )
-
+                    ui.button("Close", on_click=od.close).classes("bg-slate-700 text-white")
             od.open()
 
         ui.button("Potential Options", on_click=_show_options).props(
@@ -83,20 +77,14 @@ def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
                     inp = ui.input(key, value=existing.get(key, "")).classes(
                         "w-full font-mono text-sm"
                     )
-                    ui.label(dc_examples.get(key, "")).classes(
-                        "text-[11px] text-slate-400"
-                    )
+                    ui.label(dc_examples.get(key, "")).classes("text-[11px] text-slate-400")
                     inp_map[key] = inp
 
         ui.separator().classes("my-4")
-
-        ui.label("Additional Allowed Fields").classes(
-            "text-sm font-medium text-slate-600 mb-2"
+        ui.label("Additional Allowed Fields").classes("text-sm font-medium text-slate-600 mb-2")
+        ui.label("Choose keys from the approved eBraille and METS/PREMIS list.").classes(
+            "text-xs text-slate-400 mb-1"
         )
-
-        ui.label(
-            "Choose keys from the approved eBraille and METS/PREMIS list."
-        ).classes("text-xs text-slate-400 mb-1")
 
         extra_rows: list[dict[str, ui.element]] = []
         extra_box = ui.column().classes("w-full gap-2")
@@ -109,28 +97,16 @@ def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
                         label="Key",
                         value=initial_key if initial_key in non_dc_keys else None,
                     ).classes("w-64")
-
-                    val_inp = ui.input("Value", value=initial_val).classes(
-                        "flex-1"
-                    )
-
-                    ref = {
-                        "row": row,
-                        "key": key_sel,
-                        "value": val_inp,
-                    }
-
+                    val_inp = ui.input("Value", value=initial_val).classes("flex-1")
+                    ref = {"row": row, "key": key_sel, "value": val_inp}
                     extra_rows.append(ref)
 
                     def _remove(r: dict[str, ui.element] = ref) -> None:
                         r["row"].delete()
-
                         if r in extra_rows:
                             extra_rows.remove(r)
 
-                    ui.button("✕", on_click=_remove).props("flat dense").classes(
-                        "text-red-400"
-                    )
+                    ui.button("✕", on_click=_remove).props("flat dense").classes("text-red-400")
 
         ui.button("+ Add Field", on_click=lambda: _add_extra_row()).props(
             "flat dense"
@@ -142,62 +118,40 @@ def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
 
         def _collect_metadata() -> dict[str, str]:
             metadata: dict[str, str] = {}
-
             for key, inp in inp_map.items():
                 value = inp.value.strip()
                 if value:
                     metadata[key] = value
-
             for row in extra_rows:
                 key = (row["key"].value or "").strip()
                 value = (row["value"].value or "").strip()
-
                 if key and value:
                     metadata[key] = value
-
             return metadata
 
         def _run_validation() -> bool:
             validation_box.clear()
-
             metadata = _collect_metadata()
             result = _validation_service.validate_all(metadata)
-
             with validation_box:
                 if result.valid:
-                    ui.label("✅ Metadata validation passed").classes(
-                        "text-green-600 text-sm"
-                    )
+                    ui.label("✅ Metadata validation passed").classes("text-green-600 text-sm")
                 else:
                     for issue in result.issues:
-                        color = (
-                            "text-red-600"
-                            if issue.severity == "error"
-                            else "text-amber-600"
-                        )
-
+                        color = "text-red-600" if issue.severity == "error" else "text-amber-600"
                         msg = (
-                            f"[{issue.severity.upper()}] "
-                            f"{issue.field_name}: {issue.message}"
+                            f"[{issue.severity.upper()}] {issue.field_name}: {issue.message}"
                         )
-
                         if issue.suggested_value:
                             msg += f" (suggested: {issue.suggested_value})"
-
                         ui.label(msg).classes(f"text-xs {color}")
-
             return result.valid
 
         with ui.row().classes("justify-end gap-3 mt-6"):
-
-            ui.button(
-                "Validate",
-                on_click=_run_validation,
-            ).classes("bg-slate-600 text-white")
+            ui.button("Validate", on_click=_run_validation).classes("bg-slate-600 text-white")
 
             def _save_all() -> None:
                 metadata = _collect_metadata()
-
                 _run_validation()
 
                 for key, value in metadata.items():
@@ -207,42 +161,28 @@ def _render_editor(job_type: str, job_id: int, container: ui.element) -> None:
                     if key not in metadata:
                         Q.delete_job_metadata(job_type, job_id, key)
 
-                audit_events = _audit_service.bulk_record_changes(
-                    asset_id=job_id,
-                    previous_metadata=existing,
-                    new_metadata=metadata,
-                    editor="operator",
+                # FIX-003: persist audit record to DB instead of in-memory service
+                saved_keys = list(metadata.keys())
+                Q.log_event(
+                    job_type, job_id,
+                    "METADATA_UPDATE", "SUCCESS",
+                    agent="operator",
+                    detail=f"Metadata updated via editor: {len(saved_keys)} field(s)",
+                    extra_metadata={
+                        "updated_keys": saved_keys,
+                        "previous_snapshot": existing,
+                    },
                 )
-
-                audit_box.clear()
-
-                with audit_box:
-                    if audit_events:
-                        ui.label("Recent Metadata Audit Events").classes(
-                            "text-sm font-semibold text-slate-700"
-                        )
-
-                        for event in audit_events[-10:]:
-                            ui.label(
-                                f"{event.changed_at[:19]} — "
-                                f"{event.field_name}: "
-                                f"{event.previous_value} → "
-                                f"{event.new_value}"
-                            ).classes("text-xs text-slate-500 font-mono")
 
                 notify_success("Metadata saved")
                 _render_editor(job_type, job_id, container)
 
-            ui.button("Save All", on_click=_save_all).classes(
-                "bg-blue-600 text-white"
-            )
+            ui.button("Save All", on_click=_save_all).classes("bg-blue-600 text-white")
 
 
 def metadata_editor_page(content_area: ui.element) -> None:
     """Render the metadata editor page."""
-
     content_area.clear()
-
     with content_area:
         section_header(
             "Metadata Editor",
@@ -279,25 +219,21 @@ def metadata_editor_page(content_area: ui.element) -> None:
             opt_map[label] = ("print", job["id"])
 
         if not opts:
-            ui.label(
-                "No jobs found. Create a production job first."
-            ).classes("text-slate-400 text-sm")
+            ui.label("No jobs found. Create a production job first.").classes(
+                "text-slate-400 text-sm"
+            )
             return
 
-        job_sel = ui.select(
-            opts,
-            label="Select Job",
-            value=opts[0],
-        ).classes("w-full max-w-xl")
+        job_sel = ui.select(opts, label="Select Job", value=opts[0]).classes(
+            "w-full max-w-xl"
+        )
 
         editor_container = ui.column().classes("w-full mt-4")
-
         jtype0, jid0 = opt_map[opts[0]]
         _render_editor(jtype0, jid0, editor_container)
 
         def _on_job_change(_: object) -> None:
             val = job_sel.value
-
             if val in opt_map:
                 jt, ji = opt_map[val]
                 _render_editor(jt, ji, editor_container)

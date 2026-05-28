@@ -1,11 +1,17 @@
 """
-Admin panel — manage material categories, workflow steps, and printers.
+Admin panel — manage material categories, workflow steps, printers, embossers,
+metadata options, and database backups.
 
-All data is persisted to SQLite via db.queries.
+Changes applied (see fix_specs.json):
+  FIX-013  Backups tab added: shows scheduler status, recent backup log,
+           and a manual "Run Backup Now" button.
+  FIX-017  Metadata key backfill now shows a dry-run preview dialog before
+           executing, listing proposed key mappings and skipped keys.
 """
 
 from __future__ import annotations
 
+import threading
 from typing import Optional
 
 from nicegui import ui
@@ -28,31 +34,13 @@ SECTIONS = [
     ("diameter_mm",   "Filament Diameters"),
     ("priority",      "Job Priorities"),
     ("file_use",      "File Use Categories"),
+    ("delivery_method", "Delivery Methods"),
 ]
 
 
 # ── Material categories ───────────────────────────────────────────────────────
 
 def _category_section(section_key: str, section_label: str, container: ui.element) -> None:
-    """ category section.
-    
-    Parameters
-    ----------
-    section_key : Any
-        section_key parameter.
-    
-    section_label : Any
-        section_label parameter.
-    
-    container : Any
-        container parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     container.clear()
     with container:
         items = Q.list_material_categories(section=section_key, active_only=False)
@@ -61,14 +49,6 @@ def _category_section(section_key: str, section_label: str, container: ui.elemen
             ui.label(section_label).classes("text-base font-semibold text-slate-700 flex-1")
 
             def _add() -> None:
-                """ add.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 _add_category_dialog(section_key, section_label, lambda: _category_section(
                     section_key, section_label, container
                 ))
@@ -101,9 +81,7 @@ def _category_section(section_key: str, section_label: str, container: ui.elemen
                     f"items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2 {row_bg}"
                 ):
                     ui.label(item["label"]).classes("flex-1 text-sm text-slate-700")
-                    ui.label(item["value"]).classes(
-                        "w-40 text-xs font-mono text-slate-400"
-                    )
+                    ui.label(item["value"]).classes("w-40 text-xs font-mono text-slate-400")
                     ui.label(str(item.get("sort_order", 0))).classes(
                         "w-16 text-center text-sm text-slate-500"
                     )
@@ -113,22 +91,6 @@ def _category_section(section_key: str, section_label: str, container: ui.elemen
                     )
                     with ui.row().classes("w-28 gap-1 justify-end"):
                         def _toggle(it: dict = item, a: bool = active) -> None:
-                            """ toggle.
-                            
-                            Parameters
-                            ----------
-                            it : Any
-                                it parameter.
-                            
-                            a : Any
-                                a parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             Q.set_material_category_active(it["id"], 0 if a else 1)
                             _category_section(section_key, section_label, container)
 
@@ -138,31 +100,9 @@ def _category_section(section_key: str, section_label: str, container: ui.elemen
                         )
 
                         def _del(it: dict = item) -> None:
-                            """ del.
-                            
-                            Parameters
-                            ----------
-                            it : Any
-                                it parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             def _do() -> None:
-                                """ do.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 Q.set_material_category_active(it["id"], 0)
                                 _category_section(section_key, section_label, container)
-
                             confirm_dialog(
                                 f"Deactivate '{it['label']}'? "
                                 "(it will no longer appear in dropdowns)",
@@ -175,28 +115,8 @@ def _category_section(section_key: str, section_label: str, container: ui.elemen
 
 
 def _add_category_dialog(section_key: str, section_label: str, refresh_cb) -> None:
-    """ add category dialog.
-    
-    Parameters
-    ----------
-    section_key : Any
-        section_key parameter.
-    
-    section_label : Any
-        section_label parameter.
-    
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[420px] max-w-full"):
         ui.label(f"Add: {section_label}").classes("text-xl font-bold text-slate-800")
-
         label_inp = ui.input("Display Label*").classes("w-full")
         value_inp = ui.input("Value (slug, no spaces)*").classes("w-full")
         order_inp = ui.number("Sort Order", value=0, min=0).classes("w-full")
@@ -205,14 +125,6 @@ def _add_category_dialog(section_key: str, section_label: str, refresh_cb) -> No
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 lbl = label_inp.value.strip()
                 val = value_inp.value.strip().replace(" ", "_")
                 if not lbl or not val:
@@ -239,19 +151,6 @@ def _add_category_dialog(section_key: str, section_label: str, refresh_cb) -> No
 # ── Workflow steps ────────────────────────────────────────────────────────────
 
 def _workflow_steps_section(container: ui.element) -> None:
-    """ workflow steps section.
-    
-    Parameters
-    ----------
-    container : Any
-        container parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     container.clear()
     with container:
         all_steps = Q.list_workflow_steps(active_only=False)
@@ -263,14 +162,6 @@ def _workflow_steps_section(container: ui.element) -> None:
             ui.label("Workflow Steps").classes("text-base font-semibold text-slate-700 flex-1")
 
             def _add() -> None:
-                """ add.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 _add_step_dialog(lambda: _workflow_steps_section(container))
 
             ui.button("+ Add Step", on_click=_add).classes(
@@ -312,22 +203,6 @@ def _workflow_steps_section(container: ui.element) -> None:
                         )
                         with ui.row().classes("w-24 gap-1 justify-end"):
                             def _tog(s: dict = step, a: bool = active) -> None:
-                                """ tog.
-                                
-                                Parameters
-                                ----------
-                                s : Any
-                                    s parameter.
-                                
-                                a : Any
-                                    a parameter.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 Q.set_workflow_step_active(s["id"], 0 if a else 1)
                                 _workflow_steps_section(container)
 
@@ -337,22 +212,8 @@ def _workflow_steps_section(container: ui.element) -> None:
 
 
 def _add_step_dialog(refresh_cb) -> None:
-    """ add step dialog.
-    
-    Parameters
-    ----------
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[440px] max-w-full"):
         ui.label("Add Workflow Step").classes("text-xl font-bold text-slate-800")
-
         jt_opts = ["braille", "lp_ebraille", "tactile", "print"]
         jt_sel = ui.select(jt_opts, label="Job Type*", value="braille").classes("w-full")
         key_inp = ui.input("Step Key* (snake_case)").classes("w-full")
@@ -364,14 +225,6 @@ def _add_step_dialog(refresh_cb) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 k = key_inp.value.strip().replace(" ", "_").lower()
                 lbl = lbl_inp.value.strip()
                 if not k or not lbl:
@@ -399,19 +252,6 @@ def _add_step_dialog(refresh_cb) -> None:
 # ── Printers ──────────────────────────────────────────────────────────────────
 
 def _printers_section(container: ui.element) -> None:
-    """ printers section.
-    
-    Parameters
-    ----------
-    container : Any
-        container parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     container.clear()
     with container:
         printers = Q.list_printers()
@@ -420,14 +260,6 @@ def _printers_section(container: ui.element) -> None:
             ui.label("Printers").classes("text-base font-semibold text-slate-700 flex-1")
 
             def _add() -> None:
-                """ add.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 _add_printer_dialog(lambda: _printers_section(container))
 
             ui.button("+ Add Printer", on_click=_add).classes(
@@ -452,24 +284,9 @@ def _printers_section(container: ui.element) -> None:
                     "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
                 ):
                     ui.label(p["name"]).classes("flex-1 text-sm text-slate-700")
-                    ui.label(p.get("model") or "—").classes(
-                        "w-40 text-sm text-slate-400"
-                    )
+                    ui.label(p.get("model") or "—").classes("w-40 text-sm text-slate-400")
                     with ui.row().classes("w-32 gap-1 justify-end"):
                         def _edit(pr: dict = p) -> None:
-                            """ edit.
-                            
-                            Parameters
-                            ----------
-                            pr : Any
-                                pr parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             _edit_printer_dialog(pr, lambda: _printers_section(container))
 
                         ui.button("Edit", on_click=_edit).props("flat dense").classes(
@@ -477,38 +294,16 @@ def _printers_section(container: ui.element) -> None:
                         )
 
                         def _del(pr: dict = p) -> None:
-                            """ del.
-                            
-                            Parameters
-                            ----------
-                            pr : Any
-                                pr parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             import sqlite3
 
                             def _do() -> None:
-                                """ do.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 try:
                                     Q.delete_printer(pr["id"])
                                     notify_success("Printer deleted")
                                     _printers_section(container)
                                 except sqlite3.IntegrityError:
                                     notify_error(
-                                        "Cannot delete: this printer has associated print jobs. "
-                                        "Delete those jobs first."
+                                        "Cannot delete: this printer has associated print jobs."
                                     )
 
                             confirm_dialog(f"Delete printer '{pr['name']}'?", _do)
@@ -519,19 +314,6 @@ def _printers_section(container: ui.element) -> None:
 
 
 def _add_printer_dialog(refresh_cb) -> None:
-    """ add printer dialog.
-    
-    Parameters
-    ----------
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[400px] max-w-full"):
         ui.label("Add Printer").classes("text-xl font-bold text-slate-800")
         name_inp = ui.input("Printer Name*").classes("w-full")
@@ -542,14 +324,6 @@ def _add_printer_dialog(refresh_cb) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 nm = name_inp.value.strip()
                 if not nm:
                     notify_error("Printer Name is required")
@@ -568,22 +342,6 @@ def _add_printer_dialog(refresh_cb) -> None:
 
 
 def _edit_printer_dialog(printer: dict, refresh_cb) -> None:
-    """ edit printer dialog.
-    
-    Parameters
-    ----------
-    printer : Any
-        printer parameter.
-    
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[400px] max-w-full"):
         ui.label("Edit Printer").classes("text-xl font-bold text-slate-800")
         name_inp = ui.input("Printer Name*", value=printer.get("name", "")).classes("w-full")
@@ -596,14 +354,6 @@ def _edit_printer_dialog(printer: dict, refresh_cb) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 nm = name_inp.value.strip()
                 if not nm:
                     notify_error("Printer Name is required")
@@ -626,20 +376,9 @@ def _edit_printer_dialog(printer: dict, refresh_cb) -> None:
     dlg.open()
 
 
+# ── Embossers ─────────────────────────────────────────────────────────────────
+
 def _embossers_section(container: ui.element) -> None:
-    """ embossers section.
-    
-    Parameters
-    ----------
-    container : Any
-        container parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     container.clear()
     with container:
         embossers = Q.list_embossers()
@@ -647,14 +386,6 @@ def _embossers_section(container: ui.element) -> None:
             ui.label("Embossers").classes("text-base font-semibold text-slate-700 flex-1")
 
             def _add() -> None:
-                """ add.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 _add_embosser_dialog(lambda: _embossers_section(container))
 
             ui.button("+ Add Embosser", on_click=_add).classes(
@@ -681,24 +412,11 @@ def _embossers_section(container: ui.element) -> None:
                 ):
                     ui.label(emb["name"]).classes("flex-1 text-sm text-slate-700")
                     ui.label(emb.get("model") or "—").classes("w-36 text-sm text-slate-400")
-                    ui.label((emb.get("paper_type") or "—").replace("_", " ").title()).classes(
-                        "w-40 text-sm text-slate-500"
-                    )
+                    ui.label(
+                        (emb.get("paper_type") or "—").replace("_", " ").title()
+                    ).classes("w-40 text-sm text-slate-500")
                     with ui.row().classes("w-32 gap-1 justify-end"):
                         def _edit(em: dict = emb) -> None:
-                            """ edit.
-                            
-                            Parameters
-                            ----------
-                            em : Any
-                                em parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             _edit_embosser_dialog(em, lambda: _embossers_section(container))
 
                         ui.button("Edit", on_click=_edit).props("flat dense").classes(
@@ -706,30 +424,9 @@ def _embossers_section(container: ui.element) -> None:
                         )
 
                         def _del(em: dict = emb) -> None:
-                            """ del.
-                            
-                            Parameters
-                            ----------
-                            em : Any
-                                em parameter.
-                            
-                            Returns
-                            -------
-                            Any
-                                Function result.
-                            
-                            """
                             import sqlite3
 
                             def _do() -> None:
-                                """ do.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
                                 try:
                                     Q.delete_embosser(em["id"])
                                     notify_success("Embosser deleted")
@@ -747,19 +444,6 @@ def _embossers_section(container: ui.element) -> None:
 
 
 def _add_embosser_dialog(refresh_cb) -> None:
-    """ add embosser dialog.
-    
-    Parameters
-    ----------
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     paper_types = Q.list_material_categories("paper_type")
     paper_labels = [p["label"] for p in paper_types]
     paper_values = [p["value"] for p in paper_types]
@@ -779,14 +463,6 @@ def _add_embosser_dialog(refresh_cb) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 name = name_inp.value.strip()
                 if not name:
                     notify_error("Embosser Name is required")
@@ -808,57 +484,43 @@ def _add_embosser_dialog(refresh_cb) -> None:
 
 
 def _edit_embosser_dialog(embosser: dict, refresh_cb) -> None:
-    """ edit embosser dialog.
-    
-    Parameters
-    ----------
-    embosser : Any
-        embosser parameter.
-    
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     paper_types = Q.list_material_categories("paper_type")
     paper_labels = [p["label"] for p in paper_types]
     paper_values = [p["value"] for p in paper_types]
     current_value = embosser.get("paper_type") or ""
-    current_label = paper_labels[paper_values.index(current_value)] if current_value in paper_values else (paper_labels[0] if paper_labels else "")
+    current_label = (
+        paper_labels[paper_values.index(current_value)]
+        if current_value in paper_values
+        else (paper_labels[0] if paper_labels else "")
+    )
 
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[420px] max-w-full"):
         ui.label("Edit Embosser").classes("text-xl font-bold text-slate-800")
         name_inp = ui.input("Embosser Name*", value=embosser.get("name", "")).classes("w-full")
         model_inp = ui.input("Model", value=embosser.get("model") or "").classes("w-full")
-        paper_sel = ui.select(paper_labels or ["(no paper types)"], label="Paper Feed Type", value=current_label).classes("w-full")
-        notes_inp = ui.textarea("Notes", value=embosser.get("notes") or "").classes("w-full").props("rows=2")
+        paper_sel = ui.select(
+            paper_labels or ["(no paper types)"],
+            label="Paper Feed Type",
+            value=current_label,
+        ).classes("w-full")
+        notes_inp = ui.textarea("Notes", value=embosser.get("notes") or "").classes(
+            "w-full"
+        ).props("rows=2")
 
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 name = name_inp.value.strip()
                 if not name:
                     notify_error("Embosser Name is required")
                     return
-                paper_type = ""
+                paper_type = current_value
                 if paper_types:
                     try:
                         paper_type = paper_values[paper_labels.index(paper_sel.value)]
                     except (ValueError, IndexError):
-                        paper_type = current_value
+                        pass
                 Q.update_embosser(
                     embosser["id"],
                     name=name,
@@ -875,8 +537,9 @@ def _edit_embosser_dialog(embosser: dict, refresh_cb) -> None:
     dlg.open()
 
 
+# ── Metadata options (FIX-017: dry-run preview) ───────────────────────────────
+
 def _metadata_options_section(container: ui.element) -> None:
-    """Admin panel for metadata key catalog and typo backfill."""
     container.clear()
     with container:
         approved_keys = set(get_allowed_metadata_keys())
@@ -884,39 +547,88 @@ def _metadata_options_section(container: ui.element) -> None:
         unknown_keys = [r for r in all_keys if r.get("meta_key") not in approved_keys]
 
         with ui.row().classes("items-center mb-3 w-full"):
-            ui.label("Metadata Options").classes("text-base font-semibold text-slate-700 flex-1")
+            ui.label("Metadata Options").classes(
+                "text-base font-semibold text-slate-700 flex-1"
+            )
 
             def _run_backfill() -> None:
-                """ run backfill.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
-                def _do() -> None:
-                    """ do.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
-                    result = Q.backfill_metadata_keys(list(approved_keys))
-                    notify_success(
-                        "Metadata key backfill complete: "
-                        f"updated {result.get('updated_rows', 0)}, "
-                        f"deleted {result.get('deleted_rows', 0)}"
-                    )
-                    _metadata_options_section(container)
+                # FIX-017: show dry-run preview before executing
+                preview = Q.preview_backfill_metadata_keys(list(approved_keys))
+                mappings = preview["mappings"]
+                skipped = preview["skipped_keys"]
+                counts = preview["usage_counts"]
 
-                confirm_dialog(
-                    "Run typo backfill for non-approved metadata keys now?",
-                    _do,
-                    "Backfill Metadata Keys",
-                )
+                if not mappings and not skipped:
+                    notify_success("No non-approved keys found — nothing to backfill.")
+                    return
+
+                with ui.dialog() as prev_dlg, ui.card().classes(
+                    "p-6 gap-4 w-[640px] max-w-full max-h-[85vh] overflow-y-auto"
+                ):
+                    ui.label("Backfill Preview").classes("text-xl font-bold text-slate-800")
+                    ui.label(
+                        "Review the proposed key renames below. "
+                        "Click Confirm to apply or Cancel to abort."
+                    ).classes("text-sm text-slate-500 mb-2")
+
+                    if mappings:
+                        ui.label("Proposed renames").classes(
+                            "text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1"
+                        )
+                        with ui.card().classes(
+                            "w-full rounded-xl border border-slate-200 overflow-hidden mb-3"
+                        ):
+                            with ui.row().classes(
+                                "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
+                                "uppercase tracking-wider border-b"
+                            ):
+                                ui.label("Current Key").classes("flex-1")
+                                ui.label("→ Approved Key").classes("flex-1")
+                                ui.label("Uses").classes("w-16 text-right")
+                            for src, tgt in mappings.items():
+                                with ui.row().classes(
+                                    "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
+                                ):
+                                    ui.label(src).classes(
+                                        "flex-1 text-xs font-mono text-amber-700"
+                                    )
+                                    ui.label(tgt).classes(
+                                        "flex-1 text-xs font-mono text-green-700"
+                                    )
+                                    ui.label(str(counts.get(src, "?"))).classes(
+                                        "w-16 text-right text-xs text-slate-400"
+                                    )
+
+                    if skipped:
+                        ui.label(
+                            f"{len(skipped)} key(s) could not be matched — they will be left unchanged:"
+                        ).classes("text-xs text-amber-600 mt-2 mb-1")
+                        with ui.row().classes("gap-2 flex-wrap"):
+                            for k in skipped:
+                                ui.badge(k).classes(
+                                    "text-xs bg-amber-100 text-amber-800 rounded px-2"
+                                )
+
+                    with ui.row().classes("justify-end gap-3 mt-4"):
+                        ui.button("Cancel", on_click=prev_dlg.close).props("flat").classes(
+                            "text-slate-500"
+                        )
+
+                        def _confirm() -> None:
+                            result = Q.backfill_metadata_keys(list(approved_keys))
+                            notify_success(
+                                f"Backfill complete: "
+                                f"updated {result.get('updated_rows', 0)}, "
+                                f"deleted {result.get('deleted_rows', 0)}"
+                            )
+                            prev_dlg.close()
+                            _metadata_options_section(container)
+
+                        ui.button("Confirm Backfill", on_click=_confirm).classes(
+                            "bg-amber-600 text-white"
+                        )
+
+                prev_dlg.open()
 
             ui.button("Backfill Typo Keys", on_click=_run_backfill).classes(
                 "bg-amber-600 text-white text-sm rounded-lg px-3 py-1"
@@ -927,7 +639,9 @@ def _metadata_options_section(container: ui.element) -> None:
         ).classes("text-xs text-slate-500 mb-2")
 
         if unknown_keys:
-            with ui.card().classes("w-full rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4"):
+            with ui.card().classes(
+                "w-full rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4"
+            ):
                 ui.label("Detected non-approved keys in existing metadata").classes(
                     "text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2"
                 )
@@ -937,26 +651,18 @@ def _metadata_options_section(container: ui.element) -> None:
                             "text-xs bg-amber-100 text-amber-800"
                         )
         else:
-            ui.label("No non-approved metadata keys detected.").classes("text-xs text-slate-500 mb-4")
+            ui.label("No non-approved metadata keys detected.").classes(
+                "text-xs text-slate-500 mb-4"
+            )
 
         section_labels = list(METADATA_CATEGORY_SECTIONS.keys())
         sec_sel = ui.select(
-            section_labels,
-            value=section_labels[0],
-            label="Metadata Group",
+            section_labels, value=section_labels[0], label="Metadata Group"
         ).classes("w-72 mb-3")
 
         list_container = ui.column().classes("w-full")
 
         def _render_group() -> None:
-            """ render group.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
             list_container.clear()
             group = sec_sel.value
             section = METADATA_CATEGORY_SECTIONS[group]
@@ -967,14 +673,6 @@ def _metadata_options_section(container: ui.element) -> None:
                     ui.label(group).classes("text-sm font-semibold text-slate-700 flex-1")
 
                     def _add() -> None:
-                        """ add.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
                         _add_metadata_option_dialog(group, section, _render_group)
 
                     ui.button("+ Add Key", on_click=_add).classes(
@@ -998,8 +696,12 @@ def _metadata_options_section(container: ui.element) -> None:
                         with ui.row().classes(
                             f"items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2 {row_bg}"
                         ):
-                            ui.label(item["value"]).classes("flex-1 text-xs font-mono text-slate-600")
-                            ui.label(item["label"]).classes("w-56 text-sm text-slate-700 truncate")
+                            ui.label(item["value"]).classes(
+                                "flex-1 text-xs font-mono text-slate-600"
+                            )
+                            ui.label(item["label"]).classes(
+                                "w-56 text-sm text-slate-700 truncate"
+                            )
                             ui.label(str(item.get("sort_order", 0))).classes(
                                 "w-16 text-center text-sm text-slate-500"
                             )
@@ -1009,28 +711,11 @@ def _metadata_options_section(container: ui.element) -> None:
                             )
                             with ui.row().classes("w-28 gap-1 justify-end"):
                                 def _toggle(it: dict = item, a: bool = active) -> None:
-                                    """ toggle.
-                                    
-                                    Parameters
-                                    ----------
-                                    it : Any
-                                        it parameter.
-                                    
-                                    a : Any
-                                        a parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
                                     Q.set_material_category_active(it["id"], 0 if a else 1)
                                     _render_group()
 
                                 ui.button(
-                                    "Deactivate" if active else "Activate",
-                                    on_click=_toggle,
+                                    "Deactivate" if active else "Activate", on_click=_toggle
                                 ).props("flat dense").classes("text-xs text-slate-500")
 
         sec_sel.on("update:model-value", lambda _: _render_group())
@@ -1038,44 +723,20 @@ def _metadata_options_section(container: ui.element) -> None:
 
 
 def _add_metadata_option_dialog(group_label: str, section: str, refresh_cb) -> None:
-    """ add metadata option dialog.
-    
-    Parameters
-    ----------
-    group_label : Any
-        group_label parameter.
-    
-    section : Any
-        section parameter.
-    
-    refresh_cb : Any
-        refresh_cb parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[460px] max-w-full"):
         ui.label(f"Add Metadata Key: {group_label}").classes("text-xl font-bold text-slate-800")
-
-        key_inp = ui.input("Metadata Key*", placeholder="e.g. dc:audience or premis:event_detail").classes("w-full")
-        label_inp = ui.input("Display Label", placeholder="defaults to key if empty").classes("w-full")
+        key_inp = ui.input(
+            "Metadata Key*", placeholder="e.g. dc:audience or premis:event_detail"
+        ).classes("w-full")
+        label_inp = ui.input(
+            "Display Label", placeholder="defaults to key if empty"
+        ).classes("w-full")
         order_inp = ui.number("Sort Order", value=0, min=0).classes("w-full")
 
         with ui.row().classes("justify-end gap-3 mt-2"):
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 key = key_inp.value.strip()
                 if not key:
                     notify_error("Metadata key is required")
@@ -1100,6 +761,128 @@ def _add_metadata_option_dialog(group_label: str, section: str, refresh_cb) -> N
     dlg.open()
 
 
+# ── Backups (FIX-013) ─────────────────────────────────────────────────────────
+
+def _backup_section(container: ui.element) -> None:
+    container.clear()
+    with container:
+        from ..services.backup_service import BackupService
+
+        status = BackupService.status()
+
+        with ui.card().classes("w-full p-5 rounded-xl border border-slate-200 mb-4"):
+            ui.label("Backup Status").classes("text-base font-semibold text-slate-700 mb-3")
+
+            with ui.grid(columns=3).classes("gap-4 w-full"):
+                with ui.card().classes("p-4 bg-slate-50 border border-slate-200 rounded-xl"):
+                    ui.label("Scheduler").classes("text-xs text-slate-500")
+                    active = status.get("scheduler_active", False)
+                    ui.badge("Active" if active else "Stopped").classes(
+                        f"text-sm font-semibold mt-1 "
+                        f"{'bg-green-100 text-green-700' if active else 'bg-red-100 text-red-700'} "
+                        f"rounded px-2"
+                    )
+
+                with ui.card().classes("p-4 bg-slate-50 border border-slate-200 rounded-xl"):
+                    ui.label("Backups Stored").classes("text-xs text-slate-500")
+                    ui.label(str(status.get("backup_count", 0))).classes(
+                        "text-2xl font-bold text-slate-700 mt-1"
+                    )
+                    ui.label(f"Max {status.get('retention_limit', 10)} retained").classes(
+                        "text-xs text-slate-400"
+                    )
+
+                with ui.card().classes("p-4 bg-slate-50 border border-slate-200 rounded-xl"):
+                    ui.label("Interval").classes("text-xs text-slate-500")
+                    ui.label(f"Every {status.get('interval_days', 7)} days").classes(
+                        "text-sm font-semibold text-slate-700 mt-1"
+                    )
+
+            ui.label("Latest Backup").classes(
+                "text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-1"
+            )
+            latest = status.get("latest_backup", "none")
+            size = status.get("latest_size_bytes", 0)
+            if latest == "none":
+                ui.label("No backups yet.").classes("text-sm text-slate-400")
+            else:
+                ui.label(latest).classes("text-xs font-mono text-slate-600")
+                ui.label(
+                    f"{size / 1_048_576:.2f} MB" if size >= 1_048_576
+                    else f"{size // 1024} KB" if size >= 1024
+                    else f"{size} B"
+                ).classes("text-xs text-slate-400")
+
+            ui.label(f"Backups directory: {status.get('backups_dir', '')}").classes(
+                "text-xs text-slate-400 mt-1"
+            )
+
+        # Manual backup button
+        backup_status_label = ui.label("").classes("text-sm text-slate-500")
+
+        def _run_backup_now() -> None:
+            backup_status_label.set_text("Running backup…")
+
+            def _do() -> None:
+                try:
+                    path = BackupService.run_backup(trigger="manual")
+                    backup_status_label.set_text(f"✅ Backup complete: {path}")
+                    _backup_section(container)
+                except Exception as exc:
+                    backup_status_label.set_text(f"❌ Backup failed: {exc}")
+
+            threading.Thread(target=_do, daemon=True).start()
+
+        ui.button("Run Backup Now", on_click=_run_backup_now).classes(
+            "bg-slate-700 text-white rounded-lg px-4 py-2 mb-2"
+        )
+
+        # Recent backup log
+        ui.label("Recent Backup Log").classes(
+            "text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-2"
+        )
+        recent = Q.list_backup_log(limit=20)
+        if not recent:
+            ui.label("No backup log entries yet.").classes("text-slate-400 text-sm")
+        else:
+            with ui.card().classes("w-full rounded-xl border border-slate-200 overflow-hidden"):
+                with ui.row().classes(
+                    "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
+                    "uppercase tracking-wider border-b"
+                ):
+                    ui.label("Timestamp").classes("w-36")
+                    ui.label("Trigger").classes("w-24")
+                    ui.label("Status").classes("w-20")
+                    ui.label("Size").classes("w-20 text-right")
+                    ui.label("Path").classes("flex-1")
+
+                for entry in recent:
+                    ok = entry.get("status") == "ok"
+                    sz = entry.get("size_bytes") or 0
+                    sz_str = (
+                        f"{sz / 1_048_576:.2f} MB" if sz >= 1_048_576
+                        else f"{sz // 1024} KB" if sz >= 1024
+                        else f"{sz} B"
+                    )
+                    with ui.row().classes(
+                        "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
+                    ):
+                        ui.label(str(entry.get("created_at", ""))[:19]).classes(
+                            "w-36 text-xs font-mono text-slate-400"
+                        )
+                        ui.label(entry.get("trigger", "—")).classes(
+                            "w-24 text-xs text-slate-500"
+                        )
+                        ui.badge("✓ ok" if ok else "✗ fail").classes(
+                            f"w-20 text-center text-xs rounded "
+                            f"{'bg-green-100 text-green-700' if ok else 'bg-red-100 text-red-700'}"
+                        )
+                        ui.label(sz_str).classes("w-20 text-right text-xs text-slate-500")
+                        ui.label(entry.get("backup_path", "—")).classes(
+                            "flex-1 text-xs font-mono text-slate-400 truncate"
+                        )
+
+
 # ── Main admin page ───────────────────────────────────────────────────────────
 
 def admin_page(content_area: ui.element) -> None:
@@ -1108,44 +891,29 @@ def admin_page(content_area: ui.element) -> None:
     with content_area:
         section_header(
             "Admin Settings",
-            "Manage material categories, metadata options, workflow steps, printers, and embossers",
+            "Manage material categories, metadata options, workflow steps, "
+            "printers, embossers, and database backups",
         )
 
         with ui.tabs().classes("w-full") as tabs:
-            tab_cats = ui.tab("Material Categories")
-            tab_steps = ui.tab("Workflow Steps")
+            tab_cats     = ui.tab("Material Categories")
+            tab_steps    = ui.tab("Workflow Steps")
             tab_printers = ui.tab("Printers")
-            tab_embossers = ui.tab("Embossers")
-            tab_metadata = ui.tab("Metadata Options")
+            tab_emboss   = ui.tab("Embossers")
+            tab_meta     = ui.tab("Metadata Options")
+            tab_backups  = ui.tab("Backups")   # FIX-013
 
         with ui.tab_panels(tabs, value=tab_cats).classes("w-full mt-4"):
             with ui.tab_panel(tab_cats):
-                # Section selector
                 section_labels = [s[1] for s in SECTIONS]
-                section_keys = [s[0] for s in SECTIONS]
+                section_keys   = [s[0] for s in SECTIONS]
                 sel = ui.select(
-                    section_labels,
-                    value=section_labels[0],
-                    label="Category Section",
+                    section_labels, value=section_labels[0], label="Category Section"
                 ).classes("w-72 mb-4")
-
                 cat_container = ui.column().classes("w-full")
                 _category_section(section_keys[0], section_labels[0], cat_container)
 
                 def _on_section_change(e: object) -> None:
-                    """ on section change.
-                    
-                    Parameters
-                    ----------
-                    e : Any
-                        e parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
                     try:
                         idx = section_labels.index(sel.value)
                     except ValueError:
@@ -1162,10 +930,14 @@ def admin_page(content_area: ui.element) -> None:
                 printer_container = ui.column().classes("w-full")
                 _printers_section(printer_container)
 
-            with ui.tab_panel(tab_embossers):
+            with ui.tab_panel(tab_emboss):
                 embosser_container = ui.column().classes("w-full")
                 _embossers_section(embosser_container)
 
-            with ui.tab_panel(tab_metadata):
+            with ui.tab_panel(tab_meta):
                 metadata_container = ui.column().classes("w-full")
                 _metadata_options_section(metadata_container)
+
+            with ui.tab_panel(tab_backups):   # FIX-013
+                backup_container = ui.column().classes("w-full")
+                _backup_section(backup_container)
