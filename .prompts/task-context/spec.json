@@ -1,0 +1,478 @@
+{
+  "project": {
+    "name": "Accessibility Project Management",
+    "repository": "mrhunsaker/AccessibilityProjectmanagement",
+    "status": "alpha",
+    "objective": "Transform the existing NiceGUI operational prototype into a comprehensive accessibility production management platform supporting end-to-end accessible media workflows, production orchestration, QA automation, inventory management, compliance auditing, and external tooling integration."
+  },
+  "constraints": {
+    "implementation_instruction": "This specification defines architecture, remediation, and roadmap guidance only. No implementation work should be performed as part of this task.",
+    "deployment_model": "Local-first with optional networked multi-user support",
+    "primary_stack": [
+      "Python",
+      "NiceGUI",
+      "SQLite",
+      "SQLAlchemy"
+    ],
+    "future_database_support": [
+      "PostgreSQL"
+    ]
+  },
+  "current_state_assessment": {
+    "implemented": [
+      "NiceGUI application shell",
+      "Modular page routing",
+      "SQLite persistence",
+      "Workflow category segmentation",
+      "Inventory tracking",
+      "Metadata scaffolding",
+      "File ingestion structures",
+      "QA integration placeholders",
+      "Backup service foundations",
+      "Administrative configuration pages"
+    ],
+    "partially_implemented": [
+      "Workflow orchestration",
+      "Pipeline execution tracking",
+      "Lineage management",
+      "Tool invocation",
+      "Reporting",
+      "Audit history"
+    ],
+    "missing_or_incomplete": [
+      "Role-based authentication",
+      "Granular authorization",
+      "Production scheduling",
+      "Job dependency management",
+      "Workflow automation engine",
+      "Task assignment system",
+      "Notification system",
+      "Centralized QA orchestration",
+      "Tool result normalization",
+      "Accessibility compliance scoring",
+      "REST API",
+      "Background job queue",
+      "Artifact lifecycle management",
+      "Structured event sourcing",
+      "Search indexing",
+      "Document previewing",
+      "Operational dashboards",
+      "Multi-user concurrency strategy",
+      "Automated remediation recommendations",
+      "Comprehensive testing infrastructure"
+    ]
+  },
+  "target_capabilities": {
+    "core_domains": [
+      "Accessibility production management",
+      "Braille workflow management",
+      "Large print workflow management",
+      "eBraille generation",
+      "EPUB3 and DAISY production",
+      "Tactile graphics production",
+      "3-D print production",
+      "Inventory and consumables management",
+      "Accessibility QA orchestration",
+      "Metadata governance",
+      "Archival preservation",
+      "Compliance auditing",
+      "Operational reporting"
+    ],
+    "system_characteristics": [
+      "Modular architecture",
+      "Offline-capable operation",
+      "Deterministic workflow state tracking",
+      "Extensible plugin architecture",
+      "Accessible operator interface",
+      "Persistent audit history",
+      "Interoperable file pipeline management"
+    ]
+  },
+  "required_architecture": {
+    "application_layers": {
+      "presentation_layer": {
+        "description": "NiceGUI pages and reusable UI components",
+        "requirements": [
+          "Centralized navigation framework",
+          "Reusable workflow widgets",
+          "Responsive layouts",
+          "WCAG-compliant operator UI",
+          "Keyboard-first navigation",
+          "Screen reader compatibility",
+          "High contrast support"
+        ]
+      },
+      "service_layer": {
+        "description": "Business logic and orchestration services",
+        "requirements": [
+          "Workflow orchestration engine",
+          "Pipeline execution services",
+          "QA coordination services",
+          "Inventory transaction services",
+          "Metadata validation services",
+          "Scheduling services",
+          "Notification services"
+        ]
+      },
+      "data_layer": {
+        "description": "ORM-backed persistence abstraction",
+        "requirements": [
+          "Repository pattern",
+          "Migration support",
+          "Versioned schema management",
+          "Transactional integrity",
+          "Soft deletion support",
+          "Event history persistence"
+        ]
+      },
+      "integration_layer": {
+        "description": "External tool execution and normalization",
+        "requirements": [
+          "Tool adapters",
+          "Execution queueing",
+          "Structured result parsing",
+          "Log aggregation",
+          "Tool capability discovery",
+          "Failure isolation"
+        ]
+      }
+    }
+  },
+  "required_modules": {
+    "authentication_and_authorization": {
+      "priority": "high",
+      "requirements": [
+        "Local user authentication",
+        "Role-based access control",
+        "Permission inheritance",
+        "Session management",
+        "Audit logging",
+        "Optional LDAP integration"
+      ]
+    },
+    "workflow_engine": {
+      "priority": "critical",
+      "requirements": [
+        "State-machine-driven workflows",
+        "Custom workflow templates",
+        "Conditional transitions",
+        "Approval checkpoints",
+        "Escalation handling",
+        "Dependency tracking",
+        "Deadline management",
+        "Task assignment"
+      ]
+    },
+    "job_management": {
+      "priority": "critical",
+      "requirements": [
+        "Unified job records",
+        "Student/client associations",
+        "Source material tracking",
+        "Priority management",
+        "Production estimates",
+        "Job duplication",
+        "Job archival",
+        "Cross-format relationships"
+      ]
+    },
+    "file_management": {
+      "priority": "critical",
+      "requirements": [
+        "Versioned file ingestion",
+        "Checksum validation",
+        "Derivative generation tracking",
+        "Storage abstraction",
+        "File preview support",
+        "Automated quarantine handling",
+        "MIME classification",
+        "Retention policies"
+      ]
+    },
+    "metadata_management": {
+      "priority": "high",
+      "requirements": [
+        "Custom schemas",
+        "Controlled vocabularies",
+        "Metadata inheritance",
+        "Bulk editing",
+        "Schema validation",
+        "Export/import support",
+        "Accessibility metadata support"
+      ]
+    },
+    "inventory_management": {
+      "priority": "medium",
+      "requirements": [
+        "Consumable tracking",
+        "Low-stock alerts",
+        "Supplier tracking",
+        "Purchase history",
+        "Usage analytics",
+        "Embosser/printer maintenance logs"
+      ]
+    },
+    "reporting_and_analytics": {
+      "priority": "high",
+      "requirements": [
+        "Operational dashboards",
+        "Production throughput metrics",
+        "QA trend analysis",
+        "Compliance reporting",
+        "Inventory forecasting",
+        "CSV/PDF exports"
+      ]
+    }
+  },
+  "qa_and_tooling_integration": {
+    "objective": "Provide direct operational linkage between project records and accessibility validation tooling.",
+    "integration_architecture": {
+      "execution_model": "Asynchronous queued execution with structured result persistence",
+      "required_components": [
+        "Tool registry",
+        "Adapter abstraction",
+        "Execution broker",
+        "Artifact staging area",
+        "Structured result parser",
+        "Persistent execution logs",
+        "Retry and timeout handling"
+      ]
+    },
+    "supported_tools": [
+      {
+        "name": "DAISY Ace",
+        "purpose": "EPUB accessibility validation",
+        "integration_method": "CLI adapter",
+        "required_outputs": [
+          "JSON report",
+          "HTML report",
+          "Issue severity normalization"
+        ]
+      },
+      {
+        "name": "EPUBCheck",
+        "purpose": "EPUB conformance validation",
+        "integration_method": "CLI adapter",
+        "required_outputs": [
+          "Validation results",
+          "Error normalization",
+          "Manifest extraction"
+        ]
+      },
+      {
+        "name": "Liblouis",
+        "purpose": "Braille translation",
+        "integration_method": "Library wrapper or subprocess adapter",
+        "required_outputs": [
+          "Translation logs",
+          "Table metadata",
+          "Translation confidence metadata"
+        ]
+      },
+      {
+        "name": "BRLTTY",
+        "purpose": "Braille display testing",
+        "integration_method": "CLI adapter",
+        "required_outputs": [
+          "Compatibility test logs",
+          "Device mapping data"
+        ]
+      },
+      {
+        "name": "Pandoc",
+        "purpose": "Document conversion",
+        "integration_method": "CLI adapter",
+        "required_outputs": [
+          "Conversion logs",
+          "Artifact lineage tracking"
+        ]
+      },
+      {
+        "name": "DAISY Pipeline 2",
+        "purpose": "Accessible publishing automation",
+        "integration_method": "REST and CLI hybrid adapter",
+        "required_outputs": [
+          "Pipeline execution metadata",
+          "Artifact lineage",
+          "Transformation history"
+        ]
+      }
+    ],
+    "direct_linkage_requirements": {
+      "job_association": [
+        "Every QA run must map to a job record",
+        "Every QA result must map to specific source artifacts",
+        "Execution metadata must include operator, timestamp, and tool version"
+      ],
+      "artifact_linkage": [
+        "Generated outputs must preserve lineage references",
+        "Derivative files must retain provenance metadata",
+        "QA findings must link directly to source files"
+      ],
+      "ui_requirements": [
+        "Run tooling directly from job pages",
+        "Display structured validation summaries",
+        "Provide issue drill-down views",
+        "Expose raw logs and normalized findings",
+        "Allow rerun and comparison operations"
+      ],
+      "storage_requirements": [
+        "Persist raw tool outputs",
+        "Persist normalized issue models",
+        "Track execution duration",
+        "Track exit codes",
+        "Track environment metadata"
+      ]
+    },
+    "normalized_issue_schema": {
+      "required_fields": [
+        "issue_id",
+        "job_id",
+        "tool_name",
+        "severity",
+        "category",
+        "message",
+        "source_file",
+        "line_reference",
+        "recommendation",
+        "detected_timestamp"
+      ]
+    }
+  },
+  "database_remediation_plan": {
+    "required_entities": [
+      "users",
+      "roles",
+      "permissions",
+      "jobs",
+      "workflow_states",
+      "tasks",
+      "files",
+      "file_versions",
+      "metadata_records",
+      "inventory_items",
+      "inventory_transactions",
+      "tool_runs",
+      "qa_issues",
+      "pipeline_runs",
+      "notifications",
+      "audit_events"
+    ],
+    "required_capabilities": [
+      "Migration framework",
+      "Foreign key enforcement",
+      "Optimistic locking",
+      "Historical versioning",
+      "Structured event logging"
+    ]
+  },
+  "api_requirements": {
+    "priority": "medium",
+    "requirements": [
+      "REST API",
+      "Token authentication",
+      "Workflow endpoints",
+      "QA execution endpoints",
+      "Artifact retrieval endpoints",
+      "Webhook support",
+      "OpenAPI documentation"
+    ]
+  },
+  "testing_requirements": {
+    "required_test_types": [
+      "Unit tests",
+      "Integration tests",
+      "Workflow tests",
+      "Accessibility tests",
+      "Regression tests",
+      "Database migration tests",
+      "Tool integration tests"
+    ],
+    "coverage_targets": {
+      "service_layer": 90,
+      "workflow_engine": 95,
+      "integration_layer": 85
+    }
+  },
+  "deployment_requirements": {
+    "supported_modes": [
+      "Standalone desktop-hosted",
+      "Local network multi-user",
+      "Containerized deployment"
+    ],
+    "required_components": [
+      "Configuration management",
+      "Environment validation",
+      "Structured logging",
+      "Backup automation",
+      "Health monitoring"
+    ]
+  },
+  "security_requirements": {
+    "requirements": [
+      "Encrypted credential storage",
+      "Role-based authorization",
+      "Audit logging",
+      "File quarantine support",
+      "Secure subprocess execution",
+      "Input validation",
+      "Protected artifact directories"
+    ]
+  },
+  "accessibility_requirements": {
+    "operator_interface": [
+      "WCAG 2.2 AA compliance",
+      "Full keyboard operation",
+      "Screen reader compatibility",
+      "Semantic navigation structure",
+      "Reduced motion support",
+      "Scalable typography"
+    ],
+    "generated_outputs": [
+      "Accessibility metadata validation",
+      "Automated conformance checks",
+      "Accessible export templates"
+    ]
+  },
+  "roadmap": {
+    "phase_1_foundation": [
+      "Refactor architecture into layered services",
+      "Normalize database schema",
+      "Implement authentication and RBAC",
+      "Stabilize navigation and routing",
+      "Add migration framework"
+    ],
+    "phase_2_workflow_core": [
+      "Implement workflow engine",
+      "Add task orchestration",
+      "Implement artifact lineage",
+      "Add scheduling and notifications"
+    ],
+    "phase_3_qa_integration": [
+      "Implement tool registry",
+      "Implement execution broker",
+      "Normalize QA findings",
+      "Add QA dashboards",
+      "Implement rerun comparison tooling"
+    ],
+    "phase_4_operationalization": [
+      "Add reporting suite",
+      "Implement API layer",
+      "Add multi-user deployment support",
+      "Implement monitoring and observability"
+    ],
+    "phase_5_hardening": [
+      "Performance optimization",
+      "Security review",
+      "Accessibility audit",
+      "Comprehensive automated testing",
+      "Documentation completion"
+    ]
+  },
+  "non_goals": [
+    "Cloud-only architecture",
+    "Vendor lock-in",
+    "Replacement of external accessibility tooling",
+    "Closed-source licensing"
+  ]
+}
