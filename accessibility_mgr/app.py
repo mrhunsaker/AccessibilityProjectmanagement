@@ -351,27 +351,27 @@ def index() -> None:
                 content_area = ui.column().classes("w-full p-6 pb-20 gap-4 min-h-0")
 
                 if PAGES:
-                                        initial = next(
-                                                (p for p in PAGES if p["name"] == stored_page_name),
-                                                PAGES[0],
-                                        )
-                                        _activate_page(initial)
+                    initial = next(
+                        (p for p in PAGES if p["name"] == stored_page_name),
+                        PAGES[0],
+                    )
+                    _activate_page(initial)
 
-                                ui.run_javascript(
-                                        """
-                                        const sidebar = document.getElementById('sidebar-nav');
-                                        if (sidebar) {
-                                            const key = 'apm.sidebar.scrollTop';
-                                            const saved = window.localStorage.getItem(key);
-                                            if (saved !== null) {
-                                                sidebar.scrollTop = Number(saved) || 0;
-                                            }
-                                            sidebar.addEventListener('scroll', () => {
-                                                window.localStorage.setItem(key, String(sidebar.scrollTop));
-                                            }, { passive: true });
-                                        }
-                                        """
-                                )
+                ui.run_javascript(
+                    """
+                    const sidebar = document.getElementById('sidebar-nav');
+                    if (sidebar) {
+                        const key = 'apm.sidebar.scrollTop';
+                        const saved = window.localStorage.getItem(key);
+                        if (saved !== null) {
+                            sidebar.scrollTop = Number(saved) || 0;
+                        }
+                        sidebar.addEventListener('scroll', () => {
+                            window.localStorage.setItem(key, String(sidebar.scrollTop));
+                        }, { passive: true });
+                    }
+                    """
+                )
 
         with ui.row().classes(
             "w-full shrink-0 items-center justify-between gap-4 border-t border-slate-200 "

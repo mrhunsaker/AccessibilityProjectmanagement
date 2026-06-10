@@ -7,10 +7,6 @@ make up the interactive application.
 
 ::: accessibility_mgr.ui.components
 
-## Layout
-
-::: accessibility_mgr.ui.layout
-
 ## Authentication
 
 ::: accessibility_mgr.ui.authentication
@@ -19,33 +15,21 @@ make up the interactive application.
 
 ::: accessibility_mgr.ui.automation
 
-## Categories
-
-::: accessibility_mgr.ui.categories
-
-## Asset detail
-
-::: accessibility_mgr.ui.asset_detail
-
 ## Dashboard
 
 ::: accessibility_mgr.ui.dashboard
 
+## Job components
+
+::: accessibility_mgr.ui.job_components
+
+## Delivery dialog
+
+::: accessibility_mgr.ui.delivery_dialog
+
 ## Inventory panels
 
 ::: accessibility_mgr.ui.inventory_panels
-
-## Inventory
-
-::: accessibility_mgr.ui.inventory
-
-## Modals
-
-::: accessibility_mgr.ui.modals
-
-## Panels
-
-::: accessibility_mgr.ui.panels
 
 ## Braille jobs
 
@@ -87,26 +71,34 @@ make up the interactive application.
 
 ::: accessibility_mgr.ui.production
 
-## Schema governance
-
-::: accessibility_mgr.ui.schema_governance
-
 ## Administration
 
 ::: accessibility_mgr.ui.admin
+
+## Operations dashboard
+
+::: accessibility_mgr.ui.operations_dashboard
+
+## Security dashboard
+
+::: accessibility_mgr.ui.security_dashboard
 
 ## Lineage viewer
 
 ::: accessibility_mgr.ui.lineage
 
-## Workflows
+## Workflow monitor
 
-::: accessibility_mgr.ui.workflows
+::: accessibility_mgr.ui.workflow_monitor
 
-## Braille workflow
+## CICD dashboard
 
-::: accessibility_mgr.ui.workflow_braille
+::: accessibility_mgr.ui.cicd_dashboard
 
-## Printing workflow
+## Toolchain dashboard
 
-::: accessibility_mgr.ui.workflow_printing
+::: accessibility_mgr.ui.toolchain_dashboard
+
+## Binary integrations dashboard
+
+::: accessibility_mgr.ui.binary_integrations_dashboard

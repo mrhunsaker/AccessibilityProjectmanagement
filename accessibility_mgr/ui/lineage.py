@@ -179,132 +179,90 @@ def lineage_page(content_area: ui.element) -> None:
         )
 
         if len(mermaid_lines) > 1:
-            ui.label("File Registry").classes(
-                "p-4 rounded-xl border border-slate-200 w-full mb-6"
-            ):
+            with ui.card().classes("p-4 rounded-xl border border-slate-200 w-full mb-6"):
+                ui.label("Lineage Graph").classes("font-semibold text-slate-700 mb-3")
+                ui.mermaid("\n".join(mermaid_lines))
 
-            pager_row = ui.row().classes("items-center gap-2 mb-2")
-            file_table = ui.column().classes("w-full")
+            with ui.card().classes("p-4 rounded-xl border border-slate-200 w-full mb-6"):
+                ui.label("File Registry").classes("font-semibold text-slate-700 mb-3")
 
-            def _render_file_page() -> None:
-                rows = Q.list_file_objects(
-                    limit=page_size + 1,
-                    offset=(state["page"] - 1) * page_size,
-                )
-                has_next = len(rows) > page_size
-                page_rows = rows[:page_size]
+                pager_row = ui.row().classes("items-center gap-2 mb-2")
+                file_table = ui.column().classes("w-full")
 
-                pager_row.clear()
-                with pager_row:
-                    ui.button("Prev", on_click=lambda: _set_page(state["page"] - 1)).props(
-                        "flat dense"
-                    ).classes("text-slate-600").props("disable" if state["page"] <= 1 else "")
-                    ui.label(f"Page {state['page']}").classes("text-sm text-slate-500")
-                    ui.button("Next", on_click=lambda: _set_page(state["page"] + 1)).props(
-                        "flat dense"
-                    ).classes("text-slate-600").props("disable" if not has_next else "")
+                def _render_file_page() -> None:
+                    rows = Q.list_file_objects(
+                        limit=page_size + 1,
+                        offset=(state["page"] - 1) * page_size,
+                    )
+                    has_next = len(rows) > page_size
+                    page_rows = rows[:page_size]
 
-                file_table.clear()
-                with file_table:
-                    with ui.card().classes(
-                        "w-full rounded-xl border border-slate-200 overflow-hidden"
-                    ):
-                        with ui.row().classes(
-                            "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
-                            "uppercase tracking-wider border-b"
+                    pager_row.clear()
+                    with pager_row:
+                        ui.button("Prev", on_click=lambda: _set_page(state["page"] - 1)).props(
+                            "flat dense"
+                        ).classes("text-slate-600").props("disable" if state["page"] <= 1 else "")
+                        ui.label(f"Page {state['page']}").classes("text-sm text-slate-500")
+                        ui.button("Next", on_click=lambda: _set_page(state["page"] + 1)).props(
+                            "flat dense"
+                        ).classes("text-slate-600").props("disable" if not has_next else "")
+
+                    file_table.clear()
+                    with file_table:
+                        with ui.card().classes(
+                            "w-full rounded-xl border border-slate-200 overflow-hidden"
                         ):
-                            ui.label("File Name").classes("flex-1")
-                            ui.label("Use").classes("w-28")
-                            ui.label("Format").classes("w-20")
-                            ui.label("Size").classes("w-20 text-right")
-                            ui.label("SHA-256").classes("w-40")
-                            ui.label("Ingested").classes("w-32")
-
-                        for file_obj in page_rows:
-                            size = file_obj.get("size_bytes") or 0
-                            size_str = (
-                                f"{size // 1_048_576} MB"
-                                if size >= 1_048_576
-                                else f"{size // 1024} KB"
-                                if size >= 1024
-                                else f"{size} B"
-                            )
-
-                            checksum = str(file_obj.get("checksum_sha256") or "—")
-                            checksum_short = checksum[:12] + "…" if len(checksum) > 12 else checksum
-
                             with ui.row().classes(
-                                "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
+                                "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
+                                "uppercase tracking-wider border-b"
                             ):
-                                with ui.column().classes("flex-1 gap-0 min-w-0"):
-                                    ui.label(file_obj["original_name"]).classes(
-                                        "text-sm text-slate-700 truncate"
-                                    )
-                                    ui.label(file_obj.get("mime_type") or "").classes(
-                                        "text-xs text-slate-400"
-                                    )
+                                ui.label("File Name").classes("flex-1")
+                                ui.label("Use").classes("w-28")
+                                ui.label("Format").classes("w-20")
+                                ui.label("Size").classes("w-20 text-right")
+                                ui.label("SHA-256").classes("w-40")
+                                ui.label("Ingested").classes("w-32")
 
-                                ui.label(file_obj.get("file_use") or "—").classes(
-                                    "w-28 text-xs text-slate-500"
-                                )
-                                ui.label(file_obj.get("format_name") or "—").classes(
-                                    "w-20 text-xs text-slate-500"
-                                )
-                                ui.label(size_str).classes("w-20 text-right text-xs text-slate-500")
-                                ui.label(checksum_short).classes(
-                                    "w-40 text-xs text-slate-500 font-mono"
-                                )
-                                ui.label(str(file_obj.get("created_at") or "")[:10]).classes(
-                                    "w-32 text-xs text-slate-500"
+                            for file_obj in page_rows:
+                                size = file_obj.get("size_bytes") or 0
+                                size_str = (
+                                    f"{size // 1_048_576} MB"
+                                    if size >= 1_048_576
+                                    else f"{size // 1024} KB"
+                                    if size >= 1024
+                                    else f"{size} B"
                                 )
 
-            def _set_page(page: int) -> None:
-                state["page"] = max(1, page)
+                                checksum = str(file_obj.get("checksum_sha256") or "—")
+                                checksum_short = checksum[:12] + "…" if len(checksum) > 12 else checksum
+
+                                with ui.row().classes(
+                                    "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
+                                ):
+                                    with ui.column().classes("flex-1 gap-0 min-w-0"):
+                                        ui.label(file_obj["original_name"]).classes(
+                                            "text-sm text-slate-700 truncate"
+                                        )
+                                        ui.label(file_obj.get("mime_type") or "").classes(
+                                            "text-xs text-slate-400"
+                                        )
+
+                                    ui.label(file_obj.get("file_use") or "—").classes(
+                                        "w-28 text-xs text-slate-500"
+                                    )
+                                    ui.label(file_obj.get("format_name") or "—").classes(
+                                        "w-20 text-xs text-slate-500"
+                                    )
+                                    ui.label(size_str).classes("w-20 text-right text-xs text-slate-500")
+                                    ui.label(checksum_short).classes(
+                                        "w-40 text-xs text-slate-500 font-mono"
+                                    )
+                                    ui.label(str(file_obj.get("created_at") or "")[:10]).classes(
+                                        "w-32 text-xs text-slate-500"
+                                    )
+
+                def _set_page(page: int) -> None:
+                    state["page"] = max(1, page)
+                    _render_file_page()
+
                 _render_file_page()
-
-            _render_file_page()
-
-            for file_obj in files:
-                size = file_obj.get("size_bytes") or 0
-
-                size_str = (
-                    f"{size // 1_048_576} MB"
-                    if size >= 1_048_576
-                    else f"{size // 1024} KB"
-                    if size >= 1024
-                    else f"{size} B"
-                )
-
-                checksum = str(file_obj.get("checksum_sha256") or "—")
-                checksum_short = (
-                    checksum[:12] + "…"
-                    if len(checksum) > 12
-                    else checksum
-                )
-
-                with ui.row().classes(
-                    "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
-                ):
-                    with ui.column().classes("flex-1 gap-0 min-w-0"):
-                        ui.label(file_obj["original_name"]).classes(
-                            "text-sm text-slate-700 truncate"
-                        )
-                        ui.label(file_obj.get("mime_type") or "").classes(
-                            "text-xs text-slate-400"
-                        )
-
-                    ui.label(file_obj.get("file_use") or "—").classes(
-                        "w-28 text-xs text-slate-500"
-                    )
-                    ui.label(file_obj.get("format_name") or "—").classes(
-                        "w-20 text-xs text-slate-500"
-                    )
-                    ui.label(size_str).classes(
-                        "w-20 text-right text-xs text-slate-500"
-                    )
-                    ui.label(checksum_short).classes(
-                        "w-40 text-xs font-mono text-slate-400 truncate"
-                    ).tooltip(checksum)
-                    ui.label(str(file_obj.get("created_at", ""))[:10]).classes(
-                        "w-32 text-xs text-slate-400"
-                    )
