@@ -78,6 +78,8 @@ secrets/
 *.key
 *.pem
 *.p12
+.nicegui/
+.prompts/
 
 # Logs
 *.log
@@ -85,3 +87,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Backup Files
+
+*.back
+*.back*
+
+

@@ -8,6 +8,7 @@ Changes applied (see fix_specs.json):
 
 from __future__ import annotations
 
+import os
 import inspect
 from importlib import import_module
 from pathlib import Path
@@ -387,18 +388,33 @@ def index() -> None:
                 "https://mrhunsaker.github.io/AccessibilityProjectmanagement/",
             ).classes("text-slate-600 hover:text-slate-900")
 
+def load_secrets():
+    secrets_path = '.secrets'
+    if not os.path.exists(secrets_path):
+        raise FileNotFoundError(f"Secrets file '{secrets_path}' not found.")
+    
+    with open(secrets_path, 'r') as file:
+        for line in file:
+            key, value = line.strip().split('=')
+            os.environ[key] = value
 
 def main() -> None:
     """Console-script entry point for ``uv run AccessMan``."""
     favicon_path = Path(__file__).parent.parent / "resources/icons/favicon.svg"
+    load_secrets()
+    storage_secret = os.getenv('STORAGE_SECRET')
+    
+    if not storage_secret:
+        raise ValueError("Storage secret is missing or empty.")
+        
     ui.run(
         title=APP_TITLE,
         reload=False,
         favicon=str(favicon_path),
         show=False,
         port=8765,
+        storage_secret=storage_secret,
     )
-
 
 if __name__ in {"__main__", "__mp_main__"}:
     main()

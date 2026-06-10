@@ -1,10 +1,10 @@
 [project]
 name = "accessible-materials-project-management"
-version = "2026.5.10"
+version = "2026.6.9"
 description = "Accessibility-focused production management for braille, large-print, eBraille, and 3-D printing workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 authors = [
     { name = "Michael Ryan Hunsaker, M.Ed., Ph.D.", email = "github@mail.hunsakerweb.com" },
 ]
@@ -28,6 +28,7 @@ dependencies = [
     "nicegui>=1.4.0",
     "textual>=0.80.0",
     "sqlalchemy>=2.0.0",
+    "tox>=4.30.3",
 ]
 
 [project.scripts]
@@ -68,7 +69,7 @@ packages = ["accessibility_mgr"]
 # ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length    = 99
-target-version = "py39"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM"]
@@ -79,7 +80,7 @@ known-first-party = ["accessibility_mgr"]
 
 # ── Mypy ──────────────────────────────────────────────────────────────────────
 [tool.mypy]
-python_version         = "3.9"
+python_version         = "3.12"
 strict                 = false
 ignore_missing_imports = true
 warn_unused_ignores    = true

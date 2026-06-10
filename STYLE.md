@@ -8,7 +8,7 @@ the *why* behind the choices.
 
 ## Python Version Target
 
-Code must be compatible with **Python 3.9+**. Do not use syntax or standard
+Code must be compatible with **Python 3.9**. Do not use syntax or standard
 library APIs introduced in 3.10 or later without a compatibility shim.
 
 Common pitfalls:
