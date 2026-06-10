@@ -162,19 +162,7 @@ def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def filament_page(content_area: ui.element) -> None:
-    """Filament page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render the filament inventory list and edit controls."""
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -443,19 +431,7 @@ def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def paper_page(content_area: ui.element) -> None:
-    """Paper page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render the braille paper inventory list and edit controls."""
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -852,19 +828,7 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
 
 
 def electronics_page(content_area: ui.element) -> None:
-    """Electronics page.
-    
-    Parameters
-    ----------
-    content_area : Any
-        content_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render grouped electronics inventory with CRUD actions."""
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):

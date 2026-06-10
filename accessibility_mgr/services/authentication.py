@@ -65,6 +65,36 @@ class AuthenticationService:
             "expires_at": token.expires_at,
         }
 
+    def register_api_token(
+        self,
+        *,
+        owner: str,
+        raw_token: str,
+        expiration_hours: int = 24,
+    ) -> dict:
+        """Register a caller-provided raw API token for validation."""
+        token_hash = hashlib.sha256(
+            raw_token.encode("utf-8")
+        ).hexdigest()
+        now = datetime.now(timezone.utc)
+
+        token = APIToken(
+            token_id=secrets.token_hex(8),
+            token_hash=token_hash,
+            owner=owner,
+            created_at=now.isoformat(),
+            expires_at=(
+                now + timedelta(hours=expiration_hours)
+            ).isoformat(),
+            active=True,
+        )
+
+        self._tokens.append(token)
+        return {
+            "token_id": token.token_id,
+            "expires_at": token.expires_at,
+        }
+
     def validate_token(self, raw_token: str) -> bool:
         hashed = hashlib.sha256(
             raw_token.encode("utf-8")

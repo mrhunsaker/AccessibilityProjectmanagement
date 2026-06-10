@@ -22,6 +22,7 @@ import json
 import mimetypes
 import difflib
 import re
+import sqlite3
 import shutil
 import uuid
 import warnings
@@ -122,7 +123,7 @@ def _build_update_sql(
         raise ValueError(f"No valid fields to update in '{table}'")
     sets = ", ".join(f"{c} = ?" for c in safe)
     ts = ", updated_at = datetime('now')" if has_updated_at else ""
-    return f"UPDATE {table} SET {sets}{ts} WHERE id = ?", list(safe.values())  # noqa: S608
+    return f"UPDATE {table} SET {sets}{ts} WHERE id = ?", list(safe.values())  # noqa: S608 - table/columns are validated against allow-lists.
 
 
 def _sha256(path: Path) -> str:
@@ -306,9 +307,12 @@ def delete_embosser(row_id: int) -> None:
 
 # ── Print jobs ────────────────────────────────────────────────────────────────
 
-def list_print_jobs() -> list[dict[str, Any]]:
+def list_print_jobs(
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
     with get_conn() as conn:
-        return _rows(conn.execute("""
+        sql = """
             SELECT pj.*,
                    p.name  AS printer_name,
                    f.brand || ' ' || f.color || ' ' || f.filament_type AS filament_desc
@@ -316,7 +320,12 @@ def list_print_jobs() -> list[dict[str, Any]]:
             LEFT JOIN printer  p ON p.id = pj.printer_id
             LEFT JOIN filament f ON f.id = pj.filament_id
             ORDER BY pj.printed_at DESC
-        """))
+        """
+        params: list[Any] = []
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, max(0, offset)])
+        return _rows(conn.execute(sql, params))
 
 
 def get_print_job(row_id: int) -> Optional[dict[str, Any]]:
@@ -422,14 +431,22 @@ def delete_print_job(row_id: int) -> None:
 
 # ── Braille jobs ──────────────────────────────────────────────────────────────
 
-def list_braille_jobs() -> list[dict[str, Any]]:
+def list_braille_jobs(
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
     with get_conn() as conn:
-        return _rows(conn.execute("""
+        sql = """
             SELECT bj.*, e.name AS embosser_name, e.paper_type AS embosser_paper_type
             FROM braille_job bj
             LEFT JOIN embosser e ON e.id = bj.embosser_id
             ORDER BY bj.created_at DESC
-        """))
+        """
+        params: list[Any] = []
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, max(0, offset)])
+        return _rows(conn.execute(sql, params))
 
 
 def get_braille_job(row_id: int) -> Optional[dict[str, Any]]:
@@ -503,14 +520,25 @@ def delete_braille_job(row_id: int) -> None:
 
 # ── LP/eBraille jobs ──────────────────────────────────────────────────────────
 
-def list_lp_jobs(job_type: Optional[str] = None) -> list[dict[str, Any]]:
+def list_lp_jobs(
+    job_type: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
     with get_conn() as conn:
         if job_type:
-            return _rows(conn.execute(
-                "SELECT * FROM lp_ebraille_job WHERE job_type = ? ORDER BY created_at DESC",
-                (job_type,),
-            ))
-        return _rows(conn.execute("SELECT * FROM lp_ebraille_job ORDER BY created_at DESC"))
+            sql = "SELECT * FROM lp_ebraille_job WHERE job_type = ? ORDER BY created_at DESC"
+            params: list[Any] = [job_type]
+            if limit is not None:
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([limit, max(0, offset)])
+            return _rows(conn.execute(sql, params))
+        sql = "SELECT * FROM lp_ebraille_job ORDER BY created_at DESC"
+        params = []
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, max(0, offset)])
+        return _rows(conn.execute(sql, params))
 
 
 def get_lp_job(row_id: int) -> Optional[dict[str, Any]]:
@@ -577,9 +605,17 @@ def delete_lp_job(row_id: int) -> None:
 
 # ── Tactile graphics jobs ─────────────────────────────────────────────────────
 
-def list_tactile_jobs() -> list[dict[str, Any]]:
+def list_tactile_jobs(
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
     with get_conn() as conn:
-        return _rows(conn.execute("SELECT * FROM tactile_graphics_job ORDER BY created_at DESC"))
+        sql = "SELECT * FROM tactile_graphics_job ORDER BY created_at DESC"
+        params: list[Any] = []
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, max(0, offset)])
+        return _rows(conn.execute(sql, params))
 
 
 def get_tactile_job(row_id: int) -> Optional[dict[str, Any]]:
@@ -646,9 +682,17 @@ def delete_tactile_job(row_id: int) -> None:
 
 # ── File objects ──────────────────────────────────────────────────────────────
 
-def list_file_objects() -> list[dict[str, Any]]:
+def list_file_objects(
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
     with get_conn() as conn:
-        return _rows(conn.execute("SELECT * FROM file_object ORDER BY created_at DESC"))
+        sql = "SELECT * FROM file_object ORDER BY created_at DESC"
+        params: list[Any] = []
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, max(0, offset)])
+        return _rows(conn.execute(sql, params))
 
 
 def get_file_object(file_id: int) -> Optional[dict[str, Any]]:
@@ -1039,9 +1083,10 @@ def complete_step(job_type: str, job_id: int, step_key: str, agent: str = "user"
     table = _STEP_TABLES.get(job_type)
     if not table or step_key not in _ALLOWED_STEPS.get(job_type, []):
         raise ValueError(f"Unknown step '{step_key}' for job type '{job_type}'")
+    step_date_col = f"{step_key}_date"
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE {table} SET {step_key} = 1, updated_at = datetime('now') WHERE id = ?",  # noqa: S608
+            f"UPDATE {table} SET {step_key} = 1, {step_date_col} = datetime('now'), updated_at = datetime('now') WHERE id = ?",  # noqa: S608 - table/step/date columns come from fixed maps, never raw user SQL.
             (job_id,),
         )
     log_event(job_type, job_id, "STEP_COMPLETE", "SUCCESS",
@@ -1056,9 +1101,10 @@ def revert_step(
     table = _STEP_TABLES.get(job_type)
     if not table or step_key not in _ALLOWED_STEPS.get(job_type, []):
         raise ValueError(f"Unknown step '{step_key}' for job type '{job_type}'")
+    step_date_col = f"{step_key}_date"
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE {table} SET {step_key} = 0, updated_at = datetime('now') WHERE id = ?",  # noqa: S608
+            f"UPDATE {table} SET {step_key} = 0, {step_date_col} = NULL, updated_at = datetime('now') WHERE id = ?",  # noqa: S608 - table/step/date columns come from fixed maps, never raw user SQL.
             (job_id,),
         )
     log_event(job_type, job_id, "STEP_REVERT", "WARNING",
@@ -1124,7 +1170,7 @@ def list_material_categories(
             filters.append("active = 1")
         where = ("WHERE " + " AND ".join(filters)) if filters else ""
         return _rows(conn.execute(
-            f"SELECT * FROM material_category {where} ORDER BY section, sort_order, label",  # noqa: S608
+            f"SELECT * FROM material_category {where} ORDER BY section, sort_order, label",  # noqa: S608 - where clause is assembled from fixed SQL fragments.
             params,
         ))
 
@@ -1171,7 +1217,7 @@ def list_workflow_steps(
             filters.append("active = 1")
         where = ("WHERE " + " AND ".join(filters)) if filters else ""
         return _rows(conn.execute(
-            f"SELECT * FROM workflow_step {where} ORDER BY job_type, sort_order, label",  # noqa: S608
+            f"SELECT * FROM workflow_step {where} ORDER BY job_type, sort_order, label",  # noqa: S608 - where clause is assembled from fixed SQL fragments.
             params,
         ))
 
@@ -1312,7 +1358,7 @@ def list_students(active_only: bool = True) -> list[dict[str, Any]]:
     with get_conn() as conn:
         where = "WHERE active = 1" if active_only else ""
         return _rows(conn.execute(
-            f"SELECT * FROM student {where} ORDER BY last_name, first_name"  # noqa: S608
+            f"SELECT * FROM student {where} ORDER BY last_name, first_name"  # noqa: S608 - where clause is a fixed toggle, no user-supplied SQL.
         ))
 
 
@@ -1400,6 +1446,91 @@ def search_all(query: str, limit: int = 200) -> dict[str, list[dict[str, Any]]]:
     is_checksum = len(query) == 64 and all(c in "0123456789abcdefABCDEF" for c in query)
 
     with get_conn() as conn:
+        if not is_checksum:
+            try:
+                def _fts_ids(table: str) -> list[int]:
+                    rows = conn.execute(
+                        f"SELECT id FROM {table} WHERE {table} MATCH ? LIMIT ?",  # noqa: S608 - table comes from fixed in-function constants.
+                        (query, limit),
+                    ).fetchall()
+                    return [int(r[0]) for r in rows]
+
+                def _rows_by_ids(
+                    table: str,
+                    columns: str,
+                    order_by: str,
+                    ids: list[int],
+                ) -> list[dict[str, Any]]:
+                    if not ids:
+                        return []
+                    placeholders = ",".join("?" for _ in ids)
+                    sql = (
+                        f"SELECT {columns} FROM {table} "
+                        f"WHERE id IN ({placeholders}) ORDER BY {order_by} LIMIT ?"
+                    )
+                    return _rows(conn.execute(sql, [*ids, limit]))
+
+                braille_jobs = _rows_by_ids(
+                    "braille_job",
+                    "id, title, braille_type, requester, priority, created_at",
+                    "created_at DESC",
+                    _fts_ids("braille_job_fts"),
+                )
+                lp_jobs = _rows_by_ids(
+                    "lp_ebraille_job",
+                    "id, title, job_type, requester, priority, created_at",
+                    "created_at DESC",
+                    _fts_ids("lp_ebraille_job_fts"),
+                )
+                tactile_jobs = _rows_by_ids(
+                    "tactile_graphics_job",
+                    "id, title, tactile_type, requester, priority, created_at",
+                    "created_at DESC",
+                    _fts_ids("tactile_graphics_job_fts"),
+                )
+                print_jobs = _rows_by_ids(
+                    "print_job",
+                    "id, object_name, file_name, requester, successful, printed_at",
+                    "printed_at DESC",
+                    _fts_ids("print_job_fts"),
+                )
+                files = _rows_by_ids(
+                    "file_object",
+                    "id, original_name, stored_path, file_use, format_name, checksum_sha256, created_at",
+                    "created_at DESC",
+                    _fts_ids("file_object_fts"),
+                )
+                metadata = _rows(conn.execute(
+                    "SELECT job_type, CAST(job_id AS INTEGER) AS job_id, meta_key, meta_value "
+                    "FROM job_metadata_fts WHERE job_metadata_fts MATCH ? LIMIT ?",
+                    (query, limit),
+                ))
+                events = _rows(conn.execute(
+                    "SELECT id, job_type, CAST(job_id AS INTEGER) AS job_id, event_type, agent, detail "
+                    "FROM metadata_event_fts WHERE metadata_event_fts MATCH ? LIMIT ?",
+                    (query, limit),
+                ))
+                students = _rows(conn.execute(
+                    "SELECT id, last_name, first_name, school, grade "
+                    "FROM student WHERE last_name LIKE ? OR first_name LIKE ? "
+                    "OR school LIKE ? OR notes LIKE ? ORDER BY last_name LIMIT ?",
+                    (term, term, term, term, limit),
+                ))
+
+                return {
+                    "braille_jobs": braille_jobs,
+                    "lp_jobs": lp_jobs,
+                    "tactile_jobs": tactile_jobs,
+                    "print_jobs": print_jobs,
+                    "files": files,
+                    "metadata": metadata,
+                    "events": events,
+                    "students": students,
+                }
+            except sqlite3.OperationalError:
+                # Fallback for environments where FTS tables are unavailable.
+                pass
+
         braille_jobs = _rows(conn.execute(
             "SELECT id, title, braille_type, requester, priority, created_at "
             "FROM braille_job WHERE title LIKE ? OR requester LIKE ? OR notes LIKE ? "
@@ -1488,6 +1619,7 @@ def report_jobs(
     grade: Optional[str] = None,
     job_type: Optional[str] = None,
     status: Optional[str] = None,
+    priority: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     student_id: Optional[int] = None,
@@ -1504,6 +1636,8 @@ def report_jobs(
         One of 'braille', 'lp_ebraille', 'tactile', 'print'. If None, all types returned.
     status : str, optional
         'not_started', 'in_progress', or 'delivered'.
+    priority : str, optional
+        One of 'low', 'normal', 'high', 'urgent'.
     date_from : str, optional
         ISO date string — jobs created on or after this date.
     date_to : str, optional
@@ -1522,8 +1656,15 @@ def report_jobs(
             f"ELSE 'not_started' END"
         )
 
-    def _run(table: str, type_label: str, steps: list[str],
-             title_col: str = "title") -> list[dict[str, Any]]:
+    def _run(
+        table: str,
+        type_label: str,
+        steps: list[str],
+        title_col: str = "title",
+        date_col: str = "created_at",
+        priority_expr: str = "j.priority",
+        type_expr: str | None = None,
+    ) -> list[dict[str, Any]]:
         filters: list[str] = []
         params: list[Any] = []
 
@@ -1531,10 +1672,10 @@ def report_jobs(
             filters.append("j.student_id = ?")
             params.append(student_id)
         if date_from:
-            filters.append("j.created_at >= ?")
+            filters.append(f"j.{date_col} >= ?")
             params.append(date_from)
         if date_to:
-            filters.append("j.created_at <= ?")
+            filters.append(f"j.{date_col} <= ?")
             params.append(date_to)
         if school:
             filters.append(
@@ -1559,19 +1700,23 @@ def report_jobs(
         if status:
             filters.append(f"({status_expr}) = ?")
             params.append(status)
+        if priority and priority_expr != "NULL":
+            filters.append(f"{priority_expr} = ?")
+            params.append(priority)
 
         where = ("WHERE " + " AND ".join(filters)) if filters else ""
+        resolved_type_expr = type_expr or f"'{type_label}'"
 
         sql = f"""
-            SELECT j.id, j.{title_col} AS title, '{type_label}' AS job_type,
-                   j.requester, j.priority, j.created_at,
+                                 SELECT j.id, j.{title_col} AS title, {resolved_type_expr} AS job_type,
+                 j.requester, {priority_expr} AS priority, j.{date_col} AS created_at,
                    s.last_name, s.first_name, s.school, s.grade,
                    ({status_expr}) AS status
             FROM {table} j
             LEFT JOIN student s ON s.id = j.student_id
             {where}
-            ORDER BY j.created_at DESC
-        """  # noqa: S608
+                 ORDER BY j.{date_col} DESC
+        """  # noqa: S608 - table/column identifiers come from trusted in-module constants.
         with get_conn() as conn:
             return _rows(conn.execute(sql, params))
 
@@ -1585,12 +1730,22 @@ def report_jobs(
     if job_type in (None, "braille"):
         results["braille"] = _run("braille_job", "braille", b_steps)
     if job_type in (None, "lp_ebraille"):
-        results["lp_ebraille"] = _run("lp_ebraille_job", "lp_ebraille", lp_steps)
+        results["lp_ebraille"] = _run(
+            "lp_ebraille_job",
+            "lp_ebraille",
+            lp_steps,
+            type_expr="COALESCE(j.job_type, 'lp_ebraille')",
+        )
     if job_type in (None, "tactile"):
         results["tactile"] = _run("tactile_graphics_job", "tactile", tac_steps)
     if job_type in (None, "print"):
         results["print"] = _run(
-            "print_job", "print", prt_steps, title_col="object_name"
+            "print_job",
+            "print",
+            prt_steps,
+            title_col="object_name",
+            date_col="printed_at",
+            priority_expr="NULL",
         )
 
     all_jobs: list[dict[str, Any]] = []

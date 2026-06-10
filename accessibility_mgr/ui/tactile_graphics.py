@@ -9,20 +9,16 @@ Changes applied (see fix_specs.json):
 
 from __future__ import annotations
 
+import csv
+import tempfile
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
 from nicegui import ui
 
 from ..db import queries as Q
-from .metadata_options import (
-    get_dublin_core_examples,
-    get_dublin_core_keys,
-    get_non_dc_allowed_keys,
-    get_option_groups,
-)
 from .components import (
-    OUTCOME_COLORS,
     confirm_dialog,
     file_use_badge,
     notify_error,
@@ -31,8 +27,10 @@ from .components import (
     progress_bar,
     section_header,
     status_chip,
+    validate_iso_date,
 )
 from .delivery_dialog import open_delivery_dialog
+from .job_components import export_job_summary, open_metadata_dialog, render_event_log
 
 _STEPS = ["designed", "produced", "qa_reviewed", "delivered"]
 _STEP_LABELS = {
@@ -46,6 +44,18 @@ _TACTILE_FORMATS = [
     "SVG", "PDF", "PNG", "TIFF", "SWELL", "STL", "3MF", "Other",
 ]
 _FILE_USES = ["ORIGINAL", "DERIVATIVE", "INTERMEDIATE", "SOURCE", "REFERENCE"]
+
+
+def _is_overdue(job: dict) -> bool:
+    due_date = (job.get("due_date") or "").strip()
+    if not due_date:
+        return False
+    if int(job.get("delivered") or 0) == 1:
+        return False
+    try:
+        return date.fromisoformat(due_date) < date.today()
+    except ValueError:
+        return False
 
 
 # ── Job form dialog ───────────────────────────────────────────────────────────
@@ -123,6 +133,12 @@ def _job_dialog(on_save, existing: Optional[dict] = None) -> None:
                 if not title_inp.value.strip():
                     notify_error("Title is required")
                     return
+                request_date = req_date_input.value.strip()
+                due_date = due_input.value.strip()
+                if request_date and not validate_iso_date(request_date, "Request Date"):
+                    return
+                if due_date and not validate_iso_date(due_date, "Due Date"):
+                    return
                 try:
                     tactile_type = type_values[type_labels.index(type_sel.value)]
                 except (ValueError, IndexError):
@@ -139,8 +155,8 @@ def _job_dialog(on_save, existing: Optional[dict] = None) -> None:
                     "title": title_inp.value.strip(),
                     "tactile_type": tactile_type,
                     "requester": req_input.value.strip(),
-                    "request_date": req_date_input.value.strip() or None,
-                    "due_date": due_input.value.strip() or None,
+                    "request_date": request_date or None,
+                    "due_date": due_date or None,
                     "priority": priority,
                     "notes": notes_input.value.strip(),
                     "student_id": sid,
@@ -300,123 +316,7 @@ def _ingest_dialog(job_id: int, on_done, existing_meta: Optional[dict] = None) -
 # ── Metadata dialog ───────────────────────────────────────────────────────────
 
 def _metadata_dialog(job_id: int, on_done) -> None:
-    existing_meta = Q.list_job_metadata("tactile", job_id)
-    option_groups = get_option_groups()
-    dc_keys = get_dublin_core_keys()
-    dc_examples = get_dublin_core_examples()
-    non_dc_keys = get_non_dc_allowed_keys()
-
-    with ui.dialog() as dlg, ui.card().classes(
-        "p-6 gap-4 w-[600px] max-w-full max-h-[90vh] overflow-y-auto"
-    ):
-        ui.label("Descriptive Metadata").classes("text-xl font-bold text-slate-800")
-        ui.label("Dublin Core plus controlled eBraille and METS/PREMIS fields.").classes(
-            "text-slate-500 text-sm"
-        )
-
-        def _show_options() -> None:
-            with ui.dialog() as od, ui.card().classes(
-                "p-5 gap-3 w-[720px] max-w-full max-h-[85vh] overflow-y-auto"
-            ):
-                ui.label("Potential Metadata Options").classes("text-lg font-bold text-slate-800")
-                ui.label(
-                    "Use Admin Settings → Metadata Options to add or remove allowed keys."
-                ).classes("text-xs text-slate-500")
-                for group, keys in option_groups.items():
-                    ui.separator()
-                    ui.label(group).classes(
-                        "text-sm font-semibold text-slate-600 uppercase tracking-wider"
-                    )
-                    with ui.row().classes("gap-2 flex-wrap"):
-                        for key in keys:
-                            ui.badge(key).classes(
-                                "bg-slate-100 text-slate-700 text-xs rounded px-2 py-1"
-                            )
-                with ui.row().classes("justify-end mt-2"):
-                    ui.button("Close", on_click=od.close).classes("bg-slate-700 text-white")
-            od.open()
-
-        ui.button("Potential Options", on_click=_show_options).props("flat dense").classes(
-            "text-indigo-600 text-sm self-start"
-        )
-
-        meta_rows: dict[str, ui.input] = {}
-        with ui.grid(columns=2).classes("gap-2 w-full"):
-            for key in dc_keys:
-                with ui.column().classes("gap-0"):
-                    inp = ui.input(key, value=existing_meta.get(key, "")).classes(
-                        "w-full font-mono text-sm"
-                    )
-                    ui.label(dc_examples.get(key, "")).classes("text-[11px] text-slate-400")
-                    meta_rows[key] = inp
-
-        ui.separator()
-        ui.label("Additional Allowed Fields").classes("text-sm font-medium text-slate-600")
-        extra_rows: list[dict[str, ui.element]] = []
-        extra_box = ui.column().classes("w-full gap-2")
-
-        def _add_extra_row(initial_key: str = "", initial_val: str = "") -> None:
-            with extra_box:
-                with ui.row().classes("gap-2 w-full items-center") as row:
-                    key_sel = ui.select(
-                        non_dc_keys,
-                        label="Key",
-                        value=initial_key if initial_key in non_dc_keys else None,
-                    ).classes("w-64")
-                    val_inp = ui.input("Value", value=initial_val).classes("flex-1")
-                    ref = {"row": row, "key": key_sel, "value": val_inp}
-                    extra_rows.append(ref)
-
-                    def _remove(r: dict[str, ui.element] = ref) -> None:
-                        r["row"].delete()
-                        if r in extra_rows:
-                            extra_rows.remove(r)
-
-                    ui.button("✕", on_click=_remove).props("flat dense").classes("text-red-400")
-
-        ui.button("+ Add Field", on_click=lambda: _add_extra_row()).props("flat dense").classes(
-            "text-indigo-600 text-sm self-start"
-        )
-        for key, value in existing_meta.items():
-            if key not in dc_keys and key in non_dc_keys:
-                _add_extra_row(initial_key=key, initial_val=value)
-
-        with ui.row().classes("justify-end gap-3 mt-4"):
-            ui.button("Close", on_click=dlg.close).props("flat").classes("text-slate-500")
-
-            def _save_all() -> None:
-                saved_keys: list[str] = []
-                for key, inp in meta_rows.items():
-                    v = inp.value.strip()
-                    if v:
-                        Q.set_job_metadata("tactile", job_id, key, v)
-                        saved_keys.append(key)
-                    else:
-                        Q.delete_job_metadata("tactile", job_id, key)
-
-                for key in non_dc_keys:
-                    Q.delete_job_metadata("tactile", job_id, key)
-                for row in extra_rows:
-                    k = (row["key"].value or "").strip()
-                    v = (row["value"].value or "").strip()
-                    if k and v and k in non_dc_keys:
-                        Q.set_job_metadata("tactile", job_id, k, v)
-                        saved_keys.append(k)
-
-                # FIX-003: persist audit to DB
-                Q.log_event(
-                    "tactile", job_id, "METADATA_UPDATE", "SUCCESS",
-                    agent="user",
-                    detail=f"Metadata updated: {len(saved_keys)} field(s)",
-                    extra_metadata={"updated_keys": saved_keys},
-                )
-                notify_success("Metadata saved")
-                dlg.close()
-                on_done()
-
-            ui.button("Save All", on_click=_save_all).classes("bg-blue-600 text-white")
-
-    dlg.open()
+    open_metadata_dialog("tactile", job_id, on_done)
 
 
 # ── Job detail view ───────────────────────────────────────────────────────────
@@ -449,6 +349,15 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                     _job_dialog(_do, existing=current)
 
                 ui.button("Edit", on_click=_edit).props("flat").classes("text-blue-600")
+                ui.button(
+                    "Export Summary",
+                    on_click=lambda: export_job_summary(
+                        job_type="tactile",
+                        job=current,
+                        step_order=_STEPS,
+                        step_labels=_STEP_LABELS,
+                    ),
+                ).props("flat").classes("text-indigo-600")
 
             with ui.row().classes("gap-6 text-sm text-slate-500 mb-6 flex-wrap"):
                 ui.label(
@@ -610,72 +519,14 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
 
             # ── Event log ─────────────────────────────────────────────────────
             with ui.card().classes("mt-4 p-5 rounded-xl border border-slate-200"):
-                with ui.row().classes("items-center mb-3"):
-                    ui.label("Provenance / Event Log").classes(
-                        "font-semibold text-slate-700 flex-1"
-                    )
-                    ui.label("PREMIS-style history").classes("text-xs text-slate-400")
-
-                    def _add_note() -> None:
-                        with ui.dialog() as nd, ui.card().classes("p-5 gap-3 w-96"):
-                            ui.label("Add Note Event").classes("font-semibold text-slate-800")
-                            note_txt = ui.textarea("Note").classes("w-full").props("rows=3")
-                            agent_txt = ui.input("Agent/Author", value="user").classes("w-full")
-                            with ui.row().classes("justify-end gap-2"):
-                                ui.button("Cancel", on_click=nd.close).props("flat")
-
-                                def _save_note() -> None:
-                                    Q.log_event(
-                                        "tactile", job_id, "NOTE", "SUCCESS",
-                                        agent=agent_txt.value.strip() or "user",
-                                        detail=note_txt.value.strip(),
-                                    )
-                                    nd.close()
-                                    _refresh()
-
-                                ui.button("Save", on_click=_save_note).classes(
-                                    "bg-slate-700 text-white"
-                                )
-                        nd.open()
-
-                    ui.button("+ Add Note", on_click=_add_note).props(
-                        "flat dense"
-                    ).classes("text-slate-600 text-sm")
-
-                events = Q.list_events_for_job("tactile", job_id)
-                if not events:
-                    ui.label("No events recorded.").classes("text-slate-400 text-sm")
-                else:
-                    for ev in events:
-                        oc = ev.get("event_outcome", "SUCCESS")
-                        clr = OUTCOME_COLORS.get(oc, "text-slate-700")
-                        with ui.row().classes(
-                            "items-start gap-3 py-2 border-b border-slate-50 last:border-0"
-                        ):
-                            with ui.column().classes("gap-0 w-36 shrink-0"):
-                                ui.label(str(ev.get("event_datetime", ""))[:19]).classes(
-                                    "text-xs text-slate-400 font-mono"
-                                )
-                                ui.label(ev.get("agent", "system")).classes(
-                                    "text-xs text-slate-400 italic"
-                                )
-                            with ui.column().classes("flex-1 gap-0"):
-                                with ui.row().classes("gap-2 items-center"):
-                                    ui.badge(ev["event_type"]).classes(
-                                        "text-xs bg-slate-100 text-slate-700 rounded px-1"
-                                    )
-                                    if ev.get("step_key"):
-                                        ui.badge(
-                                            _STEP_LABELS.get(ev["step_key"], ev["step_key"])
-                                        ).classes(
-                                            "text-xs bg-rose-50 text-rose-700 rounded px-1"
-                                        )
-                                    if ev.get("file_name"):
-                                        ui.badge(ev["file_name"]).classes(
-                                            "text-xs bg-indigo-50 text-indigo-700 rounded px-1"
-                                        )
-                                if ev.get("detail"):
-                                    ui.label(ev["detail"]).classes(f"text-sm {clr}")
+                render_event_log(
+                    job_type="tactile",
+                    job_id=job_id,
+                    step_labels=_STEP_LABELS,
+                    on_done=_refresh,
+                    subtitle="PREMIS-style history",
+                    step_badge_classes="text-xs bg-rose-50 text-rose-700 rounded px-1",
+                )
 
     _render(job)
 
@@ -683,6 +534,9 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
 # ── Main list view ────────────────────────────────────────────────────────────
 
 def tactile_graphics_page(content_area: ui.element) -> None:
+    page_size = 50
+    state = {"page": 1, "selected_ids": set()}
+
     content_area.clear()
     with content_area:
         with ui.row().classes("items-center mb-4"):
@@ -699,69 +553,206 @@ def tactile_graphics_page(content_area: ui.element) -> None:
                     tactile_graphics_page(content_area)
                 _job_dialog(_do)
 
+            ui.keyboard(
+                on_key=lambda e: _new()
+                if getattr(e, "action", "") == "keydown"
+                and str(getattr(e, "key", "")).lower() == "n"
+                else None
+            )
+
             ui.button("+ New Job", on_click=_new).classes(
                 "bg-rose-600 text-white rounded-lg px-4 py-2"
             )
 
-        jobs = Q.list_tactile_jobs()
-        if not jobs:
-            with ui.card().classes(
-                "p-10 text-center border border-slate-200 rounded-xl w-full"
-            ):
-                ui.label("No tactile graphics jobs yet.").classes("text-slate-400 text-lg")
-            return
+        pager_row = ui.row().classes("items-center gap-2 mb-3")
+        bulk_row = ui.row().classes("items-center gap-2 mb-3")
+        list_container = ui.column().classes("w-full")
 
-        for job in jobs:
-            done = sum(job.get(step, 0) for step in _STEPS)
-            with ui.card().classes(
-                "p-4 rounded-xl border border-slate-200 hover:border-rose-300 "
-                "hover:shadow-md transition-all mb-3"
-            ):
-                with ui.row().classes("items-start gap-3"):
-                    with ui.column().classes("flex-1 gap-1 min-w-0"):
-                        with ui.row().classes("items-center gap-2"):
-                            ui.label(job["title"]).classes(
-                                "font-semibold text-slate-800 text-base truncate"
-                            )
-                            priority_badge(job.get("priority", "normal"))
-                            ui.badge(
-                                job.get("tactile_type", "").replace("_", " ").title()
-                            ).classes("text-xs bg-rose-50 text-rose-700 rounded px-2")
-                        with ui.row().classes("gap-4 text-xs text-slate-500 flex-wrap"):
-                            if job.get("requester"):
-                                ui.label(f"→ {job['requester']}")
-                            if job.get("due_date"):
-                                ui.label(f"Due: {job['due_date']}")
-                            if job.get("delivery_date"):
-                                ui.label(f"✓ Delivered {job['delivery_date']}").classes(
-                                    "text-green-600"
-                                )
-                        progress_bar(done, len(_STEPS))
-                        with ui.row().classes("gap-1 flex-wrap mt-1"):
-                            for step in _STEPS:
-                                status_chip(
-                                    _STEP_LABELS[step].split(". ")[1],
-                                    bool(job.get(step, 0)),
-                                )
+        def _toggle_selected(job_id: int, selected: bool) -> None:
+            if selected:
+                state["selected_ids"].add(job_id)
+            else:
+                state["selected_ids"].discard(job_id)
+            _render_page()
 
-                    with ui.column().classes("gap-1 shrink-0"):
-                        def _view(j: dict = job) -> None:
-                            _job_detail(
-                                j, content_area,
-                                lambda: tactile_graphics_page(content_area),
-                            )
+        def _render_bulk_actions(current_jobs: list[dict]) -> None:
+            bulk_row.clear()
+            selected = [j for j in current_jobs if j["id"] in state["selected_ids"]]
+            if not selected:
+                return
 
-                        ui.button("View", on_click=_view).props("flat dense").classes(
-                            "text-rose-600 text-sm"
+            with bulk_row:
+                ui.badge(f"{len(selected)} selected").classes(
+                    "bg-rose-100 text-rose-700 rounded px-2"
+                )
+
+                def _delete_selected() -> None:
+                    ids = [j["id"] for j in selected]
+
+                    def _do() -> None:
+                        for sid in ids:
+                            Q.delete_tactile_job(sid)
+                        state["selected_ids"].difference_update(ids)
+                        notify_success(f"Deleted {len(ids)} job(s)")
+                        tactile_graphics_page(content_area)
+
+                    confirm_dialog(f"Delete {len(ids)} selected job(s)?", _do, "Bulk Delete")
+
+                def _export_selected() -> None:
+                    with tempfile.NamedTemporaryFile(
+                        mode="w",
+                        newline="",
+                        suffix=".csv",
+                        delete=False,
+                        encoding="utf-8",
+                    ) as tmp:
+                        writer = csv.DictWriter(
+                            tmp,
+                            fieldnames=[
+                                "id",
+                                "title",
+                                "tactile_type",
+                                "requester",
+                                "priority",
+                                "due_date",
+                                "delivery_date",
+                            ],
                         )
+                        writer.writeheader()
+                        for row in selected:
+                            writer.writerow(
+                                {
+                                    "id": row.get("id"),
+                                    "title": row.get("title", ""),
+                                    "tactile_type": row.get("tactile_type", ""),
+                                    "requester": row.get("requester", ""),
+                                    "priority": row.get("priority", ""),
+                                    "due_date": row.get("due_date", ""),
+                                    "delivery_date": row.get("delivery_date", ""),
+                                }
+                            )
+                    ui.download(tmp.name, filename="tactile_jobs_selected.csv")
 
-                        def _del(j: dict = job) -> None:
-                            def _do() -> None:
-                                Q.delete_tactile_job(j["id"])
-                                notify_success("Deleted")
-                                tactile_graphics_page(content_area)
-                            confirm_dialog(f"Delete '{j['title']}'?", _do)
-
-                        ui.button("Delete", on_click=_del).props("flat dense").classes(
-                            "text-red-400 text-sm"
+                def _mark_delivered() -> None:
+                    for row in selected:
+                        Q.record_delivery(
+                            "tactile",
+                            row["id"],
+                            delivery_method="bulk_action",
+                            delivery_recipient="Operations",
+                            delivery_notes="Marked delivered via bulk action",
                         )
+                    state["selected_ids"].difference_update(r["id"] for r in selected)
+                    notify_success(f"Marked {len(selected)} job(s) delivered")
+                    tactile_graphics_page(content_area)
+
+                ui.button("Delete Selected", on_click=_delete_selected).props("flat dense").classes(
+                    "text-red-500"
+                )
+                ui.button("Export Selected (CSV)", on_click=_export_selected).props(
+                    "flat dense"
+                ).classes("text-indigo-600")
+                ui.button("Mark Selected Delivered", on_click=_mark_delivered).props(
+                    "flat dense"
+                ).classes("text-green-600")
+
+        def _render_page() -> None:
+            rows = Q.list_tactile_jobs(
+                limit=page_size + 1,
+                offset=(state["page"] - 1) * page_size,
+            )
+            has_next = len(rows) > page_size
+            jobs = rows[:page_size]
+            _render_bulk_actions(jobs)
+
+            pager_row.clear()
+            with pager_row:
+                ui.button("Prev", on_click=lambda: _set_page(state["page"] - 1)).props(
+                    "flat dense"
+                ).classes("text-slate-600").props("disable" if state["page"] <= 1 else "")
+                ui.label(f"Page {state['page']}").classes("text-sm text-slate-500")
+                ui.button("Next", on_click=lambda: _set_page(state["page"] + 1)).props(
+                    "flat dense"
+                ).classes("text-slate-600").props("disable" if not has_next else "")
+
+            list_container.clear()
+            with list_container:
+                if not jobs:
+                    with ui.card().classes(
+                        "p-10 text-center border border-slate-200 rounded-xl w-full"
+                    ):
+                        ui.label("No tactile graphics jobs yet.").classes("text-slate-400 text-lg")
+                    return
+
+                for job in jobs:
+                    done = sum(job.get(step, 0) for step in _STEPS)
+                    with ui.card().classes(
+                        "p-4 rounded-xl border border-slate-200 hover:border-rose-300 "
+                        "hover:shadow-md transition-all mb-3"
+                    ):
+                        with ui.row().classes("items-start gap-3"):
+                            ui.checkbox(
+                                value=job["id"] in state["selected_ids"],
+                                on_change=lambda e, jid=job["id"]: _toggle_selected(
+                                    jid, bool(e.value)
+                                ),
+                            ).props("dense")
+                            with ui.column().classes("flex-1 gap-1 min-w-0"):
+                                with ui.row().classes("items-center gap-2"):
+                                    ui.label(job["title"]).classes(
+                                        "font-semibold text-slate-800 text-base truncate"
+                                    )
+                                    priority_badge(job.get("priority", "normal"))
+                                    ui.badge(
+                                        job.get("tactile_type", "").replace("_", " ").title()
+                                    ).classes("text-xs bg-rose-50 text-rose-700 rounded px-2")
+                                with ui.row().classes("gap-4 text-xs text-slate-500 flex-wrap"):
+                                    if job.get("requester"):
+                                        ui.label(f"→ {job['requester']}")
+                                    if job.get("due_date"):
+                                        ui.label(f"Due: {job['due_date']}").classes(
+                                            "text-red-600 font-semibold"
+                                            if _is_overdue(job)
+                                            else "text-slate-500"
+                                        )
+                                    if job.get("delivery_date"):
+                                        ui.label(f"✓ Delivered {job['delivery_date']}").classes(
+                                            "text-green-600"
+                                        )
+                                progress_bar(done, len(_STEPS))
+                                with ui.row().classes("gap-1 flex-wrap mt-1"):
+                                    for step in _STEPS:
+                                        status_chip(
+                                            _STEP_LABELS[step].split(". ")[1],
+                                            bool(job.get(step, 0)),
+                                        )
+
+                            with ui.column().classes("gap-1 shrink-0"):
+                                def _view(j: dict = job) -> None:
+                                    _job_detail(
+                                        j,
+                                        content_area,
+                                        lambda: tactile_graphics_page(content_area),
+                                    )
+
+                                ui.button("View", on_click=_view).props("flat dense").classes(
+                                    "text-rose-600 text-sm"
+                                )
+
+                                def _del(j: dict = job) -> None:
+                                    def _do() -> None:
+                                        Q.delete_tactile_job(j["id"])
+                                        state["selected_ids"].discard(j["id"])
+                                        notify_success("Deleted")
+                                        tactile_graphics_page(content_area)
+                                    confirm_dialog(f"Delete '{j['title']}'?", _do)
+
+                                ui.button("Delete", on_click=_del).props("flat dense").classes(
+                                    "text-red-400 text-sm"
+                                )
+
+        def _set_page(page: int) -> None:
+            state["page"] = max(1, page)
+            _render_page()
+
+        _render_page()

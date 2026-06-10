@@ -1,0 +1,27 @@
+# Example external tool configuration for Accessibility Project Manager
+#
+# Copy this file to tools.ini and adjust values for your environment.
+# Each [tools] value can be either:
+#   - an executable name available on PATH
+#   - an absolute path to an executable
+
+[tools]
+# DAISY Ace (EPUB accessibility checker)
+ace = ace
+
+# EPUBCheck validator
+epubcheck = epubcheck
+
+# DAISY Pipeline executable
+pipeline = pipeline2
+
+# LibLouis CLI executable
+liblouis = lou_translate
+
+[paths]
+# Optional: prepend extra directories to PATH (one per line)
+# Example:
+# extra =
+#     /opt/daisy-pipeline/bin
+#     /usr/local/share/npm/bin
+extra =

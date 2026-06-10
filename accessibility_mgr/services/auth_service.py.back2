@@ -1,0 +1,19 @@
+"""Authentication helpers for the lightweight UI user switcher."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass
+class UserAccount:
+        return cls.users
+
+    @classmethod
+    def switch_user(cls, username: str):
+        for user in cls.users:
+            if user.username == username:
+                cls.current_user = user
+                return user
+
+        return None

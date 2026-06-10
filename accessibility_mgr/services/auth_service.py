@@ -7,18 +7,14 @@ from dataclasses import dataclass
 
 @dataclass
 class UserAccount:
-    """UserAccount class.
-    
-    """
+    """Represents a selectable UI user account."""
     username: str
     role: str
     is_admin: bool = False
 
 
 class AuthService:
-    """AuthService class.
-    
-    """
+    """In-memory user switcher used by the lightweight UI auth flow."""
     users = [
         UserAccount(username="system_admin", role="Administrator", is_admin=True),
         UserAccount(username="operator_user", role="Operator"),
@@ -28,31 +24,12 @@ class AuthService:
 
     @classmethod
     def list_users(cls):
-        """List users.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
+        """Return all available user accounts."""
         return cls.users
 
     @classmethod
     def switch_user(cls, username: str):
-        """Switch user.
-        
-        Parameters
-        ----------
-        username : Any
-            username parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
+        """Set and return the active user for a matching username."""
         for user in cls.users:
             if user.username == username:
                 cls.current_user = user

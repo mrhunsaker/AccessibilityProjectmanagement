@@ -43,6 +43,8 @@ class BackupService:
 
     _timer: threading.Timer | None = None
     _lock = threading.Lock()
+    _run_lock = threading.Lock()
+    _scheduler_enabled = False
 
     @staticmethod
     def _paths() -> tuple[Path, Path]:
@@ -67,36 +69,50 @@ class BackupService:
         Returns the absolute path of the new backup file as a string.
         Raises ``RuntimeError`` if the source database does not yet exist.
         """
-        db_path, backups_dir = BackupService._paths()
-        backups_dir.mkdir(parents=True, exist_ok=True)
+        if not BackupService._run_lock.acquire(blocking=False):
+            raise RuntimeError("Backup already in progress")
 
-        if not db_path.exists():
-            raise RuntimeError(f"Database not found at {db_path}; cannot back up.")
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        dest = backups_dir / f"accessibility_manager_{timestamp}.db"
-
-        # Use sqlite3.Connection.backup() — checkpoints WAL, works on a live DB.
-        src_conn = sqlite3.connect(str(db_path))
-        dst_conn = sqlite3.connect(str(dest))
         try:
-            src_conn.backup(dst_conn)
+            db_path, backups_dir = BackupService._paths()
+            backups_dir.mkdir(parents=True, exist_ok=True)
+
+            if not db_path.exists():
+                raise RuntimeError(f"Database not found at {db_path}; cannot back up.")
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dest = backups_dir / f"accessibility_manager_{timestamp}.db"
+
+            # Use sqlite3.Connection.backup() — checkpoints WAL, works on a live DB.
+            src_conn = sqlite3.connect(str(db_path))
+            dst_conn = sqlite3.connect(str(dest))
+            try:
+                src_conn.backup(dst_conn)
+            finally:
+                dst_conn.close()
+                src_conn.close()
+
+            size = dest.stat().st_size
+            log.info("Backup created: %s (%d bytes)", dest, size)
+
+            # Record in DB (best-effort — don't crash if table not ready yet)
+            try:
+                from ..db.queries import log_backup
+                log_backup(str(dest), size, trigger=trigger, status="ok")
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Could not write backup_log entry: %s", exc)
+
+            BackupService._rotate(backups_dir)
+            return str(dest)
         finally:
-            dst_conn.close()
-            src_conn.close()
+            BackupService._run_lock.release()
 
-        size = dest.stat().st_size
-        log.info("Backup created: %s (%d bytes)", dest, size)
-
-        # Record in DB (best-effort — don't crash if table not ready yet)
-        try:
-            from ..db.queries import log_backup
-            log_backup(str(dest), size, trigger=trigger, status="ok")
-        except Exception as exc:  # noqa: BLE001
-            log.warning("Could not write backup_log entry: %s", exc)
-
-        BackupService._rotate(backups_dir)
-        return str(dest)
+    @staticmethod
+    def _schedule_next_locked(delay_seconds: int) -> None:
+        """Schedule the next timer while holding ``_lock``."""
+        BackupService._timer = threading.Timer(delay_seconds, BackupService._scheduled_run)
+        BackupService._timer.daemon = True
+        BackupService._timer.name = "db-backup-timer"
+        BackupService._timer.start()
 
     @staticmethod
     def _rotate(backups_dir: Path) -> None:
@@ -122,10 +138,10 @@ class BackupService:
         finally:
             # Always reschedule so one failure doesn't stop all future backups.
             with BackupService._lock:
-                BackupService._timer = threading.Timer(BackupService._INTERVAL_SECONDS, BackupService._scheduled_run)
-                BackupService._timer.daemon = True
-                BackupService._timer.name = "db-backup-timer"
-                BackupService._timer.start()
+                if BackupService._scheduler_enabled:
+                    BackupService._schedule_next_locked(BackupService._INTERVAL_SECONDS)
+                else:
+                    BackupService._timer = None
 
     @staticmethod
     def start() -> None:
@@ -137,14 +153,12 @@ class BackupService:
         blocked, and then repeats every 7 days.
         """
         with BackupService._lock:
-            if BackupService._timer is not None:
+            if BackupService._scheduler_enabled:
                 return  # already running
 
+            BackupService._scheduler_enabled = True
             # Small initial delay so init_db() has fully committed before first backup.
-            BackupService._timer = threading.Timer(30, BackupService._scheduled_run)
-            BackupService._timer.daemon = True
-            BackupService._timer.name = "db-backup-timer"
-            BackupService._timer.start()
+            BackupService._schedule_next_locked(30)
             log.info(
                 "Database backup scheduler started — first backup in 30 s, "
                 "then every 7 days.  Backups directory: %s",
@@ -155,6 +169,7 @@ class BackupService:
     def stop() -> None:
         """Cancel the scheduled backup timer (called on app shutdown)."""
         with BackupService._lock:
+            BackupService._scheduler_enabled = False
             if BackupService._timer is not None:
                 BackupService._timer.cancel()
                 BackupService._timer = None
@@ -175,5 +190,5 @@ class BackupService:
             "backups_dir": str(backups_dir),
             "retention_limit": BackupService._KEEP_BACKUPS,
             "interval_days": BackupService._INTERVAL_SECONDS // 86400,
-            "scheduler_active": BackupService._timer is not None,
+            "scheduler_active": BackupService._scheduler_enabled,
         }

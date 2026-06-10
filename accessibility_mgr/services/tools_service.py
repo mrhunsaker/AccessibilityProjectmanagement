@@ -48,6 +48,11 @@ def _config_path() -> Path:
     return Path(__file__).parent.parent.parent / "tools.ini"
 
 
+def _example_config_path() -> Path:
+    """Return the absolute path to tools.ini.example (project root)."""
+    return Path(__file__).parent.parent.parent / "tools.ini.example"
+
+
 def bootstrap() -> None:
     """Read tools.ini, extend PATH, and cache resolved tool paths.
 
@@ -66,8 +71,9 @@ def bootstrap() -> None:
     else:
         log.warning(
             "tools_service: %s not found; using default tool names. "
-            "Copy tools.ini.example or create tools.ini to customise.",
+            "Copy %s to tools.ini to customise.",
             ini,
+            _example_config_path(),
         )
 
     # ── 1. Extend PATH with extra directories ─────────────────────────────

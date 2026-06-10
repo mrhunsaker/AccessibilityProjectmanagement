@@ -1,20 +1,11 @@
-"""Production module.
-
-"""
+"""Production UI for registering and viewing physical devices."""
 from nicegui import ui
 
 from ..services.production_service import ProductionService
 
 
 def production_page() -> None:
-    """Production page.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render the production device registration and status view."""
     ui.label("Physical Production Tracking").classes("text-2xl font-bold")
 
     name = ui.input("Device Name")
@@ -24,14 +15,6 @@ def production_page() -> None:
     container = ui.column().classes("w-full")
 
     def refresh():
-        """Refresh.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         container.clear()
 
         with container:
@@ -49,14 +32,6 @@ def production_page() -> None:
                     )
 
     def create_device():
-        """Create device.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         ProductionService.register_device(
             name.value,
             device_type.value,

@@ -10,15 +10,29 @@ Changes applied (see fix_specs.json):
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH       = Path(__file__).parent.parent / "accessibility_manager.db"
-PRINTS_DIR    = Path(__file__).parent.parent / "prints_files"
-FILES_DIR     = Path(__file__).parent.parent / "job_files"
-BACKUPS_DIR   = Path(__file__).parent.parent / "backups"
+
+def _resolve_db_path() -> Path:
+    configured = os.getenv("ACCESSMAN_DB_PATH", "").strip()
+    if configured:
+        return Path(configured).expanduser()
+
+    xdg_data_home = Path(
+        os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share")
+    )
+    return xdg_data_home / "accessibility_mgr" / "accessibility_manager.db"
+
+
+DB_PATH       = _resolve_db_path()
+DATA_DIR      = DB_PATH.parent
+PRINTS_DIR    = DATA_DIR / "prints_files"
+FILES_DIR     = DATA_DIR / "job_files"
+BACKUPS_DIR   = DATA_DIR / "backups"
 ARTIFACTS_DIR = Path(__file__).parent.parent.parent / "artifacts"
 
 
@@ -378,6 +392,11 @@ CREATE TABLE IF NOT EXISTS backup_log (
     created_at  TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS schema_migration (
+    migration_id TEXT PRIMARY KEY,
+    applied_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ═══════════════════════════════════════════════════════════════
 -- SEED DATA
 -- ═══════════════════════════════════════════════════════════════
@@ -523,97 +542,327 @@ INSERT OR IGNORE INTO workflow_step (job_type, step_key, label, description, sor
 
 
 def _table_has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
-    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608 - table names are internal migration constants.
     return any(row[1] == column for row in rows)
+
+
+def _ensure_migration_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_migration (
+            migration_id TEXT PRIMARY KEY,
+            applied_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """
+    )
+
+
+def _migration_applied(conn: sqlite3.Connection, migration_id: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM schema_migration WHERE migration_id = ?",
+        (migration_id,),
+    ).fetchone()
+    return row is not None
+
+
+def _mark_migration_applied(conn: sqlite3.Connection, migration_id: str) -> None:
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_migration (migration_id) VALUES (?)",
+        (migration_id,),
+    )
+
+
+def _apply_migration(conn: sqlite3.Connection, migration_id: str, fn) -> None:
+    if _migration_applied(conn, migration_id):
+        return
+    fn()
+    _mark_migration_applied(conn, migration_id)
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Apply incremental schema migrations to existing databases."""
+    _ensure_migration_table(conn)
 
     # ── Pre-existing migrations ───────────────────────────────────────────────
-    if not _table_has_column(conn, "braille_job", "embosser_id"):
-        conn.execute(
-            "ALTER TABLE braille_job ADD COLUMN embosser_id INTEGER REFERENCES embosser(id)"
-        )
+    def _m001_braille_embosser_and_timestamps() -> None:
+        if not _table_has_column(conn, "braille_job", "embosser_id"):
+            conn.execute(
+                "ALTER TABLE braille_job ADD COLUMN embosser_id INTEGER REFERENCES embosser(id)"
+            )
 
-    for tbl in ("printer", "embosser"):
-        if not _table_has_column(conn, tbl, "created_at"):
-            conn.execute(f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")  # noqa: S608
-        if not _table_has_column(conn, tbl, "updated_at"):
-            conn.execute(f"ALTER TABLE {tbl} ADD COLUMN updated_at TEXT")  # noqa: S608
+        for tbl in ("printer", "embosser"):
+            if not _table_has_column(conn, tbl, "created_at"):
+                conn.execute(f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")  # noqa: S608 - tbl is selected from a fixed tuple.
+            if not _table_has_column(conn, tbl, "updated_at"):
+                conn.execute(f"ALTER TABLE {tbl} ADD COLUMN updated_at TEXT")  # noqa: S608 - tbl is selected from a fixed tuple.
 
-    if not _table_has_column(conn, "workflow_step", "updated_at"):
-        conn.execute("ALTER TABLE workflow_step ADD COLUMN updated_at TEXT")
+    _apply_migration(conn, "m001_braille_embosser_and_timestamps", _m001_braille_embosser_and_timestamps)
 
-    if not _table_has_column(conn, "workflow_step", "description"):
-        conn.execute("ALTER TABLE workflow_step ADD COLUMN description TEXT")
+    def _m002_workflow_step_columns() -> None:
+        if not _table_has_column(conn, "workflow_step", "updated_at"):
+            conn.execute("ALTER TABLE workflow_step ADD COLUMN updated_at TEXT")
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS backup_log (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            backup_path TEXT NOT NULL,
-            size_bytes  INTEGER,
-            trigger     TEXT NOT NULL DEFAULT 'scheduled',
-            status      TEXT NOT NULL DEFAULT 'ok',
-            created_at  TEXT DEFAULT (datetime('now'))
-        )
-    """)
+        if not _table_has_column(conn, "workflow_step", "description"):
+            conn.execute("ALTER TABLE workflow_step ADD COLUMN description TEXT")
+
+    _apply_migration(conn, "m002_workflow_step_columns", _m002_workflow_step_columns)
+
+    def _m003_backup_log_table() -> None:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS backup_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                backup_path TEXT NOT NULL,
+                size_bytes  INTEGER,
+                trigger     TEXT NOT NULL DEFAULT 'scheduled',
+                status      TEXT NOT NULL DEFAULT 'ok',
+                created_at  TEXT DEFAULT (datetime('now'))
+            )
+        """)
+
+    _apply_migration(conn, "m003_backup_log_table", _m003_backup_log_table)
 
     # ── FIX-010: student table and student_id FK columns ─────────────────────
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS student (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-            last_name         TEXT NOT NULL,
-            first_name        TEXT NOT NULL,
-            school            TEXT,
-            grade             TEXT,
-            preferred_formats TEXT,
-            notes             TEXT,
-            active            INTEGER DEFAULT 1,
-            created_at        TEXT DEFAULT (datetime('now')),
-            updated_at        TEXT DEFAULT (datetime('now'))
-        )
-    """)
-
-    for tbl in ("braille_job", "lp_ebraille_job", "tactile_graphics_job", "print_job"):
-        if not _table_has_column(conn, tbl, "student_id"):
-            conn.execute(
-                f"ALTER TABLE {tbl} ADD COLUMN student_id INTEGER REFERENCES student(id)"  # noqa: S608
+    def _m004_student_table_and_links() -> None:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS student (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                last_name         TEXT NOT NULL,
+                first_name        TEXT NOT NULL,
+                school            TEXT,
+                grade             TEXT,
+                preferred_formats TEXT,
+                notes             TEXT,
+                active            INTEGER DEFAULT 1,
+                created_at        TEXT DEFAULT (datetime('now')),
+                updated_at        TEXT DEFAULT (datetime('now'))
             )
+        """)
 
-    # ── FIX-007: print_job workflow step columns ──────────────────────────────
-    for col in ("designed", "sliced", "printed", "inspected", "delivered"):
-        if not _table_has_column(conn, "print_job", col):
-            conn.execute(
-                f"ALTER TABLE print_job ADD COLUMN {col} INTEGER DEFAULT 0"  # noqa: S608
-            )
-
-    # ── FIX-016: delivery tracking columns on all job tables ─────────────────
-    delivery_cols = [
-        ("delivery_date",      "TEXT"),
-        ("delivery_method",    "TEXT"),
-        ("delivery_recipient", "TEXT"),
-        ("delivery_notes",     "TEXT"),
-    ]
-    for tbl in ("braille_job", "lp_ebraille_job", "tactile_graphics_job", "print_job"):
-        for col, col_type in delivery_cols:
-            if not _table_has_column(conn, tbl, col):
+        for tbl in ("braille_job", "lp_ebraille_job", "tactile_graphics_job", "print_job"):
+            if not _table_has_column(conn, tbl, "student_id"):
                 conn.execute(
-                    f"ALTER TABLE {tbl} ADD COLUMN {col} {col_type}"  # noqa: S608
+                    f"ALTER TABLE {tbl} ADD COLUMN student_id INTEGER REFERENCES student(id)"  # noqa: S608 - tbl is selected from a fixed tuple.
                 )
 
+    _apply_migration(conn, "m004_student_table_and_links", _m004_student_table_and_links)
+
+    # ── FIX-007: print_job workflow step columns ──────────────────────────────
+    def _m005_print_step_columns() -> None:
+        for col in ("designed", "sliced", "printed", "inspected", "delivered"):
+            if not _table_has_column(conn, "print_job", col):
+                conn.execute(
+                    f"ALTER TABLE print_job ADD COLUMN {col} INTEGER DEFAULT 0"  # noqa: S608 - col is selected from a fixed tuple.
+                )
+
+    _apply_migration(conn, "m005_print_step_columns", _m005_print_step_columns)
+
+    # ── FIX-016: delivery tracking columns on all job tables ─────────────────
+    def _m006_delivery_columns() -> None:
+        delivery_cols = [
+            ("delivery_date",      "TEXT"),
+            ("delivery_method",    "TEXT"),
+            ("delivery_recipient", "TEXT"),
+            ("delivery_notes",     "TEXT"),
+        ]
+        for tbl in ("braille_job", "lp_ebraille_job", "tactile_graphics_job", "print_job"):
+            for col, col_type in delivery_cols:
+                if not _table_has_column(conn, tbl, col):
+                    conn.execute(
+                        f"ALTER TABLE {tbl} ADD COLUMN {col} {col_type}"  # noqa: S608 - tbl/col/col_type are from fixed migration constants.
+                    )
+
+    _apply_migration(conn, "m006_delivery_columns", _m006_delivery_columns)
+
     # ── FIX-011: normalise MASTER → ORIGINAL in existing records ─────────────
-    conn.execute(
-        "UPDATE file_object SET file_use = 'ORIGINAL' WHERE file_use = 'MASTER'"
-    )
-    conn.execute(
-        "UPDATE material_category SET value='ORIGINAL', label='Original' "
-        "WHERE section='file_use' AND value='MASTER'"
-    )
+    def _m007_normalize_file_use_master() -> None:
+        conn.execute(
+            "UPDATE file_object SET file_use = 'ORIGINAL' WHERE file_use = 'MASTER'"
+        )
+        conn.execute(
+            "UPDATE material_category SET value='ORIGINAL', label='Original' "
+            "WHERE section='file_use' AND value='MASTER'"
+        )
+
+    _apply_migration(conn, "m007_normalize_file_use_master", _m007_normalize_file_use_master)
+
+    # ── IMP-022: workflow step timestamp columns ────────────────────────────
+    def _m008_step_completion_timestamps() -> None:
+        step_columns = {
+            "braille_job": ["digitized", "formatted", "brailled", "proofread", "delivered"],
+            "lp_ebraille_job": ["digitized", "formatted", "converted", "proofread", "delivered"],
+            "tactile_graphics_job": ["designed", "produced", "qa_reviewed", "delivered"],
+            "print_job": ["designed", "sliced", "printed", "inspected", "delivered"],
+        }
+        for table, steps in step_columns.items():
+            for step in steps:
+                date_col = f"{step}_date"
+                if not _table_has_column(conn, table, date_col):
+                    conn.execute(
+                        f"ALTER TABLE {table} ADD COLUMN {date_col} TEXT"  # noqa: S608 - table/column values are fixed migration constants.
+                    )
+
+    _apply_migration(conn, "m008_step_completion_timestamps", _m008_step_completion_timestamps)
+
+    # ── IMP-023: FTS5 search indexes and change triggers ────────────────────
+    def _m009_full_text_search_indexes() -> None:
+        conn.executescript(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS braille_job_fts USING fts5(
+                id UNINDEXED,
+                title,
+                requester,
+                notes
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS lp_ebraille_job_fts USING fts5(
+                id UNINDEXED,
+                title,
+                requester,
+                notes
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS tactile_graphics_job_fts USING fts5(
+                id UNINDEXED,
+                title,
+                requester,
+                notes
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS print_job_fts USING fts5(
+                id UNINDEXED,
+                object_name,
+                file_name,
+                requester,
+                notes
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS file_object_fts USING fts5(
+                id UNINDEXED,
+                original_name,
+                stored_path,
+                format_name,
+                encoding
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS job_metadata_fts USING fts5(
+                row_key UNINDEXED,
+                job_type,
+                job_id,
+                meta_key,
+                meta_value
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS metadata_event_fts USING fts5(
+                id UNINDEXED,
+                job_type,
+                job_id,
+                event_type,
+                agent,
+                detail
+            );
+
+            CREATE TRIGGER IF NOT EXISTS braille_job_ai AFTER INSERT ON braille_job BEGIN
+                INSERT INTO braille_job_fts (id, title, requester, notes)
+                VALUES (new.id, COALESCE(new.title, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS braille_job_au AFTER UPDATE ON braille_job BEGIN
+                DELETE FROM braille_job_fts WHERE id = old.id;
+                INSERT INTO braille_job_fts (id, title, requester, notes)
+                VALUES (new.id, COALESCE(new.title, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS braille_job_ad AFTER DELETE ON braille_job BEGIN
+                DELETE FROM braille_job_fts WHERE id = old.id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS lp_ebraille_job_ai AFTER INSERT ON lp_ebraille_job BEGIN
+                INSERT INTO lp_ebraille_job_fts (id, title, requester, notes)
+                VALUES (new.id, COALESCE(new.title, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS lp_ebraille_job_au AFTER UPDATE ON lp_ebraille_job BEGIN
+                DELETE FROM lp_ebraille_job_fts WHERE id = old.id;
+                INSERT INTO lp_ebraille_job_fts (id, title, requester, notes)
+                VALUES (new.id, COALESCE(new.title, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS lp_ebraille_job_ad AFTER DELETE ON lp_ebraille_job BEGIN
+                DELETE FROM lp_ebraille_job_fts WHERE id = old.id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS tactile_graphics_job_ai AFTER INSERT ON tactile_graphics_job BEGIN
+                INSERT INTO tactile_graphics_job_fts (id, title, requester, notes)
+                VALUES (new.id, COALESCE(new.title, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS tactile_graphics_job_au AFTER UPDATE ON tactile_graphics_job BEGIN
+                DELETE FROM tactile_graphics_job_fts WHERE id = old.id;
+                INSERT INTO tactile_graphics_job_fts (id, title, requester, notes)
+                VALUES (new.id, COALESCE(new.title, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS tactile_graphics_job_ad AFTER DELETE ON tactile_graphics_job BEGIN
+                DELETE FROM tactile_graphics_job_fts WHERE id = old.id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS print_job_ai AFTER INSERT ON print_job BEGIN
+                INSERT INTO print_job_fts (id, object_name, file_name, requester, notes)
+                VALUES (new.id, COALESCE(new.object_name, ''), COALESCE(new.file_name, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS print_job_au AFTER UPDATE ON print_job BEGIN
+                DELETE FROM print_job_fts WHERE id = old.id;
+                INSERT INTO print_job_fts (id, object_name, file_name, requester, notes)
+                VALUES (new.id, COALESCE(new.object_name, ''), COALESCE(new.file_name, ''), COALESCE(new.requester, ''), COALESCE(new.notes, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS print_job_ad AFTER DELETE ON print_job BEGIN
+                DELETE FROM print_job_fts WHERE id = old.id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS file_object_ai AFTER INSERT ON file_object BEGIN
+                INSERT INTO file_object_fts (id, original_name, stored_path, format_name, encoding)
+                VALUES (new.id, COALESCE(new.original_name, ''), COALESCE(new.stored_path, ''), COALESCE(new.format_name, ''), COALESCE(new.encoding, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS file_object_au AFTER UPDATE ON file_object BEGIN
+                DELETE FROM file_object_fts WHERE id = old.id;
+                INSERT INTO file_object_fts (id, original_name, stored_path, format_name, encoding)
+                VALUES (new.id, COALESCE(new.original_name, ''), COALESCE(new.stored_path, ''), COALESCE(new.format_name, ''), COALESCE(new.encoding, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS file_object_ad AFTER DELETE ON file_object BEGIN
+                DELETE FROM file_object_fts WHERE id = old.id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS job_metadata_ai AFTER INSERT ON job_metadata BEGIN
+                INSERT INTO job_metadata_fts (row_key, job_type, job_id, meta_key, meta_value)
+                VALUES (CAST(new.id AS TEXT), COALESCE(new.job_type, ''), CAST(COALESCE(new.job_id, 0) AS TEXT), COALESCE(new.meta_key, ''), COALESCE(new.meta_value, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS job_metadata_au AFTER UPDATE ON job_metadata BEGIN
+                DELETE FROM job_metadata_fts WHERE row_key = CAST(old.id AS TEXT);
+                INSERT INTO job_metadata_fts (row_key, job_type, job_id, meta_key, meta_value)
+                VALUES (CAST(new.id AS TEXT), COALESCE(new.job_type, ''), CAST(COALESCE(new.job_id, 0) AS TEXT), COALESCE(new.meta_key, ''), COALESCE(new.meta_value, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS job_metadata_ad AFTER DELETE ON job_metadata BEGIN
+                DELETE FROM job_metadata_fts WHERE row_key = CAST(old.id AS TEXT);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS metadata_event_ai AFTER INSERT ON metadata_event BEGIN
+                INSERT INTO metadata_event_fts (id, job_type, job_id, event_type, agent, detail)
+                VALUES (new.id, COALESCE(new.job_type, ''), CAST(COALESCE(new.job_id, 0) AS TEXT), COALESCE(new.event_type, ''), COALESCE(new.agent, ''), COALESCE(new.detail, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS metadata_event_au AFTER UPDATE ON metadata_event BEGIN
+                DELETE FROM metadata_event_fts WHERE id = old.id;
+                INSERT INTO metadata_event_fts (id, job_type, job_id, event_type, agent, detail)
+                VALUES (new.id, COALESCE(new.job_type, ''), CAST(COALESCE(new.job_id, 0) AS TEXT), COALESCE(new.event_type, ''), COALESCE(new.agent, ''), COALESCE(new.detail, ''));
+            END;
+            CREATE TRIGGER IF NOT EXISTS metadata_event_ad AFTER DELETE ON metadata_event BEGIN
+                DELETE FROM metadata_event_fts WHERE id = old.id;
+            END;
+            """
+        )
+
+        # Seed indexes for existing rows (safe to run once due migration tracking).
+        conn.execute("INSERT INTO braille_job_fts (id, title, requester, notes) SELECT id, COALESCE(title, ''), COALESCE(requester, ''), COALESCE(notes, '') FROM braille_job")
+        conn.execute("INSERT INTO lp_ebraille_job_fts (id, title, requester, notes) SELECT id, COALESCE(title, ''), COALESCE(requester, ''), COALESCE(notes, '') FROM lp_ebraille_job")
+        conn.execute("INSERT INTO tactile_graphics_job_fts (id, title, requester, notes) SELECT id, COALESCE(title, ''), COALESCE(requester, ''), COALESCE(notes, '') FROM tactile_graphics_job")
+        conn.execute("INSERT INTO print_job_fts (id, object_name, file_name, requester, notes) SELECT id, COALESCE(object_name, ''), COALESCE(file_name, ''), COALESCE(requester, ''), COALESCE(notes, '') FROM print_job")
+        conn.execute("INSERT INTO file_object_fts (id, original_name, stored_path, format_name, encoding) SELECT id, COALESCE(original_name, ''), COALESCE(stored_path, ''), COALESCE(format_name, ''), COALESCE(encoding, '') FROM file_object")
+        conn.execute("INSERT INTO job_metadata_fts (row_key, job_type, job_id, meta_key, meta_value) SELECT CAST(id AS TEXT), COALESCE(job_type, ''), CAST(COALESCE(job_id, 0) AS TEXT), COALESCE(meta_key, ''), COALESCE(meta_value, '') FROM job_metadata")
+        conn.execute("INSERT INTO metadata_event_fts (id, job_type, job_id, event_type, agent, detail) SELECT id, COALESCE(job_type, ''), CAST(COALESCE(job_id, 0) AS TEXT), COALESCE(event_type, ''), COALESCE(agent, ''), COALESCE(detail, '') FROM metadata_event")
+
+    _apply_migration(conn, "m009_full_text_search_indexes", _m009_full_text_search_indexes)
 
 
 def init_db() -> None:
     """Create all tables, directories, and seed data if they do not exist."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     PRINTS_DIR.mkdir(exist_ok=True)
     FILES_DIR.mkdir(exist_ok=True)
     BACKUPS_DIR.mkdir(exist_ok=True)

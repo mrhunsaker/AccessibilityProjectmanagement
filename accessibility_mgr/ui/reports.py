@@ -14,11 +14,14 @@ from datetime import date
 from nicegui import ui
 
 from ..db import queries as Q
-from .components import priority_badge, progress_bar, section_header
+from .components import priority_badge, progress_bar, section_header, validate_iso_date
 
 _TYPE_LABELS = {
     "braille":     "Braille",
     "lp_ebraille": "LP / eBraille / EPUB3",
+    "large_print": "Large Print",
+    "ebraille":    "eBraille",
+    "epub3_daisy": "EPUB3 / DAISY",
     "tactile":     "Tactile Graphics",
     "print":       "3-D Print",
 }
@@ -38,9 +41,18 @@ _TYPE_OPTIONS = [
     ("print",      "3-D Print"),
 ]
 
+_PRIORITY_OPTIONS = [
+    ("all", "All Priorities"),
+    ("low", "Low"),
+    ("normal", "Normal"),
+    ("high", "High"),
+    ("urgent", "Urgent"),
+]
 
-def reports_page(content_area: ui.element) -> None:
+
+def reports_page(content_area: ui.element, presets: dict[str, str] | None = None) -> None:
     """Render the Reports page."""
+    presets = presets or {}
     content_area.clear()
     with content_area:
         section_header(
@@ -64,14 +76,20 @@ def reports_page(content_area: ui.element) -> None:
 
                 type_sel = ui.select(
                     {v: l for v, l in _TYPE_OPTIONS},
-                    value="",
+                    value=presets.get("job_type", ""),
                     label="Material Type",
                 ).classes("w-full").props("outlined dense")
 
                 status_sel = ui.select(
                     {v: l for v, l in _STATUS_OPTIONS},
-                    value="all",
+                    value=presets.get("status", "all"),
                     label="Status",
+                ).classes("w-full").props("outlined dense")
+
+                priority_sel = ui.select(
+                    {v: l for v, l in _PRIORITY_OPTIONS},
+                    value=presets.get("priority", "all"),
+                    label="Priority",
                 ).classes("w-full").props("outlined dense")
 
                 date_from_inp = ui.input(
@@ -119,15 +137,29 @@ def reports_page(content_area: ui.element) -> None:
             sid_str = student_sel.value
             sid = int(sid_str) if sid_str and sid_str.isdigit() else None
             status_val = status_sel.value if status_sel.value != "all" else None
+            priority_val = priority_sel.value if priority_sel.value != "all" else None
             type_val = type_sel.value or None
             df = date_from_inp.value.strip() or None
             dt = date_to_inp.value.strip() or None
+
+            if df and not validate_iso_date(df, "Created From"):
+                return
+            if dt and not validate_iso_date(dt, "Created To"):
+                return
+            if df and dt and df > dt:
+                ui.notify(
+                    "Created From must be earlier than or equal to Created To",
+                    type="negative",
+                    position="top-right",
+                )
+                return
 
             result = Q.report_jobs(
                 school=school_inp.value.strip() or None,
                 grade=grade_inp.value.strip() or None,
                 job_type=type_val,
                 status=status_val,
+                priority=priority_val,
                 date_from=df,
                 date_to=dt,
                 student_id=sid,
@@ -220,6 +252,9 @@ def reports_page(content_area: ui.element) -> None:
                                 + {
                                     "braille":     "bg-indigo-50 text-indigo-700",
                                     "lp_ebraille": "bg-green-50 text-green-700",
+                                    "large_print": "bg-green-50 text-green-700",
+                                    "ebraille":    "bg-green-50 text-green-700",
+                                    "epub3_daisy": "bg-green-50 text-green-700",
                                     "tactile":     "bg-rose-50 text-rose-700",
                                     "print":       "bg-amber-50 text-amber-700",
                                 }.get(job.get("job_type", ""), "bg-slate-100 text-slate-600")
@@ -272,3 +307,6 @@ def reports_page(content_area: ui.element) -> None:
 
         run_btn.on("click", lambda: _run_report())
         export_btn.on("click", lambda: _export_csv())
+
+        if presets:
+            _run_report()

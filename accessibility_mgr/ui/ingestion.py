@@ -543,3 +543,136 @@ def ingestion_page(content_area: ui.element) -> None:
                         ui.label(str(f.get("created_at", ""))[:10]).classes(
                             "w-32 text-xs text-slate-400"
                         )
+
+        # ── Structural map nodes (IMP-011) ───────────────────────────────────
+        ui.label("Structural Map").classes(
+            "text-sm font-semibold text-slate-500 uppercase tracking-wider mt-8 mb-2"
+        )
+        with ui.card().classes("w-full p-5 rounded-xl border border-slate-200"):
+            ui.label("Manage Structural Map Nodes").classes(
+                "font-semibold text-slate-700 mb-2"
+            )
+            ui.label(
+                "Capture section/chapter hierarchy linked to job files."
+            ).classes("text-xs text-slate-400 mb-3")
+
+            with ui.row().classes("gap-2 w-full items-end flex-wrap"):
+                sm_job_type = ui.select(
+                    ["braille", "lp_ebraille", "tactile", "print"],
+                    value="braille",
+                    label="Job Type",
+                ).classes("w-44")
+                sm_job_id = ui.input("Job ID", placeholder="numeric id").classes("w-32")
+
+                nodes_box = ui.column().classes("w-full gap-1 mt-2")
+
+                def _render_nodes() -> None:
+                    nodes_box.clear()
+                    raw = sm_job_id.value.strip()
+                    if not raw.isdigit():
+                        with nodes_box:
+                            ui.label("Enter a numeric Job ID to view nodes.").classes(
+                                "text-xs text-slate-400"
+                            )
+                        return
+
+                    job_id = int(raw)
+                    nodes = Q.list_struct_nodes(sm_job_type.value, job_id)
+                    with nodes_box:
+                        if not nodes:
+                            ui.label("No structural nodes for this job yet.").classes(
+                                "text-xs text-slate-400"
+                            )
+                            return
+
+                        for node in nodes:
+                            with ui.row().classes(
+                                "items-center gap-2 border-b border-slate-100 py-2 last:border-0"
+                            ):
+                                ui.label(f"#{node['id']}").classes("text-xs text-slate-400 w-10")
+                                ui.label(node.get("label") or "(no label)").classes(
+                                    "text-sm text-slate-700 flex-1"
+                                )
+                                ui.badge(node.get("div_type") or "section").classes(
+                                    "text-xs bg-slate-100 text-slate-700"
+                                )
+                                if node.get("file_name"):
+                                    ui.label(node["file_name"]).classes(
+                                        "text-xs text-indigo-600 max-w-52 truncate"
+                                    )
+
+                                def _del(node_id: int = node["id"]) -> None:
+                                    Q.delete_struct_node(node_id)
+                                    notify_success("Structural node deleted")
+                                    _render_nodes()
+
+                                ui.button("Delete", on_click=_del).props("flat dense").classes(
+                                    "text-red-400 text-xs"
+                                )
+
+                def _open_add_node() -> None:
+                    raw = sm_job_id.value.strip()
+                    if not raw.isdigit():
+                        notify_error("Enter a numeric Job ID first")
+                        return
+
+                    job_id = int(raw)
+                    existing_nodes = Q.list_struct_nodes(sm_job_type.value, job_id)
+                    parent_options = ["(root)"] + [
+                        f"{n['id']}: {n['label']}" for n in existing_nodes
+                    ]
+
+                    with ui.dialog() as dlg, ui.card().classes("p-5 gap-3 w-[520px] max-w-full"):
+                        ui.label("Add Structural Node").classes("text-lg font-semibold text-slate-800")
+                        node_label = ui.input("Label*", placeholder="e.g. Chapter 1").classes("w-full")
+                        div_type = ui.input("Division Type", value="section").classes("w-full")
+                        order_num = ui.number("Order", value=len(existing_nodes), min=0).classes("w-full")
+                        parent_sel = ui.select(parent_options, value="(root)", label="Parent").classes("w-full")
+                        file_id = ui.input("File Object ID (optional)", placeholder="numeric id").classes("w-full")
+
+                        with ui.row().classes("justify-end gap-2 mt-2"):
+                            ui.button("Cancel", on_click=dlg.close).props("flat")
+
+                            def _save_node() -> None:
+                                label = node_label.value.strip()
+                                if not label:
+                                    notify_error("Label is required")
+                                    return
+
+                                parent_id = None
+                                if parent_sel.value and parent_sel.value != "(root)":
+                                    parent_id = int(str(parent_sel.value).split(":", 1)[0])
+
+                                file_obj_id = None
+                                file_raw = file_id.value.strip()
+                                if file_raw:
+                                    if not file_raw.isdigit():
+                                        notify_error("File Object ID must be numeric")
+                                        return
+                                    file_obj_id = int(file_raw)
+
+                                Q.add_struct_node(
+                                    job_type=sm_job_type.value,
+                                    job_id=job_id,
+                                    label=label,
+                                    parent_id=parent_id,
+                                    div_type=div_type.value.strip() or "section",
+                                    order_num=int(order_num.value or 0),
+                                    file_object_id=file_obj_id,
+                                )
+                                notify_success("Structural node added")
+                                dlg.close()
+                                _render_nodes()
+
+                            ui.button("Save", on_click=_save_node).classes("bg-indigo-600 text-white")
+
+                    dlg.open()
+
+                ui.button("Load Nodes", on_click=_render_nodes).props("flat dense").classes(
+                    "text-slate-600"
+                )
+                ui.button("+ Add Node", on_click=_open_add_node).classes(
+                    "bg-indigo-600 text-white"
+                )
+
+            _render_nodes()

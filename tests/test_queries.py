@@ -1,24 +1,55 @@
-"""Basic smoke tests for db.queries."""
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'accessibility_mgr'))
+"""Coverage tests for db.queries using a fresh in-memory SQLite DB per test."""
+
+from __future__ import annotations
+
+import sqlite3
+import uuid
+from contextlib import contextmanager
 
 import pytest
-from db.schema import init_db, DB_PATH, get_conn
-import db.queries as Q
+
+from accessibility_mgr.db import queries as Q
+from accessibility_mgr.db import schema as S
 
 
 @pytest.fixture(autouse=True)
 def fresh_db(tmp_path, monkeypatch):
-    db_file = tmp_path / "test.db"
-    import db.schema as _s
-    monkeypatch.setattr(_s, "DB_PATH", db_file)
-    monkeypatch.setattr(_s, "PRINTS_DIR", tmp_path / "prints_files")
-    monkeypatch.setattr(_s, "FILES_DIR", tmp_path / "job_files")
-    import db.queries as _q
-    monkeypatch.setattr(_q, "PRINTS_DIR", tmp_path / "prints_files")
-    monkeypatch.setattr(_q, "FILES_DIR", tmp_path / "job_files")
-    init_db()
+    db_uri = f"file:testdb_{uuid.uuid4().hex}?mode=memory&cache=shared"
+    keeper = sqlite3.connect(db_uri, uri=True)
+    keeper.row_factory = sqlite3.Row
+    keeper.execute("PRAGMA foreign_keys = ON")
+    keeper.execute("PRAGMA journal_mode = WAL")
+
+    @contextmanager
+    def _get_conn():
+        conn = sqlite3.connect(db_uri, uri=True)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    monkeypatch.setattr(S, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(S, "PRINTS_DIR", tmp_path / "prints_files")
+    monkeypatch.setattr(S, "FILES_DIR", tmp_path / "job_files")
+    monkeypatch.setattr(S, "BACKUPS_DIR", tmp_path / "backups")
+    monkeypatch.setattr(S, "ARTIFACTS_DIR", tmp_path / "artifacts")
+    monkeypatch.setattr(S, "get_conn", _get_conn)
+
+    monkeypatch.setattr(Q, "PRINTS_DIR", tmp_path / "prints_files")
+    monkeypatch.setattr(Q, "FILES_DIR", tmp_path / "job_files")
+    monkeypatch.setattr(Q, "ARTIFACTS_DIR", tmp_path / "artifacts")
+    monkeypatch.setattr(Q, "get_conn", _get_conn)
+
+    S.init_db()
     yield
+    keeper.close()
 
 
 def test_filament_crud():
@@ -39,12 +70,17 @@ def test_braille_job_workflow():
     job = Q.get_braille_job(jid)
     assert job["title"] == "Test Book"
     assert job["digitized"] == 0
+    assert job["digitized_date"] is None
     Q.complete_step("braille", jid, "digitized")
-    assert Q.get_braille_job(jid)["digitized"] == 1
+    completed = Q.get_braille_job(jid)
+    assert completed["digitized"] == 1
+    assert completed["digitized_date"] is not None
     events = Q.list_events_for_job("braille", jid)
     assert any(e["event_type"] == "STEP_COMPLETE" for e in events)
     Q.revert_step("braille", jid, "digitized")
-    assert Q.get_braille_job(jid)["digitized"] == 0
+    reverted = Q.get_braille_job(jid)
+    assert reverted["digitized"] == 0
+    assert reverted["digitized_date"] is None
 
 
 def test_job_metadata():
@@ -61,7 +97,9 @@ def test_lp_job():
     jid = Q.add_lp_job("LP Test", "large_print", requester="Bob")
     assert Q.get_lp_job(jid)["job_type"] == "large_print"
     Q.complete_step("lp_ebraille", jid, "digitized")
-    assert Q.get_lp_job(jid)["digitized"] == 1
+    job = Q.get_lp_job(jid)
+    assert job["digitized"] == 1
+    assert job["digitized_date"] is not None
 
 
 def test_pipeline_and_qa_runs():
@@ -89,33 +127,184 @@ def test_material_categories():
     assert not any(r["value"] == "wood" for r in rows3)
 
 
-def test_delete_file_object_paths(tmp_path, monkeypatch):
-    import shutil
-    import db.queries as Q
-    # Setup temp dirs
-    files_dir = tmp_path / "job_files"
-    files_dir.mkdir()
-    abs_dir = tmp_path / "artifacts"
-    abs_dir.mkdir()
-    # Monkeypatch FILES_DIR
-    monkeypatch.setattr(Q, "FILES_DIR", files_dir)
-    # Create a dummy file (relative path)
-    rel_file = files_dir / "rel.txt"
-    rel_file.write_text("relative")
-    # Insert fake row with relative path
+def test_record_delivery_updates_job_and_logs_event():
+    jid = Q.add_braille_job("Delivery Test", "literary", requester="Alice")
+
+    Q.record_delivery(
+        "braille",
+        jid,
+        delivery_method="email",
+        delivery_recipient="Teacher",
+        delivery_date="2026-06-01",
+        delivery_notes="Sent as accessible PDF",
+    )
+
+    job = Q.get_braille_job(jid)
+    assert job["delivered"] == 1
+    assert job["delivery_method"] == "email"
+    assert job["delivery_recipient"] == "Teacher"
+
+    events = Q.list_events_for_job("braille", jid)
+    assert any(e["event_type"] == "DELIVERY" for e in events)
+
+
+def test_backfill_metadata_keys_merges_duplicate_target_values():
+    jid = Q.add_braille_job("Backfill Test", "math")
+    Q.set_job_metadata("braille", jid, "dc:title", "Approved")
+    Q.set_job_metadata("braille", jid, "dc title", "Typo Variant")
+
+    result = Q.backfill_metadata_keys(["dc:title", "dc:creator"])
+
+    assert result["mappings"].get("dc title") == "dc:title"
+    merged = Q.get_job_metadata("braille", jid, "dc:title")
+    assert merged == "Approved | Typo Variant"
+
+    keys = {row["meta_key"] for row in Q.list_distinct_metadata_keys()}
+    assert "dc title" not in keys
+
+
+def test_search_all_supports_sha256_exact_match_branch(tmp_path):
+    src = tmp_path / "sample.txt"
+    src.write_text("search checksum payload", encoding="utf-8")
+
+    file_id = Q.ingest_file(str(src), format_name="txt")
+    checksum = Q.get_file_object(file_id)["checksum_sha256"]
+
+    results = Q.search_all(checksum)
+    assert any(row["id"] == file_id for row in results["files"])
+
+
+def test_report_jobs_filter_combinations():
+    student_id = Q.add_student(
+        last_name="Lopez",
+        first_name="Ana",
+        school="North High",
+        grade="8",
+    )
+
+    braille_id = Q.add_braille_job(
+        "Biology",
+        "science",
+        requester="Dept",
+        student_id=student_id,
+    )
     with Q.get_conn() as conn:
-        conn.execute("INSERT INTO file_object (original_name, stored_path) VALUES (?, ?)", ("rel.txt", "rel.txt"))
-        rel_id = conn.execute("SELECT id FROM file_object WHERE stored_path = ?", ("rel.txt",)).fetchone()[0]
-    # Delete relative file
+        conn.execute(
+            "UPDATE braille_job SET created_at = ? WHERE id = ?",
+            ("2026-05-01", braille_id),
+        )
+    Q.complete_step("braille", braille_id, "digitized")
+    Q.set_job_metadata("braille", braille_id, "dc:coverage", "North High")
+    Q.set_job_metadata("braille", braille_id, "grade_level", "8")
+
+    delivered_id = Q.add_braille_job(
+        "Chemistry",
+        "science",
+        requester="Dept",
+        student_id=student_id,
+    )
+    with Q.get_conn() as conn:
+        conn.execute(
+            "UPDATE braille_job SET created_at = ? WHERE id = ?",
+            ("2026-05-02", delivered_id),
+        )
+    Q.record_delivery(
+        "braille",
+        delivered_id,
+        delivery_method="pickup",
+        delivery_recipient="Family",
+        delivery_date="2026-05-03",
+    )
+
+    report = Q.report_jobs(
+        school="North",
+        grade="8",
+        job_type="braille",
+        status="in_progress",
+        date_from="2026-05-01",
+        date_to="2026-05-31",
+        student_id=student_id,
+    )
+
+    assert report["total_jobs"] == 1
+    assert report["jobs"][0]["id"] == braille_id
+
+
+def test_report_jobs_print_uses_printed_at_date_column():
+    with Q.get_conn() as conn:
+        printer_id = conn.execute(
+            "SELECT id FROM printer ORDER BY id LIMIT 1"
+        ).fetchone()[0]
+
+    print_id = Q.add_print_job(
+        printer_id=printer_id,
+        filament_id=None,
+        filament_used_g=0,
+        object_name="Adapter",
+    )
+    with Q.get_conn() as conn:
+        conn.execute(
+            "UPDATE print_job SET printed_at = ? WHERE id = ?",
+            ("2026-05-10", print_id),
+        )
+
+    report = Q.report_jobs(
+        job_type="print",
+        date_from="2026-05-01",
+        date_to="2026-05-31",
+    )
+    assert report["total_jobs"] == 1
+    assert report["jobs"][0]["id"] == print_id
+
+
+def test_report_jobs_preserves_lp_subtype_aliases():
+    lp_id = Q.add_lp_job(
+        "Algebra Large Print",
+        "large_print",
+        requester="Dept",
+    )
+    eb_id = Q.add_lp_job(
+        "Algebra eBraille",
+        "ebraille",
+        requester="Dept",
+    )
+
+    report = Q.report_jobs(job_type="lp_ebraille")
+    by_id = {row["id"]: row for row in report["jobs"]}
+
+    assert by_id[lp_id]["job_type"] == "large_print"
+    assert by_id[eb_id]["job_type"] == "ebraille"
+
+
+def test_delete_file_object_paths(tmp_path):
+    rel_file = Q.FILES_DIR / "rel.txt"
+    rel_file.parent.mkdir(parents=True, exist_ok=True)
+    rel_file.write_text("relative", encoding="utf-8")
+
+    with Q.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO file_object (uuid, original_name, stored_path) VALUES (?, ?, ?)",
+            ("u1", "rel.txt", "rel.txt"),
+        )
+        rel_id = conn.execute(
+            "SELECT id FROM file_object WHERE stored_path = ?", ("rel.txt",)
+        ).fetchone()[0]
+
     Q.delete_file_object(rel_id)
     assert not rel_file.exists()
-    # Create a dummy file (absolute path)
-    abs_file = abs_dir / "abs.txt"
-    abs_file.write_text("absolute")
-    # Insert fake row with absolute path
+
+    abs_file = tmp_path / "artifacts" / "abs.txt"
+    abs_file.parent.mkdir(parents=True, exist_ok=True)
+    abs_file.write_text("absolute", encoding="utf-8")
+
     with Q.get_conn() as conn:
-        conn.execute("INSERT INTO file_object (original_name, stored_path) VALUES (?, ?)", ("abs.txt", str(abs_file)))
-        abs_id = conn.execute("SELECT id FROM file_object WHERE stored_path = ?", (str(abs_file),)).fetchone()[0]
-    # Delete absolute file
+        conn.execute(
+            "INSERT INTO file_object (uuid, original_name, stored_path) VALUES (?, ?, ?)",
+            ("u2", "abs.txt", str(abs_file)),
+        )
+        abs_id = conn.execute(
+            "SELECT id FROM file_object WHERE stored_path = ?", (str(abs_file),)
+        ).fetchone()[0]
+
     Q.delete_file_object(abs_id)
     assert not abs_file.exists()

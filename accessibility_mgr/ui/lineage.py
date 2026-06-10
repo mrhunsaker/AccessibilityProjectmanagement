@@ -76,6 +76,8 @@ def _append_job_edges(
 
 def lineage_page(content_area: ui.element) -> None:
     """Render the Asset Lineage Viewer."""
+    page_size = 50
+    state = {"page": 1}
 
     content_area.clear()
 
@@ -85,7 +87,7 @@ def lineage_page(content_area: ui.element) -> None:
             "Derivative relationships and provenance chains across all jobs",
         )
 
-        files = Q.list_file_objects()
+        files = Q.list_file_objects(limit=300)
 
         if not files:
             with ui.card().classes(
@@ -104,21 +106,21 @@ def lineage_page(content_area: ui.element) -> None:
         )
 
         braille_jobs = {
-            job["id"]: job["title"] for job in Q.list_braille_jobs()
+            job["id"]: job["title"] for job in Q.list_braille_jobs(limit=500)
         }
 
         lp_jobs = {
-            job["id"]: job["title"] for job in Q.list_lp_jobs()
+            job["id"]: job["title"] for job in Q.list_lp_jobs(limit=500)
         }
 
         tactile_jobs = {
             job["id"]: job["title"]
-            for job in Q.list_tactile_jobs()
+            for job in Q.list_tactile_jobs(limit=500)
         }
 
         print_jobs = {
             job["id"]: job.get("object_name", "3-D Print Job")
-            for job in Q.list_print_jobs()
+            for job in Q.list_print_jobs(limit=500)
         }
 
         mermaid_lines = ["graph TD"]
@@ -177,68 +179,90 @@ def lineage_page(content_area: ui.element) -> None:
         )
 
         if len(mermaid_lines) > 1:
-            with ui.card().classes(
+            ui.label("File Registry").classes(
                 "p-4 rounded-xl border border-slate-200 w-full mb-6"
             ):
-                ui.label("Provenance Graph").classes(
-                    "font-semibold text-slate-700 mb-3"
+
+            pager_row = ui.row().classes("items-center gap-2 mb-2")
+            file_table = ui.column().classes("w-full")
+
+            def _render_file_page() -> None:
+                rows = Q.list_file_objects(
+                    limit=page_size + 1,
+                    offset=(state["page"] - 1) * page_size,
                 )
+                has_next = len(rows) > page_size
+                page_rows = rows[:page_size]
 
-                try:
-                    ui.mermaid("\n".join(mermaid_lines))
-                except Exception:
-                    ui.label("Graph could not be rendered.").classes(
-                        "text-slate-400 text-sm"
-                    )
+                pager_row.clear()
+                with pager_row:
+                    ui.button("Prev", on_click=lambda: _set_page(state["page"] - 1)).props(
+                        "flat dense"
+                    ).classes("text-slate-600").props("disable" if state["page"] <= 1 else "")
+                    ui.label(f"Page {state['page']}").classes("text-sm text-slate-500")
+                    ui.button("Next", on_click=lambda: _set_page(state["page"] + 1)).props(
+                        "flat dense"
+                    ).classes("text-slate-600").props("disable" if not has_next else "")
 
-        with ui.card().classes(
-            "w-full p-4 rounded-xl border border-slate-200 mb-6"
-        ):
-            ui.label("Unified Provenance Timeline").classes(
-                "font-semibold text-slate-700 mb-3"
-            )
+                file_table.clear()
+                with file_table:
+                    with ui.card().classes(
+                        "w-full rounded-xl border border-slate-200 overflow-hidden"
+                    ):
+                        with ui.row().classes(
+                            "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
+                            "uppercase tracking-wider border-b"
+                        ):
+                            ui.label("File Name").classes("flex-1")
+                            ui.label("Use").classes("w-28")
+                            ui.label("Format").classes("w-20")
+                            ui.label("Size").classes("w-20 text-right")
+                            ui.label("SHA-256").classes("w-40")
+                            ui.label("Ingested").classes("w-32")
 
-            for event in _provenance.list_events():
-                severity_color = {
-                    "qa_report": "text-green-600",
-                    "pipeline_retry": "text-amber-600",
-                    "metadata_update": "text-blue-600",
-                }.get(event["event_type"], "text-slate-600")
+                        for file_obj in page_rows:
+                            size = file_obj.get("size_bytes") or 0
+                            size_str = (
+                                f"{size // 1_048_576} MB"
+                                if size >= 1_048_576
+                                else f"{size // 1024} KB"
+                                if size >= 1024
+                                else f"{size} B"
+                            )
 
-                with ui.row().classes(
-                    "items-start justify-between border-b border-slate-100 py-2 gap-3"
-                ):
-                    with ui.column().classes("gap-0 flex-1"):
-                        ui.label(event["summary"]).classes(
-                            f"text-sm font-medium {severity_color}"
-                        )
+                            checksum = str(file_obj.get("checksum_sha256") or "—")
+                            checksum_short = checksum[:12] + "…" if len(checksum) > 12 else checksum
 
-                        ui.label(
-                            f"Asset #{event['asset_id']} — "
-                            f"{event['event_type']}"
-                        ).classes("text-xs text-slate-500")
+                            with ui.row().classes(
+                                "items-center px-4 py-2 border-b border-slate-50 last:border-0 gap-2"
+                            ):
+                                with ui.column().classes("flex-1 gap-0 min-w-0"):
+                                    ui.label(file_obj["original_name"]).classes(
+                                        "text-sm text-slate-700 truncate"
+                                    )
+                                    ui.label(file_obj.get("mime_type") or "").classes(
+                                        "text-xs text-slate-400"
+                                    )
 
-                    ui.label(event["created_at"][:19]).classes(
-                        "text-xs text-slate-400 font-mono"
-                    )
+                                ui.label(file_obj.get("file_use") or "—").classes(
+                                    "w-28 text-xs text-slate-500"
+                                )
+                                ui.label(file_obj.get("format_name") or "—").classes(
+                                    "w-20 text-xs text-slate-500"
+                                )
+                                ui.label(size_str).classes("w-20 text-right text-xs text-slate-500")
+                                ui.label(checksum_short).classes(
+                                    "w-40 text-xs text-slate-500 font-mono"
+                                )
+                                ui.label(str(file_obj.get("created_at") or "")[:10]).classes(
+                                    "w-32 text-xs text-slate-500"
+                                )
 
-        ui.label("File Registry").classes(
-            "text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2"
-        )
+            def _set_page(page: int) -> None:
+                state["page"] = max(1, page)
+                _render_file_page()
 
-        with ui.card().classes(
-            "w-full rounded-xl border border-slate-200 overflow-hidden"
-        ):
-            with ui.row().classes(
-                "px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-500 "
-                "uppercase tracking-wider border-b"
-            ):
-                ui.label("File Name").classes("flex-1")
-                ui.label("Use").classes("w-28")
-                ui.label("Format").classes("w-20")
-                ui.label("Size").classes("w-20 text-right")
-                ui.label("SHA-256").classes("w-40")
-                ui.label("Ingested").classes("w-32")
+            _render_file_page()
 
             for file_obj in files:
                 size = file_obj.get("size_bytes") or 0

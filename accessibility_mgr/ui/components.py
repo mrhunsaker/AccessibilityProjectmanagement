@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Callable
 
 from nicegui import ui
@@ -186,6 +187,16 @@ def notify_error(msg: str) -> None:
     
     """
     ui.notify(msg, type="negative", position="top-right")
+
+
+def validate_iso_date(value: str, label: str) -> bool:
+    """Validate YYYY-MM-DD date strings and notify on failure."""
+    try:
+        date.fromisoformat(value)
+        return True
+    except ValueError:
+        notify_error(f"{label} must be in YYYY-MM-DD format")
+        return False
 
 
 def file_use_badge(file_use: str) -> None:

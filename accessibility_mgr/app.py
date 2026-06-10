@@ -16,7 +16,8 @@ from typing import Callable
 from nicegui import app as nicegui_app
 from nicegui import ui
 
-from accessibility_mgr.db.schema import init_db
+from accessibility_mgr.api.platform_api import app as platform_api_app
+from accessibility_mgr.db.schema import DB_PATH, init_db
 from accessibility_mgr.services import tools_service
 from accessibility_mgr.services.backup_service import BackupService
 
@@ -46,6 +47,14 @@ PAGE_DEFINITIONS: list[dict] = [
         "module": "accessibility_mgr.ui.reports",
         "function": "reports_page",
         "description": "Filter and export jobs by school, grade, type, and status",
+        "group": "Overview",
+    },
+    {
+        "name": "Operations",
+        "icon": "insights",
+        "module": "accessibility_mgr.ui.operations_dashboard",
+        "function": "operations_dashboard_page",
+        "description": "Operational KPI and analytics dashboard",
         "group": "Overview",
     },
     # ── Production Jobs ───────────────────────────────────────────────────────
@@ -181,6 +190,14 @@ PAGE_DEFINITIONS: list[dict] = [
         "description": "Categories, metadata, steps, printers, embossers, and backups",
         "group": "Admin",
     },
+    {
+        "name": "Security Dashboard",
+        "icon": "security",
+        "module": "accessibility_mgr.ui.security_dashboard",
+        "function": "security_dashboard_page",
+        "description": "Role and authorization visibility",
+        "group": "Admin",
+    },
 ]
 
 
@@ -204,6 +221,8 @@ for _defn in PAGE_DEFINITIONS:
 
 tools_service.bootstrap()
 init_db()
+print(f"[app] Database path: {DB_PATH}")
+nicegui_app.mount("/api", platform_api_app)
 BackupService.start()
 
 
@@ -242,9 +261,28 @@ def _shutdown() -> None:
 def index() -> None:
     ui.page_title(APP_TITLE)
 
+    def _global_shortcuts(e) -> None:
+        if getattr(e, "action", "") != "keydown":
+            return
+        if str(getattr(e, "key", "")).lower() == "escape":
+            ui.run_javascript(
+                """
+                document.querySelectorAll('.q-dialog').forEach((el) => {
+                  const vm = el.__vueParentComponent && el.__vueParentComponent.proxy;
+                  if (vm && typeof vm.hide === 'function') {
+                    vm.hide();
+                  }
+                });
+                """
+            )
+
+    ui.keyboard(on_key=_global_shortcuts)
+
     groups: dict[str, list[dict]] = {}
     for page in PAGES:
         groups.setdefault(page["group"], []).append(page)
+
+    stored_page_name = str(nicegui_app.storage.user.get("active_page_name", ""))
 
     with ui.column().classes("w-full h-[100dvh] overflow-hidden min-h-0"):
         with ui.row().classes(
@@ -259,7 +297,7 @@ def index() -> None:
         with ui.row().classes("flex-1 w-full no-wrap overflow-hidden min-h-0"):
             with ui.column().classes(
                 "h-full bg-slate-900 text-white p-4 gap-1 shadow-xl overflow-y-auto min-h-0"
-            ).style("min-width:240px; max-width:240px"):
+            ).style("min-width:240px; max-width:240px").props("id=sidebar-nav"):
 
                 ui.label(APP_TITLE).classes("text-lg font-bold leading-tight mb-1")
                 ui.label("Accessibility Workflow Platform").classes(
@@ -269,6 +307,20 @@ def index() -> None:
                 active_page: list[dict | None] = [None]
                 btn_refs: dict[str, ui.button] = {}
 
+                def _activate_page(p: dict) -> None:
+                    for b in btn_refs.values():
+                        b.classes(
+                            remove="bg-slate-700 text-white",
+                            add="text-slate-300",
+                        )
+                    btn_refs[p["name"]].classes(
+                        remove="text-slate-300",
+                        add="bg-slate-700 text-white",
+                    )
+                    active_page[0] = p
+                    nicegui_app.storage.user["active_page_name"] = p["name"]
+                    render_page(content_area, p)
+
                 for group_name, group_pages in groups.items():
                     ui.label(group_name).classes(
                         "text-xs text-slate-400 uppercase tracking-widest mt-3 mb-1 px-2"
@@ -276,17 +328,7 @@ def index() -> None:
                     for page in group_pages:
                         def _make_click(p: dict) -> Callable:
                             def _click() -> None:
-                                for b in btn_refs.values():
-                                    b.classes(
-                                        remove="bg-slate-700 text-white",
-                                        add="text-slate-300",
-                                    )
-                                btn_refs[p["name"]].classes(
-                                    remove="text-slate-300",
-                                    add="bg-slate-700 text-white",
-                                )
-                                active_page[0] = p
-                                render_page(content_area, p)
+                                _activate_page(p)
                             return _click
 
                         btn = (
@@ -309,12 +351,27 @@ def index() -> None:
                 content_area = ui.column().classes("w-full p-6 pb-20 gap-4 min-h-0")
 
                 if PAGES:
-                    first = PAGES[0]
-                    btn_refs[first["name"]].classes(
-                        remove="text-slate-300",
-                        add="bg-slate-700 text-white",
-                    )
-                    render_page(content_area, first)
+                                        initial = next(
+                                                (p for p in PAGES if p["name"] == stored_page_name),
+                                                PAGES[0],
+                                        )
+                                        _activate_page(initial)
+
+                                ui.run_javascript(
+                                        """
+                                        const sidebar = document.getElementById('sidebar-nav');
+                                        if (sidebar) {
+                                            const key = 'apm.sidebar.scrollTop';
+                                            const saved = window.localStorage.getItem(key);
+                                            if (saved !== null) {
+                                                sidebar.scrollTop = Number(saved) || 0;
+                                            }
+                                            sidebar.addEventListener('scroll', () => {
+                                                window.localStorage.setItem(key, String(sidebar.scrollTop));
+                                            }, { passive: true });
+                                        }
+                                        """
+                                )
 
         with ui.row().classes(
             "w-full shrink-0 items-center justify-between gap-4 border-t border-slate-200 "

@@ -181,7 +181,13 @@ backups/
 uv sync
 ```
 
-### Run the Application
+### Run
+
+```bash
+uv run AccessMan
+```
+
+Or directly:
 
 ```bash
 uv run python accessibility_mgr/app.py

@@ -9,9 +9,12 @@ Provides initial API endpoints for:
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+import os
+
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 
 from ..services.analytics import AnalyticsService
+from ..services.authentication import AuthenticationService
 from ..services.provenance_registry import ProvenanceRegistry
 from ..services.workflow_queue import WorkflowQueueService
 
@@ -24,6 +27,35 @@ app = FastAPI(
 _queue = WorkflowQueueService()
 _analytics = AnalyticsService()
 _provenance = ProvenanceRegistry()
+_auth = AuthenticationService()
+
+_require_api_key = os.getenv("ACCESSMAN_API_AUTH_REQUIRED", "0").lower() in {
+    "1", "true", "yes", "on"
+}
+_configured_api_key = os.getenv("ACCESSMAN_API_KEY", "").strip()
+if _configured_api_key:
+    _auth.register_api_token(
+        owner="configured-api-user",
+        raw_token=_configured_api_key,
+        expiration_hours=24 * 365 * 20,
+    )
+
+
+def _require_api_auth(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> None:
+    if not _require_api_key:
+        return
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-API-Key header",
+        )
+    if not _auth.validate_token(x_api_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
 
 
 @app.get("/health")
@@ -35,7 +67,7 @@ def healthcheck() -> dict:
 
 
 @app.get("/workflows")
-def list_workflows() -> dict:
+def list_workflows(_: None = Depends(_require_api_auth)) -> dict:
     return {
         "jobs": _queue.list_jobs(),
     }
@@ -46,6 +78,7 @@ def enqueue_workflow(
     workflow_name: str,
     asset_id: int,
     priority: int = 5,
+    _: None = Depends(_require_api_auth),
 ) -> dict:
     job = _queue.enqueue(
         workflow_name=workflow_name,
@@ -61,12 +94,12 @@ def enqueue_workflow(
 
 
 @app.get("/analytics")
-def analytics_summary() -> dict:
+def analytics_summary(_: None = Depends(_require_api_auth)) -> dict:
     return _analytics.summarize()
 
 
 @app.get("/provenance")
-def provenance_events() -> dict:
+def provenance_events(_: None = Depends(_require_api_auth)) -> dict:
     return {
         "events": _provenance.list_events(),
     }

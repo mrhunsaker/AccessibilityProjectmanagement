@@ -1,6 +1,4 @@
-"""Seed import module.
-
-"""
+"""Import inventory seed data from CSV into the project database."""
 from __future__ import annotations
 
 import argparse
@@ -16,9 +14,7 @@ from .schema import get_conn, init_db
 
 @dataclass
 class ImportStats:
-    """ImportStats class.
-    
-    """
+    """Counts of inserted and skipped records by inventory category."""
     electronics_added: int = 0
     electronics_skipped: int = 0
     filament_added: int = 0
@@ -398,14 +394,7 @@ def _cost_per_kg_from_spool(spool_cost: float, spool_grams: float) -> float | No
 
 
 def inventory_totals() -> dict[str, float]:
-    """Inventory totals.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return aggregate row and quantity totals for inventory tables."""
     with get_conn() as conn:
         electronics_rows = conn.execute("SELECT COUNT(*) AS c, COALESCE(SUM(quantity), 0) AS q FROM electronics").fetchone()
         filament_rows = conn.execute(
@@ -458,19 +447,7 @@ def import_seed_csv(
     filament_spool_cost: float | None = None,
     dry_run: bool = False,
 ) -> ImportStats:
-    """Import seed csv.
-    
-    Parameters
-    ----------
-    csv_path : Any
-        csv_path parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Import inventory records from a CSV file and return import stats."""
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV not found: {csv_path}")
 
@@ -662,14 +639,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    """Main.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """CLI entry point for importing seed inventory data."""
     args = _build_parser().parse_args()
 
     if args.verify_only:

@@ -13,7 +13,7 @@ from datetime import date
 from nicegui import ui
 
 from ..db import queries as Q
-from .components import notify_success
+from .components import notify_success, validate_iso_date
 
 _DELIVERY_METHODS = [
     "Physical Copy",
@@ -88,6 +88,8 @@ def open_delivery_dialog(
                     return
                 if not date_inp.value.strip():
                     ui.notify("Delivery date is required", type="negative", position="top-right")
+                    return
+                if not validate_iso_date(date_inp.value.strip(), "Delivery Date"):
                     return
 
                 Q.record_delivery(
