@@ -34,156 +34,96 @@ The application provides dedicated workflow pages for:
 - Braille jobs
 - Large print jobs
 - eBraille jobs
-- EPUB3 / DAISY jobs
-- Tactile graphics jobs
-- 3‑D print jobs
-- Student production history
+# Accessibility Project Manager
 
-Each workflow type is tracked independently through configurable production stages.
+A NiceGUI-based local web application for accessibility production teams. It manages braille, large print, eBraille, EPUB3/DAISY, tactile graphics, and 3-D printing workflows, with student records, file ingestion, metadata management, QA tooling, inventory, backups, and an API surface backed by SQLite.
 
-### Inventory Management
+## What the application does
 
-The system includes inventory management for:
+### Production tracking
 
-- 3‑D printer filament
-- Braille paper and media stock
-- Electronics and accessibility hardware components
+Dedicated pages track each workflow lifecycle with step completion, reversion, delivery capture, and event logging:
 
-### File Ingestion and Metadata
+- Braille
+- Large Print
+- eBraille
+- EPUB3 / DAISY
+- Tactile Graphics
+- 3-D Print
 
-The application supports:
+Each job can store Dublin Core, eBraille profile, and METS/PREMIS-aligned metadata, support step-level file attachments, and link to a student record.
 
-- Structured file ingestion
-- Persistent file path tracking
-- SHA‑256 checksum generation
-- Metadata editing
-- File/job linkage
-- Provenance and lineage visualization
+### File ingestion and preservation
 
-### QA and Automation
+Files can be ingested from a local path or browser upload. The system computes SHA-256 checksums, stores size and MIME type, copies files into `artifacts/<Project Title>/...`, records file-use classification, and logs PREMIS-style ingest events.
 
-The platform includes interfaces and execution hooks for external accessibility tooling including:
+### Search and reports
 
-- DAISY Ace
-- EPUBCheck
-- Liblouis
-- BRLTTY
-- Pandoc
-- DAISY Pipeline 2
+Search covers job tables, metadata, students, file records, and the event log. A 64-character hex string triggers an exact checksum match. Reports filter by school, grade, type, status, date range, and student, and export as CSV.
 
-Pipeline execution history and QA runs are stored in the database.
+### Inventory management
+
+- Filament: brand, colour, type, diameter, quantity, cost per kg, supplier
+- Braille paper: paper type, size, label type, quantity, supplier
+- Electronics: configurable categories for boards, switches, wire, jacks, and similar components
+
+Low-stock warnings are shown for filament and paper inventory.
+
+### Operations and API
+
+The dashboard includes quick navigation cards, a quick-create launcher, and an upcoming deadlines widget. The REST API is mounted under `/api` and can be protected with `ACCESSMAN_API_AUTH_REQUIRED=1` and `ACCESSMAN_API_KEY=...`.
+
+### QA and automation
+
+The application integrates external tooling such as DAISY Ace, EPUBCheck, Liblouis, BRLTTY, Pandoc, and DAISY Pipeline 2. Runs are stored in the database and can be associated with jobs.
+
+### Provenance and lineage
+
+Significant operations write typed events to `metadata_event`, including create, update, delete, step completion, ingest, metadata update, QA run, delivery, and note entries. The Lineage Viewer shows file-to-job relationships and provenance history.
 
 ### Administration
 
-Administrative pages allow configuration of:
+Admin pages manage material categories, workflow steps, printers, embossers, metadata options, backups, and other configuration data.
 
-- Workflow steps
-- Metadata vocabularies
-- Material categories
-- Printers and embossers
-- Backup management
+### Backups
 
----
+SQLite backups run automatically after startup and on a weekly schedule. Backups are written to `backups/accessibility_manager_YYYYMMDD_HHMMSS.db` and the most recent entries are kept by the retention policy.
 
-## Application Architecture
+## Application architecture
 
-### Frontend
+The app runs locally on `http://localhost:8765`. Database location is configurable with `ACCESSMAN_DB_PATH`; if unset, a user-data-directory default is used.
 
-- NiceGUI
-- Component-driven page modules
-- Sidebar navigation grouped by workflow domain
+| Layer | Technology |
+|---|---|
+| UI framework | NiceGUI |
+| Database | SQLite with WAL journaling |
+| Language | Python 3.9+ |
+| Package manager | uv |
 
-### Backend
-
-- Python 3.9+
-- SQLite database
-- SQLAlchemy
-
-### Services
-
-Implemented services include:
-
-- Database initialization
-- Tool path resolution
-- Automated backup scheduling
-- Inventory seeding/import utilities
-
----
-
-## Implemented Navigation Structure
-
-### Overview
-
-- Dashboard
-- Search
-- Reports
-
-### Production
-
-- Students
-- Braille Jobs
-- Large Print Jobs
-- eBraille Jobs
-- EPUB3 / DAISY Jobs
-- Tactile Graphics
-- 3‑D Print Jobs
-
-### Inventory
-
-- Filament
-- Braille Paper
-- Electronics
-
-### Metadata & Files
-
-- File Ingestion
-- Metadata Editor
-- Lineage Viewer
-
-### QA & Automation
-
-- QA Tooling
-- Pipelines
-
-### Admin
-
-- Admin Settings
-
----
-
-## Repository Structure
+## Repository structure
 
 ```text
 accessibility_mgr/
-├── app.py                  # NiceGUI application entry point
-├── db/                     # Database schema and persistence
-├── services/               # Backup, tools, and utility services
-├── ui/                     # Page modules and interface logic
-└── resources/              # Static resources and icons
+├── app.py
+├── api/
+├── db/
+├── services/
+└── ui/
 ```
 
 Runtime storage directories created by the application include:
 
 ```text
 artifacts/
-prints_files/
 job_files/
+prints_files/
 backups/
 ```
 
----
-
 ## Installation
-
-### Install Dependencies
 
 ```bash
 uv sync
-```
-
-### Run
-
-```bash
 uv run AccessMan
 ```
 
@@ -193,69 +133,11 @@ Or directly:
 uv run python accessibility_mgr/app.py
 ```
 
-Or:
+## External tool configuration
 
-```bash
-uv run AccessMan
-```
-
-The application runs locally on:
-
-```text
-http://localhost:8765
-```
-
----
-
-## Optional External Tooling
-
-Some QA and pipeline functionality depends on external utilities being installed separately.
-
-Supported integrations currently include:
-
-- DAISY Ace
-- EPUBCheck
-- Liblouis
-- BRLTTY
-- Pandoc
-- DAISY Pipeline 2
-
-Tool paths can be configured through `tools.ini`.
-
----
-
-## Database
-
-The application uses SQLite with WAL journaling enabled.
-
-Core persisted domains include:
-
-- Jobs
-- Files
-- Metadata
-- Event history
-- Inventory
-- Workflow definitions
-- QA runs
-- Pipeline runs
-- Backup logs
-
----
-
-## Development Notes
-
-Current implementation emphasis is on:
-
-- Operational workflow organization
-- Traceability and audit history
-- Accessibility production recordkeeping
-- Preservation-oriented file handling
-- Local-first deployment
-
-The codebase is organized around modular NiceGUI pages and service-layer utilities.
-
----
+Copy `tools.ini.example` to `tools.ini` at the project root to configure custom paths or add extra `PATH` directories.
 
 ## License
 
 MIT License
+The Lineage Viewer renders a Mermaid graph of file-to-job relationships across all production types, and displays the full provenance timeline.

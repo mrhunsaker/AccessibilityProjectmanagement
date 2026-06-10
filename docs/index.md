@@ -8,6 +8,7 @@ Accessibility Project Management is a NiceGUI-based production system for access
 - Database schema and query helpers
 - Services that coordinate workflow execution and tool discovery
 - UI pages, dialogs, and shared components
+- Mounted FastAPI API and internal API facade
 - Legacy SQLAlchemy data models
 - Artifact-based ingestion and file placement conventions
 - Metadata governance options and admin tooling
@@ -15,6 +16,10 @@ Accessibility Project Management is a NiceGUI-based production system for access
 
 ## Recent updates
 
+- The REST API is mounted at `/api` and supports optional API-key authentication.
+- Dashboard cards, a quick-create launcher, and an upcoming deadlines widget improve operator navigation.
+- Job detail pages now support export summaries, bulk actions, and overdue due-date highlighting.
+- Search uses FTS5 indexes where available and falls back to SQLite `LIKE` queries when needed.
 - Ingestion routes source files to `artifacts/<Project Title>/` with structured
   filenames and preservation-aware metadata linkage.
 - Metadata entry is constrained to governed option sets, with Dublin Core field

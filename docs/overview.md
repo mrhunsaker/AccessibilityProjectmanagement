@@ -4,7 +4,7 @@ This project is organized into a small number of layers so that the UI, data acc
 
 ## Application layer
 
-[`accessibility_mgr.app`](reference/app.md) is the NiceGUI entrypoint. It registers the page handlers, boots the database, configures the UI favicon, and starts the server.
+[`accessibility_mgr.app`](reference/app.md) is the NiceGUI entrypoint. It registers the page handlers, mounts the FastAPI API under `/api`, boots the database, configures the UI favicon, and starts the server.
 
 ## Data layer
 
@@ -15,14 +15,14 @@ inventory, metadata editing, and workflow UIs.
 
 ## Services layer
 
-[`accessibility_mgr.services.workflow_engine`](reference/services.md) contains legacy workflow validation helpers. [`accessibility_mgr.services.tools_service`](reference/services.md) normalizes external command paths for docs, validation, and accessibility tooling.
+[`accessibility_mgr.services.authentication`](reference/services.md) provides the token registry used by the mounted API. [`accessibility_mgr.services.tools_service`](reference/services.md) normalizes external command paths for docs, validation, and accessibility tooling.
 
 Pipeline orchestration is handled by the pipeline services; DAISY Pipeline is
 registered in the Pipelines domain rather than QA Tooling.
 
 ## UI layer
 
-The pages under [`accessibility_mgr.ui`](reference/ui.md) implement the dashboard, inventory management, production workflows, search, metadata editing, QA, and administration screens.
+The pages under [`accessibility_mgr.ui`](reference/ui.md) implement the dashboard, inventory management, production workflows, search, metadata editing, QA, administration screens, and the shared quick-create / bulk-action UX.
 
 Recent UI behavior includes:
 
@@ -31,6 +31,7 @@ Recent UI behavior includes:
 - EPUB3/DAISY job flows under production pages.
 - Electronics inventory category rendering for both populated and empty
   categories, including inline category creation support.
+- Dashboard quick navigation, upcoming deadline visibility, and overdue due-date highlighting.
 
 ## Legacy data models
 

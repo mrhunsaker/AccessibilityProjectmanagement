@@ -12,6 +12,10 @@ architecture audit.
 - Reclassified DAISY Pipeline under Pipelines instead of QA Tooling.
 - Improved electronics inventory category UX to display empty categories and
   support required inline category creation.
+- Mounted the REST API under `/api` with optional API-key authentication.
+- Added export summaries, bulk actions, quick-create shortcuts, and upcoming-deadline widgets.
+- Added FTS5-backed search indexes with a SQLite fallback path.
+- Added workflow step completion timestamps and serialized backup execution.
 
 ---
 
