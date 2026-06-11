@@ -13,9 +13,12 @@ import inspect
 from importlib import import_module
 from pathlib import Path
 from typing import Callable
+import logging
 
 from nicegui import app as nicegui_app
 from nicegui import ui
+
+log = logging.getLogger(__name__)
 
 from accessibility_mgr.api.platform_api import app as platform_api_app
 from accessibility_mgr.db.schema import DB_PATH, init_db
@@ -206,18 +209,20 @@ def _load_handler(module_name: str, function_name: str) -> Callable | None:
     try:
         mod = import_module(module_name)
     except Exception as exc:
-        print(f"[app] Could not import {module_name}: {exc}")
+        log.error("Could not import %s: %s", module_name, exc)
         return None
     return getattr(mod, function_name, None)
 
 
 PAGES: list[dict] = []
+FAILED_PAGES: list[dict] = []
 for _defn in PAGE_DEFINITIONS:
     _handler = _load_handler(_defn["module"], _defn["function"])
     if _handler is not None:
         PAGES.append({**_defn, "handler": _handler})
     else:
-        print(f"[app] WARNING: handler not found for {_defn['name']}")
+        log.error("Handler not found for page '%s' (%s.%s)", _defn["name"], _defn["module"], _defn["function"])
+        FAILED_PAGES.append(_defn)
 
 
 tools_service.bootstrap()
@@ -258,8 +263,56 @@ def _shutdown() -> None:
     nicegui_app.shutdown()
 
 
+def _is_authenticated() -> bool:
+    """Return True when the current browser session has a valid login."""
+    return bool(nicegui_app.storage.user.get("authenticated", False))
+
+
+@ui.page("/login")
+def login_page() -> None:
+    """Password-protected login page."""
+    import hashlib
+
+    ui.page_title("Login — " + APP_TITLE)
+    _expected_hash = os.getenv("ACCESSMAN_PASSWORD_HASH", "").strip()
+
+    if not _expected_hash:
+        # No password configured — auto-approve single-operator deployments.
+        nicegui_app.storage.user["authenticated"] = True
+        ui.navigate.to("/")
+        return
+
+    if _is_authenticated():
+        ui.navigate.to("/")
+        return
+
+    with ui.column().classes("items-center justify-center w-full min-h-screen bg-slate-100"):
+        with ui.card().classes("p-8 gap-4 w-80 shadow-xl rounded-2xl"):
+            ui.label(APP_TITLE).classes("text-base font-bold text-slate-700 text-center")
+            ui.label("Sign in to continue").classes("text-sm text-slate-400 text-center mb-2")
+            pw = ui.input("Password", password=True, password_toggle_button=True).classes(
+                "w-full"
+            )
+            err = ui.label("").classes("text-red-500 text-xs")
+
+            def _login() -> None:
+                entered = hashlib.sha256(pw.value.encode()).hexdigest()
+                if entered == _expected_hash:
+                    nicegui_app.storage.user["authenticated"] = True
+                    ui.navigate.to("/")
+                else:
+                    err.set_text("Incorrect password")
+                    pw.set_value("")
+
+            ui.button("Sign In", on_click=_login).classes("w-full bg-blue-600 text-white")
+            pw.on("keydown.enter", lambda: _login())
+
+
 @ui.page("/")
-def index() -> None:
+def index() -> None:  # noqa: C901 - top-level page builder; complexity comes from sidebar layout.
+    if not _is_authenticated():
+        ui.navigate.to("/login")
+        return
     ui.page_title(APP_TITLE)
 
     def _global_shortcuts(e) -> None:
@@ -289,6 +342,15 @@ def index() -> None:
         with ui.row().classes(
             "w-full bg-white border-b border-slate-200 px-6 py-3 items-center justify-end shadow-sm"
         ):
+            def _logout() -> None:
+                nicegui_app.storage.user["authenticated"] = False
+                ui.navigate.to("/login")
+
+            ui.button(icon="person_off", on_click=_logout).props(
+                "flat round dense"
+            ).classes(
+                "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            ).tooltip("Log out")
             ui.button(icon="logout", on_click=_shutdown).props(
                 "flat round dense"
             ).classes(
@@ -345,6 +407,23 @@ def index() -> None:
                             )
                         )
                         btn_refs[page["name"]] = btn
+
+                # ── Failed pages — show as disabled with error indicator ────
+                if FAILED_PAGES:
+                    ui.separator().classes("border-red-800 mt-2 mb-1")
+                    ui.label("Failed to load").classes(
+                        "text-xs text-red-400 uppercase tracking-wider px-2 mb-1"
+                    )
+                    for fp in FAILED_PAGES:
+                        (
+                            ui.button(fp["name"], icon="error_outline")
+                            .props("flat align=left disable")
+                            .classes(
+                                "w-full justify-start text-left text-red-400 "
+                                "opacity-60 cursor-not-allowed rounded-lg px-2 py-1"
+                            )
+                            .tooltip(f"Import failed: {fp['module']}.{fp['function']}")
+                        )
 
             with ui.column().classes(
                 "flex-1 h-full overflow-auto bg-slate-50 min-h-0"

@@ -203,7 +203,7 @@ def _student_detail(student: dict, content_area: ui.element, refresh_cb) -> None
                                         ui.label(title).classes(
                                             "font-semibold text-slate-800 truncate"
                                         )
-                                        priority_badge(job.get("priority", "normal"))
+                                        priority_badge(job.get("priority") or "normal")
                                         if job.get("delivery_date"):
                                             ui.badge("✓ Delivered").classes(
                                                 "text-xs bg-green-100 text-green-700 rounded px-2"
@@ -253,21 +253,47 @@ def students_page(content_area: ui.element) -> None:
             ).classes("w-64").props("outlined dense clearable")
             show_inactive = ui.checkbox("Show inactive", value=False)
 
-        students = Q.list_students(active_only=True)
-        all_students = Q.list_students(active_only=False)
+        _page_size = 50
+        _state: dict = {"page": 1}
 
         grid = ui.element("div").classes("grid gap-3 w-full")
+        pager_row = ui.row().classes("items-center gap-2 mb-3")
 
         def _render_list() -> None:
             grid.clear()
-            q = (search_inp.value or "").lower()
-            pool = all_students if show_inactive.value else students
-            filtered = [
-                s for s in pool
-                if q in s["last_name"].lower()
-                or q in s["first_name"].lower()
-                or q in (s.get("school") or "").lower()
-            ] if q else pool
+
+            search_val = search_inp.value.strip() or None
+            active_only = not show_inactive.value
+            page = _state["page"]
+
+            rows = Q.list_students_page(
+                search=search_val,
+                active_only=active_only,
+                limit=_page_size + 1,
+                offset=(page - 1) * _page_size,
+            )
+            has_next = len(rows) > _page_size
+            filtered = rows[:_page_size]
+
+            # Batch-fetch job counts.
+            sid_list = [s["id"] for s in filtered]
+            job_count_map = Q.count_jobs_for_students(sid_list)
+
+            pager_row.clear()
+            with pager_row:
+                def _prev() -> None:
+                    _state["page"] = max(1, _state["page"] - 1)
+                    _render_list()
+                def _next() -> None:
+                    _state["page"] += 1
+                    _render_list()
+                ui.button("Prev", on_click=_prev).props("flat dense").classes("text-slate-600").props(
+                    "disable" if page <= 1 else ""
+                )
+                ui.label(f"Page {page}").classes("text-sm text-slate-500")
+                ui.button("Next", on_click=_next).props("flat dense").classes("text-slate-600").props(
+                    "" if has_next else "disable"
+                )
 
             with grid:
                 if not filtered:
@@ -277,9 +303,7 @@ def students_page(content_area: ui.element) -> None:
                     return
 
                 for student in filtered:
-                    # Count linked jobs
-                    job_counts = Q.list_jobs_for_student(student["id"])
-                    total_jobs = sum(len(v) for v in job_counts.values())
+                    total_jobs = job_count_map.get(student["id"], 0)
                     active = bool(student.get("active", 1))
 
                     with ui.card().classes(
@@ -316,4 +340,6 @@ def students_page(content_area: ui.element) -> None:
 
         search_inp.on("update:model-value", lambda _: _render_list())
         show_inactive.on("update:model-value", lambda _: _render_list())
+
         _render_list()
+

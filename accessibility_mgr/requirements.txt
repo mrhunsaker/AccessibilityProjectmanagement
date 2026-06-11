@@ -2,3 +2,4 @@ nicegui
 sqlalchemy
 pydantic
 alembic
+cryptography

@@ -28,6 +28,7 @@ dependencies = [
     "nicegui>=1.4.0",
     "textual>=0.80.0",
     "sqlalchemy>=2.0.0",
+    "cryptography>=42.0.0",
     "tox>=4.30.3",
 ]
 

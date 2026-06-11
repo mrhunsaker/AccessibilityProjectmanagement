@@ -14,29 +14,34 @@ from .components import section_header
 
 _provenance = ProvenanceRegistry()
 
+_dev_seeded = False
 
-# Seed representative provenance events for UI visualization.
-_provenance.register_event(
-    asset_id=1,
-    event_type="metadata_update",
-    summary="Accessibility metadata updated",
-    metadata={"editor": "operator"},
-)
 
-_provenance.register_event(
-    asset_id=1,
-    event_type="qa_report",
-    summary="DAISY Ace QA report generated",
-    metadata={"score": 100},
-)
-
-_provenance.register_event(
-    asset_id=2,
-    event_type="pipeline_retry",
-    summary="Accessibility pipeline retry requested",
-    metadata={"retry_count": 1},
-)
-
+def _seed_dev_provenance() -> None:
+    """Seed representative provenance events once per session (dev only)."""
+    import os
+    global _dev_seeded  # noqa: PLW0603
+    if _dev_seeded or os.getenv("ACCESSMAN_DEV", "0").lower() not in {"1", "true", "yes"}:
+        return
+    _dev_seeded = True
+    _provenance.register_event(
+        asset_id=1,
+        event_type="metadata_update",
+        summary="Accessibility metadata updated",
+        metadata={"editor": "operator"},
+    )
+    _provenance.register_event(
+        asset_id=1,
+        event_type="qa_report",
+        summary="DAISY Ace QA report generated",
+        metadata={"score": 100},
+    )
+    _provenance.register_event(
+        asset_id=2,
+        event_type="pipeline_retry",
+        summary="Accessibility pipeline retry requested",
+        metadata={"retry_count": 1},
+    )
 
 def _append_job_edges(
     mermaid_lines: list[str],
@@ -76,6 +81,7 @@ def _append_job_edges(
 
 def lineage_page(content_area: ui.element) -> None:
     """Render the Asset Lineage Viewer."""
+    _seed_dev_provenance()
     page_size = 50
     state = {"page": 1}
 
@@ -88,6 +94,8 @@ def lineage_page(content_area: ui.element) -> None:
         )
 
         files = Q.list_file_objects(limit=300)
+        _GRAPH_NODE_LIMIT = 50
+        _JOB_LOAD_LIMIT   = 100
 
         if not files:
             with ui.card().classes(
@@ -106,21 +114,21 @@ def lineage_page(content_area: ui.element) -> None:
         )
 
         braille_jobs = {
-            job["id"]: job["title"] for job in Q.list_braille_jobs(limit=500)
+            job["id"]: job["title"] for job in Q.list_braille_jobs(limit=_JOB_LOAD_LIMIT)
         }
 
         lp_jobs = {
-            job["id"]: job["title"] for job in Q.list_lp_jobs(limit=500)
+            job["id"]: job["title"] for job in Q.list_lp_jobs(limit=_JOB_LOAD_LIMIT)
         }
 
         tactile_jobs = {
             job["id"]: job["title"]
-            for job in Q.list_tactile_jobs(limit=500)
+            for job in Q.list_tactile_jobs(limit=_JOB_LOAD_LIMIT)
         }
 
         print_jobs = {
             job["id"]: job.get("object_name", "3-D Print Job")
-            for job in Q.list_print_jobs(limit=500)
+            for job in Q.list_print_jobs(limit=_JOB_LOAD_LIMIT)
         }
 
         mermaid_lines = ["graph TD"]
@@ -179,9 +187,16 @@ def lineage_page(content_area: ui.element) -> None:
         )
 
         if len(mermaid_lines) > 1:
+            graph_truncated = (len(mermaid_lines) - 1) > _GRAPH_NODE_LIMIT
+            display_lines = mermaid_lines[:_GRAPH_NODE_LIMIT + 1] if graph_truncated else mermaid_lines
             with ui.card().classes("p-4 rounded-xl border border-slate-200 w-full mb-6"):
                 ui.label("Lineage Graph").classes("font-semibold text-slate-700 mb-3")
-                ui.mermaid("\n".join(mermaid_lines))
+                if graph_truncated:
+                    ui.label(
+                        f"⚠ Graph truncated to {_GRAPH_NODE_LIMIT} nodes. "
+                        "Use a more specific date or job filter to narrow the view."
+                    ).classes("text-xs text-amber-600 mb-2")
+                ui.mermaid("\n".join(display_lines))
 
             with ui.card().classes("p-4 rounded-xl border border-slate-200 w-full mb-6"):
                 ui.label("File Registry").classes("font-semibold text-slate-700 mb-3")

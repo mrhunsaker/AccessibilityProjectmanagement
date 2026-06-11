@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from . import queries as Q
 from .schema import get_conn, init_db
+from ..services.backup_service import BackupService
 
 
 @dataclass
@@ -24,19 +25,6 @@ class ImportStats:
 
 
 def _clean(value: str | None) -> str:
-    """ clean.
-    
-    Parameters
-    ----------
-    value : Any
-        value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     if value is None:
         return ""
     text = value.strip()
@@ -46,19 +34,6 @@ def _clean(value: str | None) -> str:
 
 
 def _to_float(value: str) -> float | None:
-    """ to float.
-    
-    Parameters
-    ----------
-    value : Any
-        value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     text = _clean(value)
     if not text:
         return None
@@ -69,19 +44,6 @@ def _to_float(value: str) -> float | None:
 
 
 def _to_int(value: str) -> int:
-    """ to int.
-    
-    Parameters
-    ----------
-    value : Any
-        value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     parsed = _to_float(value)
     if parsed is None:
         return 0
@@ -89,19 +51,6 @@ def _to_int(value: str) -> int:
 
 
 def _normalize_url(value: str) -> str:
-    """ normalize url.
-    
-    Parameters
-    ----------
-    value : Any
-        value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     url = _clean(value)
     if not url:
         return ""
@@ -112,19 +61,6 @@ def _normalize_url(value: str) -> str:
 
 
 def _cost_each(value: str) -> float | None:
-    """ cost each.
-    
-    Parameters
-    ----------
-    value : Any
-        value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     text = _clean(value).lower().replace(" ", "")
     if not text or text in {"free", "$0", "0"}:
         return 0.0 if text else None
@@ -144,19 +80,6 @@ def _cost_each(value: str) -> float | None:
 
 
 def _supplier_from_url(url: str) -> str:
-    """ supplier from url.
-    
-    Parameters
-    ----------
-    url : Any
-        url parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     parsed = urlparse(url)
     host = parsed.netloc.lower()
     if host.startswith("www."):
@@ -165,19 +88,6 @@ def _supplier_from_url(url: str) -> str:
 
 
 def _normalize_electronics_category(raw: str) -> str:
-    """ normalize electronics category.
-    
-    Parameters
-    ----------
-    raw : Any
-        raw parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     key = _clean(raw).lower()
     if key == "mono jacks":
         return "mono_jack"
@@ -189,19 +99,6 @@ def _normalize_electronics_category(raw: str) -> str:
 
 
 def _normalize_filament_type(raw: str) -> str:
-    """ normalize filament type.
-    
-    Parameters
-    ----------
-    raw : Any
-        raw parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     key = _clean(raw).upper()
     # Return any non-empty type string as-is so unknown materials
     # (e.g. SUPPORT_MATERIAL, SILK_PLA, PA12) aren't silently lost.
@@ -211,22 +108,6 @@ def _normalize_filament_type(raw: str) -> str:
 
 
 def _paper_type_from_row(product: str, raw_type: str) -> str:
-    """ paper type from row.
-    
-    Parameters
-    ----------
-    product : Any
-        product parameter.
-    
-    raw_type : Any
-        raw_type parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     p = _clean(product).lower()
     t = _clean(raw_type).lower()
     if "pin" in p:
@@ -241,22 +122,6 @@ def _paper_type_from_row(product: str, raw_type: str) -> str:
 
 
 def _paper_quantity_from_row(product: str, quantity_raw: str) -> int:
-    """ paper quantity from row.
-    
-    Parameters
-    ----------
-    product : Any
-        product parameter.
-    
-    quantity_raw : Any
-        quantity_raw parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     base_quantity = _to_int(quantity_raw)
     if base_quantity <= 0:
         return 0
@@ -269,15 +134,21 @@ def _paper_quantity_from_row(product: str, quantity_raw: str) -> int:
     return base_quantity
 
 
-def _replace_existing_inventory() -> None:
-    """ replace existing inventory.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+def _replace_existing_inventory(require_confirmation: bool = True) -> None:
+    totals = inventory_totals()
+    print("[DANGER] --replace-existing will delete all inventory data:")
+    print(f"  electronics rows: {totals['electronics_rows']}")
+    print(f"  filament rows:    {totals['filament_rows']}")
+    print(f"  paper rows:       {totals['paper_rows']}")
+
+    if require_confirmation:
+        response = input("Type 'yes' to continue: ").strip().lower()
+        if response != "yes":
+            raise RuntimeError("Replace operation cancelled by user")
+
+    backup_path = BackupService.run_backup(trigger="pre-seed-replace")
+    print(f"[BACKUP] Created pre-delete backup at: {backup_path}")
+
     with get_conn() as conn:
         conn.execute("DELETE FROM electronics")
         conn.execute("DELETE FROM filament")
@@ -285,28 +156,6 @@ def _replace_existing_inventory() -> None:
 
 
 def _electronics_exists(name: str, brand: str, spec: str, supplier: str) -> bool:
-    """ electronics exists.
-    
-    Parameters
-    ----------
-    name : Any
-        name parameter.
-    
-    brand : Any
-        brand parameter.
-    
-    spec : Any
-        spec parameter.
-    
-    supplier : Any
-        supplier parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "SELECT 1 FROM electronics WHERE name = ? AND IFNULL(brand, '') = ? AND IFNULL(spec, '') = ? AND IFNULL(supplier, '') = ? LIMIT 1",
@@ -316,25 +165,6 @@ def _electronics_exists(name: str, brand: str, spec: str, supplier: str) -> bool
 
 
 def _filament_exists(brand: str, color: str, filament_type: str) -> bool:
-    """ filament exists.
-    
-    Parameters
-    ----------
-    brand : Any
-        brand parameter.
-    
-    color : Any
-        color parameter.
-    
-    filament_type : Any
-        filament_type parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "SELECT 1 FROM filament WHERE brand = ? AND color = ? AND filament_type = ? LIMIT 1",
@@ -344,25 +174,6 @@ def _filament_exists(brand: str, color: str, filament_type: str) -> bool:
 
 
 def _paper_exists(paper_type: str, supplier: str, notes: str) -> bool:
-    """ paper exists.
-    
-    Parameters
-    ----------
-    paper_type : Any
-        paper_type parameter.
-    
-    supplier : Any
-        supplier parameter.
-    
-    notes : Any
-        notes parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     with get_conn() as conn:
         cur = conn.execute(
             "SELECT 1 FROM braille_paper WHERE paper_type = ? AND IFNULL(supplier, '') = ? AND IFNULL(notes, '') = ? LIMIT 1",
@@ -372,22 +183,6 @@ def _paper_exists(paper_type: str, supplier: str, notes: str) -> bool:
 
 
 def _cost_per_kg_from_spool(spool_cost: float, spool_grams: float) -> float | None:
-    """ cost per kg from spool.
-    
-    Parameters
-    ----------
-    spool_cost : Any
-        spool_cost parameter.
-    
-    spool_grams : Any
-        spool_grams parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     if spool_cost < 0 or spool_grams <= 0:
         return None
     return round(spool_cost * (1000.0 / spool_grams), 4)
@@ -414,14 +209,6 @@ def inventory_totals() -> dict[str, float]:
 
 
 def _print_totals() -> None:
-    """ print totals.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
     totals = inventory_totals()
     print("[INVENTORY TOTALS]")
     print(
@@ -443,6 +230,7 @@ def import_seed_csv(
     csv_path: Path,
     *,
     replace_existing: bool = False,
+    confirm_replace: bool = True,
     filament_spool_grams: float = 1000.0,
     filament_spool_cost: float | None = None,
     dry_run: bool = False,
@@ -453,7 +241,7 @@ def import_seed_csv(
 
     init_db()
     if replace_existing and not dry_run:
-        _replace_existing_inventory()
+        _replace_existing_inventory(require_confirmation=confirm_replace)
 
     stats = ImportStats()
     seen_keys: set[str] = set()

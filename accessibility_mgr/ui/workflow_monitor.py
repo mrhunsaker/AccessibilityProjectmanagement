@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from nicegui import ui
 
 from ..services.worker_runtime import WorkerRuntime
@@ -12,36 +14,37 @@ from .components import section_header
 _queue = WorkflowQueueService()
 _runtime = WorkerRuntime(_queue)
 
-
-# Seed representative jobs.
-_queue.enqueue(
-    workflow_name="epub_accessibility_pipeline",
-    asset_id=1,
-    priority=1,
-)
-
-_queue.enqueue(
-    workflow_name="metadata_governance_pipeline",
-    asset_id=2,
-    priority=3,
-)
+_started = False
 
 
-def _mock_handler(job) -> None:
-    """Simulated workflow execution handler."""
+def _ensure_runtime_started() -> None:
+    """Start the worker runtime the first time the monitor page is opened."""
+    global _started  # noqa: PLW0603
+    if _started:
+        return
+    _started = True
 
-    import time
+    if os.getenv("ACCESSMAN_DEV", "0").lower() in {"1", "true", "yes"}:
+        # Seed dev-only demo jobs so the monitor is not empty during development.
+        _queue.enqueue(workflow_name="epub_accessibility_pipeline", asset_id=1, priority=1)
+        _queue.enqueue(workflow_name="metadata_governance_pipeline", asset_id=2, priority=3)
 
-    time.sleep(0.2)
+    from ..services.pipeline_service import PipelineService
 
+    def _real_handler(job) -> None:
+        """Dispatch workflow jobs to PipelineService by workflow_name."""
+        try:
+            PipelineService.run(job["workflow_name"], asset_id=job.get("asset_id"))
+        except Exception:  # noqa: BLE001
+            pass
 
-_runtime.start(_mock_handler)
+    _runtime.start(_real_handler)
 
 
 
 def workflow_monitor_page(content_area: ui.element) -> None:
     """Render workflow execution monitoring UI."""
-
+    _ensure_runtime_started()
     content_area.clear()
 
     with content_area:

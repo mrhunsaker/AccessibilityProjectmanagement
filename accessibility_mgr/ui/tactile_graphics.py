@@ -560,6 +560,13 @@ def tactile_graphics_page(content_area: ui.element) -> None:
                 else None
             )
 
+
+            def _handle_key_tac(e) -> None:
+                if getattr(e, "action", "") == "keydown" and str(getattr(e, "key", "")).lower() == "n" and getattr(e, "ctrlKey", False):
+                    _new()
+
+            ui.keyboard(on_key=_handle_key_tac)
+
             ui.button("+ New Job", on_click=_new).classes(
                 "bg-rose-600 text-white rounded-lg px-4 py-2"
             )

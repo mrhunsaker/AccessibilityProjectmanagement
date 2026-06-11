@@ -51,6 +51,29 @@ def open_delivery_dialog(
     """
     today = date.today().isoformat()
 
+    # Guard: if the job is already delivered, show a read-only summary.
+    _fetch_fn = {
+        "braille":     Q.get_braille_job,
+        "lp_ebraille": Q.get_lp_job,
+        "tactile":     Q.get_tactile_job,
+        "print":       Q.get_print_job,
+    }.get(job_type)
+    if _fetch_fn:
+        _row = _fetch_fn(job_id)
+        if _row and int(_row.get("delivered") or 0) == 1:
+            with ui.dialog() as _info_dlg, ui.card().classes("p-6 gap-4 w-[440px] max-w-full"):
+                ui.label("Already Delivered").classes("text-xl font-bold text-slate-800")
+                ui.label(
+                    f"This job was delivered on {_row.get('delivery_date') or '—'} "
+                    f"via {_row.get('delivery_method') or '—'} "
+                    f"to {_row.get('delivery_recipient') or '—'}."
+                ).classes("text-sm text-slate-600")
+                if _row.get("delivery_notes"):
+                    ui.label(_row["delivery_notes"]).classes("text-xs text-slate-400")
+                ui.button("Close", on_click=_info_dlg.close).classes("bg-slate-200")
+            _info_dlg.open()
+            return
+
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[480px] max-w-full"):
         ui.label("Confirm Delivery").classes("text-xl font-bold text-slate-800")
         ui.label(

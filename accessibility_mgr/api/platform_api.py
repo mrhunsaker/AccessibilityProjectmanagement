@@ -13,21 +13,16 @@ import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
-from ..services.analytics import AnalyticsService
-from ..services.authentication import AuthenticationService
-from ..services.provenance_registry import ProvenanceRegistry
-from ..services.workflow_queue import WorkflowQueueService
+from ..services.singletons import analytics as _analytics
+from ..services.singletons import auth as _auth
+from ..services.singletons import provenance as _provenance
+from ..services.singletons import queue as _queue
 
 
 app = FastAPI(
     title="Accessibility Operations API",
     version="0.1.0",
 )
-
-_queue = WorkflowQueueService()
-_analytics = AnalyticsService()
-_provenance = ProvenanceRegistry()
-_auth = AuthenticationService()
 
 _require_api_key = os.getenv("ACCESSMAN_API_AUTH_REQUIRED", "0").lower() in {
     "1", "true", "yes", "on"
@@ -37,7 +32,7 @@ if _configured_api_key:
     _auth.register_api_token(
         owner="configured-api-user",
         raw_token=_configured_api_key,
-        expiration_hours=24 * 365 * 20,
+        expiration_hours=24 * 365,  # 1-year maximum; rotate via environment variable.
     )
 
 

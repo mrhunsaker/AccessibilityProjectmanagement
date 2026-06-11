@@ -269,7 +269,7 @@ def reports_page(content_area: ui.element, presets: dict[str, str] | None = None
                                 "w-16 text-xs text-center text-slate-500"
                             )
                             with ui.element("div").classes("w-20 flex justify-center"):
-                                priority_badge(job.get("priority", "normal"))
+                                priority_badge(job.get("priority") or "normal")
                             ui.badge(status_label).classes(
                                 f"w-24 text-center text-xs rounded {status_color}"
                             )

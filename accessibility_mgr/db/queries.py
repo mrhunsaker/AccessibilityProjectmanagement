@@ -79,7 +79,8 @@ __all__ = [
     "log_backup", "list_backup_log",
     # Students
     "list_students", "get_student", "add_student", "update_student", "delete_student",
-    "list_jobs_for_student",
+    "list_jobs_for_student", "count_jobs_for_students",
+    "list_students_page",
     # Search & reports
     "search_all", "report_jobs",
     # Paths
@@ -102,7 +103,8 @@ _SAFE_TABLES = _TABLES_WITH_UPDATED_AT | {"structural_map_node"}
 
 def _sanitize_name(value: str) -> str:
     """Strip characters unsafe for file/directory names."""
-    return re.sub(r"[^\w\-]", "", value.replace(" ", "")) or "_"
+    cleaned = re.sub(r"[^\w\-]", "", value.replace(" ", ""))
+    return cleaned[:60]
 
 
 def _rows(cur: Any) -> list[dict[str, Any]]:
@@ -132,6 +134,20 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: fh.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _delete_job_orphans(conn: sqlite3.Connection, job_type: str, job_id: int) -> None:
+    """Remove child rows in polymorphic tables after a job is deleted."""
+    conn.execute(
+        "DELETE FROM job_file_link WHERE job_type = ? AND job_id = ?", (job_type, job_id)
+    )
+    conn.execute(
+        "DELETE FROM job_metadata WHERE job_type = ? AND job_id = ?", (job_type, job_id)
+    )
+    conn.execute(
+        "DELETE FROM structural_map_node WHERE job_type = ? AND job_id = ?", (job_type, job_id)
+    )
+    # metadata_event rows are preserved as a permanent audit trail.
 
 
 # ── Filament ──────────────────────────────────────────────────────────────────
@@ -310,18 +326,30 @@ def delete_embosser(row_id: int) -> None:
 def list_print_jobs(
     limit: Optional[int] = None,
     offset: int = 0,
+    search: Optional[str] = None,
+    priority: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    filters: list[str] = []
+    params: list[Any] = []
+    if search:
+        term = f"%{search}%"
+        filters.append("(pj.object_name LIKE ? OR pj.requester LIKE ?)")
+        params.extend([term, term])
+    if priority:
+        filters.append("pj.priority = ?")
+        params.append(priority)
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
     with get_conn() as conn:
-        sql = """
+        sql = f"""
             SELECT pj.*,
                    p.name  AS printer_name,
                    f.brand || ' ' || f.color || ' ' || f.filament_type AS filament_desc
             FROM print_job pj
             LEFT JOIN printer  p ON p.id = pj.printer_id
             LEFT JOIN filament f ON f.id = pj.filament_id
+            {where}
             ORDER BY pj.printed_at DESC
-        """
-        params: list[Any] = []
+        """  # noqa: S608 - where fragments are built from fixed SQL; values are parameterised.
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             params.extend([limit, max(0, offset)])
@@ -427,6 +455,7 @@ def delete_print_job(row_id: int) -> None:
         )
     with get_conn() as conn:
         conn.execute("DELETE FROM print_job WHERE id = ?", (row_id,))
+        _delete_job_orphans(conn, "print", row_id)
 
 
 # ── Braille jobs ──────────────────────────────────────────────────────────────
@@ -434,15 +463,31 @@ def delete_print_job(row_id: int) -> None:
 def list_braille_jobs(
     limit: Optional[int] = None,
     offset: int = 0,
+    search: Optional[str] = None,
+    braille_type: Optional[str] = None,
+    priority: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    filters: list[str] = []
+    params: list[Any] = []
+    if search:
+        term = f"%{search}%"
+        filters.append("(bj.title LIKE ? OR bj.requester LIKE ?)")
+        params.extend([term, term])
+    if braille_type:
+        filters.append("bj.braille_type = ?")
+        params.append(braille_type)
+    if priority:
+        filters.append("bj.priority = ?")
+        params.append(priority)
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
     with get_conn() as conn:
-        sql = """
+        sql = f"""
             SELECT bj.*, e.name AS embosser_name, e.paper_type AS embosser_paper_type
             FROM braille_job bj
             LEFT JOIN embosser e ON e.id = bj.embosser_id
+            {where}
             ORDER BY bj.created_at DESC
-        """
-        params: list[Any] = []
+        """  # noqa: S608 - where fragments are built from fixed SQL; values are parameterised.
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             params.extend([limit, max(0, offset)])
@@ -516,6 +561,7 @@ def delete_braille_job(row_id: int) -> None:
         )
     with get_conn() as conn:
         conn.execute("DELETE FROM braille_job WHERE id = ?", (row_id,))
+        _delete_job_orphans(conn, "braille", row_id)
 
 
 # ── LP/eBraille jobs ──────────────────────────────────────────────────────────
@@ -524,17 +570,24 @@ def list_lp_jobs(
     job_type: Optional[str] = None,
     limit: Optional[int] = None,
     offset: int = 0,
+    search: Optional[str] = None,
+    priority: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    filters: list[str] = []
+    params: list[Any] = []
+    if job_type:
+        filters.append("job_type = ?")
+        params.append(job_type)
+    if search:
+        term = f"%{search}%"
+        filters.append("(title LIKE ? OR requester LIKE ?)")
+        params.extend([term, term])
+    if priority:
+        filters.append("priority = ?")
+        params.append(priority)
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
     with get_conn() as conn:
-        if job_type:
-            sql = "SELECT * FROM lp_ebraille_job WHERE job_type = ? ORDER BY created_at DESC"
-            params: list[Any] = [job_type]
-            if limit is not None:
-                sql += " LIMIT ? OFFSET ?"
-                params.extend([limit, max(0, offset)])
-            return _rows(conn.execute(sql, params))
-        sql = "SELECT * FROM lp_ebraille_job ORDER BY created_at DESC"
-        params = []
+        sql = f"SELECT * FROM lp_ebraille_job {where} ORDER BY created_at DESC"  # noqa: S608
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             params.extend([limit, max(0, offset)])
@@ -601,6 +654,7 @@ def delete_lp_job(row_id: int) -> None:
         )
     with get_conn() as conn:
         conn.execute("DELETE FROM lp_ebraille_job WHERE id = ?", (row_id,))
+        _delete_job_orphans(conn, "lp_ebraille", row_id)
 
 
 # ── Tactile graphics jobs ─────────────────────────────────────────────────────
@@ -608,10 +662,25 @@ def delete_lp_job(row_id: int) -> None:
 def list_tactile_jobs(
     limit: Optional[int] = None,
     offset: int = 0,
+    search: Optional[str] = None,
+    tactile_type: Optional[str] = None,
+    priority: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    filters: list[str] = []
+    params: list[Any] = []
+    if search:
+        term = f"%{search}%"
+        filters.append("(title LIKE ? OR requester LIKE ?)")
+        params.extend([term, term])
+    if tactile_type:
+        filters.append("tactile_type = ?")
+        params.append(tactile_type)
+    if priority:
+        filters.append("priority = ?")
+        params.append(priority)
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
     with get_conn() as conn:
-        sql = "SELECT * FROM tactile_graphics_job ORDER BY created_at DESC"
-        params: list[Any] = []
+        sql = f"SELECT * FROM tactile_graphics_job {where} ORDER BY created_at DESC"  # noqa: S608
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             params.extend([limit, max(0, offset)])
@@ -678,6 +747,7 @@ def delete_tactile_job(row_id: int) -> None:
         )
     with get_conn() as conn:
         conn.execute("DELETE FROM tactile_graphics_job WHERE id = ?", (row_id,))
+        _delete_job_orphans(conn, "tactile", row_id)
 
 
 # ── File objects ──────────────────────────────────────────────────────────────
@@ -722,23 +792,49 @@ def ingest_file(
     file_uuid = str(uuid.uuid4())
 
     if project_title:
-        project_dir = ARTIFACTS_DIR / _sanitize_name(project_title)
+        safe_project_title = _sanitize_name(project_title) or file_uuid[:8]
+        project_dir = ARTIFACTS_DIR / safe_project_title
         project_dir.mkdir(parents=True, exist_ok=True)
 
         name_parts: list[str] = []
         if student_initials:
-            name_parts.append(_sanitize_name(student_initials))
+            cleaned = _sanitize_name(student_initials)
+            if cleaned:
+                name_parts.append(cleaned)
         if school_name:
-            name_parts.append(_sanitize_name(school_name))
+            cleaned = _sanitize_name(school_name)
+            if cleaned:
+                name_parts.append(cleaned)
         if grade_level:
-            name_parts.append(f"Grade{_sanitize_name(grade_level)}")
+            cleaned = _sanitize_name(grade_level)
+            if cleaned:
+                name_parts.append(f"Grade{cleaned}")
         if subject:
-            name_parts.append(_sanitize_name(subject))
+            cleaned = _sanitize_name(subject)
+            if cleaned:
+                name_parts.append(cleaned)
 
-        artifact_stem = "_".join(name_parts) if name_parts else file_uuid
+        artifact_stem = "_".join(name_parts) or file_uuid[:8]
+        max_path_len = 240
+
+        # Keep destination paths safely below typical filesystem path limits.
+        while len(str(project_dir / f"{artifact_stem}{src.suffix}")) > max_path_len and len(artifact_stem) > 16:
+            artifact_stem = artifact_stem[:-8]
+
+        if len(f"{artifact_stem}{src.suffix}") > 255:
+            raise ValueError("Artifact file name exceeds filesystem component limits")
+
         dest = project_dir / f"{artifact_stem}{src.suffix}"
+        if len(str(dest)) > max_path_len:
+            raise ValueError(
+                "Artifact destination path is too long; shorten project or metadata values"
+            )
         if dest.exists():
             dest = project_dir / f"{artifact_stem}_{file_uuid[:8]}{src.suffix}"
+            if len(str(dest)) > max_path_len:
+                raise ValueError(
+                    "Artifact destination path is too long after collision handling"
+                )
         stored_path_val = str(dest)
     else:
         dest = FILES_DIR / f"{file_uuid}{src.suffix}"
@@ -1124,22 +1220,21 @@ def record_delivery(
     from datetime import date
     d_date = delivery_date or date.today().isoformat()
 
-    update_fn_map = {
-        "braille":     update_braille_job,
-        "lp_ebraille": update_lp_job,
-        "tactile":     update_tactile_job,
-        "print":       update_print_job,
+    # Update delivery columns directly without emitting a redundant FIELD_UPDATE event.
+    _table_map = {
+        "braille":     "braille_job",
+        "lp_ebraille": "lp_ebraille_job",
+        "tactile":     "tactile_graphics_job",
+        "print":       "print_job",
     }
-    update_fn = update_fn_map.get(job_type)
-    if update_fn:
-        update_fn(
-            job_id,
-            delivered=1,
-            delivery_date=d_date,
-            delivery_method=delivery_method,
-            delivery_recipient=delivery_recipient,
-            delivery_notes=delivery_notes,
-        )
+    table = _table_map.get(job_type)
+    if table and table in _SAFE_TABLES:
+        with get_conn() as conn:
+            conn.execute(  # noqa: S608 - table comes from a fixed allow-map, not user input.
+                f"UPDATE {table} SET delivered=1, delivery_date=?, delivery_method=?, "
+                f"delivery_recipient=?, delivery_notes=?, updated_at=datetime('now') WHERE id=?",
+                (d_date, delivery_method, delivery_recipient, delivery_notes, job_id),
+            )
 
     log_event(
         job_type, job_id, "DELIVERY", "SUCCESS",
@@ -1362,6 +1457,30 @@ def list_students(active_only: bool = True) -> list[dict[str, Any]]:
         ))
 
 
+def list_students_page(
+    search: Optional[str] = None,
+    active_only: bool = True,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    """Return a paginated page of student records with optional search."""
+    filters: list[str] = []
+    params: list[Any] = []
+    if active_only:
+        filters.append("active = 1")
+    if search:
+        term = f"%{search}%"
+        filters.append("(last_name LIKE ? OR first_name LIKE ? OR school LIKE ?)")
+        params.extend([term, term, term])
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+    params.extend([limit, max(0, offset)])
+    with get_conn() as conn:
+        return _rows(conn.execute(
+            f"SELECT * FROM student {where} ORDER BY last_name, first_name LIMIT ? OFFSET ?",  # noqa: S608 - where clause from fixed SQL fragments; values parameterised.
+            params,
+        ))
+
+
 def get_student(student_id: int) -> Optional[dict[str, Any]]:
     """Fetch a single student record by id."""
     with get_conn() as conn:
@@ -1396,6 +1515,33 @@ def update_student(student_id: int, **fields: Any) -> None:
 def delete_student(student_id: int) -> None:
     """Soft-delete a student (sets active=0)."""
     update_student(student_id, active=0)
+
+
+def count_jobs_for_students(student_ids: list[int]) -> dict[int, int]:
+    """Return total job counts for a batch of students in a single query.
+
+    Issues one SQL UNION ALL query rather than four separate queries per
+    student. Returns {student_id: total_count}.
+    """
+    if not student_ids:
+        return {}
+    placeholders = ",".join("?" * len(student_ids))
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT student_id, COUNT(*) AS cnt FROM (
+                SELECT student_id FROM braille_job         WHERE student_id IN ({placeholders})
+                UNION ALL
+                SELECT student_id FROM lp_ebraille_job     WHERE student_id IN ({placeholders})
+                UNION ALL
+                SELECT student_id FROM tactile_graphics_job WHERE student_id IN ({placeholders})
+                UNION ALL
+                SELECT student_id FROM print_job            WHERE student_id IN ({placeholders})
+            ) GROUP BY student_id
+            """,  # noqa: S608 - placeholders are '?' only; no user content in SQL.
+            student_ids * 4,
+        ).fetchall()
+    return {row[0]: row[1] for row in rows}
 
 
 def list_jobs_for_student(student_id: int) -> dict[str, list[dict[str, Any]]]:
@@ -1665,6 +1811,8 @@ def report_jobs(
         priority_expr: str = "j.priority",
         type_expr: str | None = None,
     ) -> list[dict[str, Any]]:
+        # SAFE: all SQL-interpolated identifiers come from fixed in-function constants,
+        # not user input. User-supplied values are bound via '?' parameterisation only.
         filters: list[str] = []
         params: list[Any] = []
 
@@ -1745,7 +1893,7 @@ def report_jobs(
             prt_steps,
             title_col="object_name",
             date_col="printed_at",
-            priority_expr="NULL",
+            priority_expr="'normal'",
         )
 
     all_jobs: list[dict[str, Any]] = []

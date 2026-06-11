@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import base64
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 
@@ -18,13 +18,38 @@ class SecretVaultService:
     """Credential and secret vault service."""
 
     def __init__(self) -> None:
+        try:
+            from cryptography.fernet import Fernet
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "cryptography is required for SecretVaultService encryption"
+            ) from exc
+
+        key = os.getenv("ACCESSMAN_VAULT_KEY", "").strip()
+        if not key:
+            raise RuntimeError(
+                "ACCESSMAN_VAULT_KEY is required. "
+                "Set a Fernet key before starting the application."
+            )
+
+        try:
+            self._fernet = Fernet(key.encode("utf-8"))
+        except (ValueError, TypeError) as exc:
+            raise RuntimeError(
+                "ACCESSMAN_VAULT_KEY is invalid. "
+                "Generate one with cryptography.fernet.Fernet.generate_key()."
+            ) from exc
+
         self._secrets: dict[str, SecretRecord] = {}
 
     def _encrypt(self, value: str) -> str:
-        return base64.b64encode(value.encode("utf-8")).decode("utf-8")
+        return self._fernet.encrypt(value.encode("utf-8")).decode("utf-8")
 
     def _decrypt(self, value: str) -> str:
-        return base64.b64decode(value.encode("utf-8")).decode("utf-8")
+        try:
+            return self._fernet.decrypt(value.encode("utf-8")).decode("utf-8")
+        except Exception:
+            raise ValueError("Secret could not be decrypted with the configured vault key")
 
     def store_secret(
         self,

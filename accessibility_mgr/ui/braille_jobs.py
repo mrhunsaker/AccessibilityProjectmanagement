@@ -583,11 +583,14 @@ def braille_jobs_page(content_area: ui.element) -> None:
                 _job_dialog(_do)
 
             ui.keyboard(
-                on_key=lambda e: _new()
-                if getattr(e, "action", "") == "keydown"
-                and str(getattr(e, "key", "")).lower() == "n"
-                else None
+                on_key=lambda e: ui.run_javascript(
+                    "if (!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) "
+                    "{ window._apm_new_braille && window._apm_new_braille(); }"
+                ) if getattr(e, "action", "") == "keydown"
+                and str(getattr(e, "key", "")).lower() == "n" else None
             )
+
+
 
             ui.button("+ New Job", on_click=_new).classes(
                 "bg-blue-600 text-white rounded-lg px-4 py-2"
@@ -701,12 +704,29 @@ def braille_jobs_page(content_area: ui.element) -> None:
                 ).classes("text-green-600")
 
         def _render_grid() -> None:
+            search_val = filter_input.value.strip() or None
+            bt_val: Optional[str] = None
+            if type_filter.value != "All Types":
+                try:
+                    bt_val = type_vals[type_labels.index(type_filter.value)]
+                except (ValueError, IndexError):
+                    pass
+            pv: Optional[str] = None
+            if pri_filter.value != "All Priorities":
+                try:
+                    pv = pri_vals[pri_labels.index(pri_filter.value)]
+                except (ValueError, IndexError):
+                    pass
+
             rows = Q.list_braille_jobs(
                 limit=page_size + 1,
                 offset=(state["page"] - 1) * page_size,
+                search=search_val,
+                braille_type=bt_val,
+                priority=pv,
             )
             has_next = len(rows) > page_size
-            jobs = rows[:page_size]
+            filtered = rows[:page_size]
 
             pager_row.clear()
             with pager_row:
@@ -717,34 +737,17 @@ def braille_jobs_page(content_area: ui.element) -> None:
                 ui.button("Next", on_click=lambda: _set_page(state["page"] + 1)).props(
                     "flat dense"
                 ).classes("text-slate-600").props("disable" if not has_next else "")
+                            def _handle_key(e) -> None:
+                                if getattr(e, "action", "") != "keydown":
+                                    return
+                                if str(getattr(e, "key", "")).lower() != "n":
+                                    return
+                                # Only fire when Ctrl is held so typing 'n' in search fields is unaffected.
+                                if not getattr(e, "ctrlKey", False):
+                                    return
+                                _new()
 
-            job_grid.clear()
-            search = filter_input.value.lower() if filter_input.value else ""
-            filtered = jobs
-            if search:
-                filtered = [
-                    j for j in filtered
-                    if search in j["title"].lower()
-                    or search in (j.get("requester") or "").lower()
-                ]
-            if type_filter.value != "All Types":
-                try:
-                    tv = type_vals[type_labels.index(type_filter.value)]
-                    filtered = [j for j in filtered if j.get("braille_type") == tv]
-                except (ValueError, IndexError):
-                    pass
-            if pri_filter.value != "All Priorities":
-                try:
-                    pv = pri_vals[pri_labels.index(pri_filter.value)]
-                    filtered = [j for j in filtered if j.get("priority") == pv]
-                except (ValueError, IndexError):
-                    pass
-
-            _render_bulk_actions(filtered)
-
-            with job_grid:
-                if not filtered:
-                    ui.label("No matching jobs.").classes(
+                            ui.keyboard(on_key=_handle_key)
                         "text-slate-400 col-span-full text-center py-8"
                     )
                     return

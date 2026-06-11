@@ -560,6 +560,8 @@ def _lp_jobs_page(
                 else None
             )
 
+
+
             ui.button("+ New Job", on_click=_new).classes(
                 f"{accent_class} text-white rounded-lg px-4 py-2"
             )
@@ -623,12 +625,11 @@ def _lp_jobs_page(
                                 "due_date",
                                 "delivery_date",
                             ],
-                        )
-                        writer.writeheader()
-                        for row in selected:
-                            writer.writerow(
-                                {
-                                    "id": row.get("id"),
+                                        def _handle_key_lp(e) -> None:
+                                            if getattr(e, "action", "") == "keydown" and str(getattr(e, "key", "")).lower() == "n" and getattr(e, "ctrlKey", False):
+                                                _new()
+
+                                        ui.keyboard(on_key=_handle_key_lp)
                                     "title": row.get("title", ""),
                                     "job_type": row.get("job_type", ""),
                                     "requester": row.get("requester", ""),

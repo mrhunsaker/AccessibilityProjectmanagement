@@ -33,7 +33,7 @@ DATA_DIR      = DB_PATH.parent
 PRINTS_DIR    = DATA_DIR / "prints_files"
 FILES_DIR     = DATA_DIR / "job_files"
 BACKUPS_DIR   = DATA_DIR / "backups"
-ARTIFACTS_DIR = Path(__file__).parent.parent.parent / "artifacts"
+ARTIFACTS_DIR = DATA_DIR / "artifacts"
 
 
 @contextmanager
@@ -54,6 +54,9 @@ def get_conn() -> Generator[sqlite3.Connection, None, None]:
 
 
 _SCHEMA_SQL = """
+PRAGMA foreign_keys = ON;
+PRAGMA journal_mode = WAL;
+
 -- ═══════════════════════════════════════════════════════════════
 -- STUDENTS (FIX-010)
 -- ═══════════════════════════════════════════════════════════════
@@ -396,6 +399,21 @@ CREATE TABLE IF NOT EXISTS schema_migration (
     migration_id TEXT PRIMARY KEY,
     applied_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_braille_job_student ON braille_job(student_id);
+CREATE INDEX IF NOT EXISTS idx_lp_job_student ON lp_ebraille_job(student_id);
+CREATE INDEX IF NOT EXISTS idx_tactile_job_student ON tactile_graphics_job(student_id);
+CREATE INDEX IF NOT EXISTS idx_print_job_student ON print_job(student_id);
+
+CREATE INDEX IF NOT EXISTS idx_braille_job_delivered ON braille_job(delivered);
+CREATE INDEX IF NOT EXISTS idx_lp_job_delivered ON lp_ebraille_job(delivered);
+CREATE INDEX IF NOT EXISTS idx_tactile_job_delivered ON tactile_graphics_job(delivered);
+CREATE INDEX IF NOT EXISTS idx_print_job_delivered ON print_job(delivered);
+
+CREATE INDEX IF NOT EXISTS idx_metadata_event_job ON metadata_event(job_type, job_id);
+CREATE INDEX IF NOT EXISTS idx_job_metadata_job ON job_metadata(job_type, job_id);
+CREATE INDEX IF NOT EXISTS idx_job_file_link_job ON job_file_link(job_type, job_id);
+CREATE INDEX IF NOT EXISTS idx_job_file_link_step ON job_file_link(job_type, job_id, step_key);
 
 -- ═══════════════════════════════════════════════════════════════
 -- SEED DATA
@@ -859,6 +877,35 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
     _apply_migration(conn, "m009_full_text_search_indexes", _m009_full_text_search_indexes)
 
+    def _m010_step_date_columns() -> None:
+        """Add *_date tracking columns for each workflow step."""
+        step_pairs: list[tuple[str, str]] = [
+            ("braille_job",           "digitized_date"),
+            ("braille_job",           "formatted_date"),
+            ("braille_job",           "brailled_date"),
+            ("braille_job",           "proofread_date"),
+            ("braille_job",           "delivered_date"),
+            ("lp_ebraille_job",       "digitized_date"),
+            ("lp_ebraille_job",       "formatted_date"),
+            ("lp_ebraille_job",       "converted_date"),
+            ("lp_ebraille_job",       "proofread_date"),
+            ("lp_ebraille_job",       "delivered_date"),
+            ("tactile_graphics_job",  "designed_date"),
+            ("tactile_graphics_job",  "produced_date"),
+            ("tactile_graphics_job",  "qa_reviewed_date"),
+            ("tactile_graphics_job",  "delivered_date"),
+            ("print_job",             "designed_date"),
+            ("print_job",             "sliced_date"),
+            ("print_job",             "printed_date"),
+            ("print_job",             "inspected_date"),
+            ("print_job",             "delivered_date"),
+        ]
+        for table, col in step_pairs:
+            if not _table_has_column(conn, table, col):
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")  # noqa: S608 - table/col come from fixed in-function constants.
+
+    _apply_migration(conn, "m010_step_date_columns", _m010_step_date_columns)
+
 
 def init_db() -> None:
     """Create all tables, directories, and seed data if they do not exist."""
@@ -866,7 +913,43 @@ def init_db() -> None:
     PRINTS_DIR.mkdir(exist_ok=True)
     FILES_DIR.mkdir(exist_ok=True)
     BACKUPS_DIR.mkdir(exist_ok=True)
-    ARTIFACTS_DIR.mkdir(exist_ok=True)
+    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     with get_conn() as conn:
         conn.executescript(_SCHEMA_SQL)
         _migrate(conn)
+    _validate_step_columns()
+
+
+_STEP_DATE_COLUMNS: dict[str, list[tuple[str, str]]] = {
+    "braille_job":          [("digitized", "digitized_date"), ("formatted", "formatted_date"),
+                             ("brailled", "brailled_date"), ("proofread", "proofread_date"),
+                             ("delivered", "delivered_date")],
+    "lp_ebraille_job":      [("digitized", "digitized_date"), ("formatted", "formatted_date"),
+                             ("converted", "converted_date"), ("proofread", "proofread_date"),
+                             ("delivered", "delivered_date")],
+    "tactile_graphics_job": [("designed", "designed_date"), ("produced", "produced_date"),
+                             ("qa_reviewed", "qa_reviewed_date"), ("delivered", "delivered_date")],
+    "print_job":            [("designed", "designed_date"), ("sliced", "sliced_date"),
+                             ("printed", "printed_date"), ("inspected", "inspected_date"),
+                             ("delivered", "delivered_date")],
+}
+
+
+def _validate_step_columns() -> None:
+    """Verify every _date column for each step exists in the actual table schema."""
+    import logging as _logging
+    log = _logging.getLogger(__name__)
+    missing: list[str] = []
+    with get_conn() as conn:
+        for table, pairs in _STEP_DATE_COLUMNS.items():
+            existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}  # noqa: S608
+            for step, date_col in pairs:
+                if date_col not in existing:
+                    missing.append(f"{table}.{date_col} (step: {step})")
+    if missing:
+        raise RuntimeError(
+            "Database schema is missing step date columns. "
+            "Run a migration to add them before starting the app.\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+    log.debug("Step column validation passed (%d tables).", len(_STEP_DATE_COLUMNS))

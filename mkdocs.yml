@@ -14,6 +14,7 @@ nav:
       - API: reference/api.md
       - Application: reference/app.md
       - Database: reference/database.md
+      - Security: reference/security.md
       - Services: reference/services.md
       - UI: reference/ui.md
       - Models: reference/models.md
