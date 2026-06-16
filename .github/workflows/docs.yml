@@ -25,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Required for git-revision-date plugin
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,7 +41,7 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install mkdocs-material mkdocs-autorefs mkdocstrings-python pymdown-extensions
+          uv pip install mkdocs-material mkdocs-autorefs mkdocstrings-python pymdown-extensions mkdocs-git-revision-date-plugin
 
       - name: Build documentation
         run: |
