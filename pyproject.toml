@@ -63,7 +63,7 @@ docs = [
     "mkdocstrings[python]>=0.25.0",
     "pymdown-extensions>=10.21.3",
     "mkdocs-git-revision-date-localized-plugin>=1.2.0",
-    "mkdocs-git-revision-date-plugin,
+    "mkdocs-git-revision-date-plugin>=0.3.2",
 ]
 
 # =============================================================================
