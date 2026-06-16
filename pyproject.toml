@@ -16,9 +16,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Office/Business :: Scheduling",
     "Topic :: Utilities",
@@ -26,8 +23,8 @@ classifiers = [
 
 dependencies = [
     "nicegui>=1.4.0",
-    "textual>=0.80.0",
     "sqlalchemy>=2.0.0",
+    "textual>=0.80.0",
     "cryptography>=42.0.0",
     "tox>=4.30.3",
 ]
@@ -37,39 +34,54 @@ AccessMan = "accessibility_mgr.app:main"
 AccessMan-seed = "accessibility_mgr.db.seed_import:main"
 
 [project.urls]
-Homepage  = "https://github.com/mrhunsaker/accessible-materials-manager"
-Issues    = "https://github.com/mrhunsaker/accessible-materials-manager/issues"
+Homepage = "https://github.com/mrhunsaker/accessible-materials-manager"
+Issues = "https://github.com/mrhunsaker/accessible-materials-manager/issues"
 Discussions = "https://github.com/mrhunsaker/accessible-materials-manager/discussions"
 Changelog = "https://github.com/mrhunsaker/accessible-materials-manager/RELEASING.md"
 
-# Dev dependencies — managed here (uv-canonical).
-# Do not duplicate in [project.optional-dependencies].
+# =============================================================================
+# DEPENDENCY GROUPS - All dependencies in one place
+# Install everything with: uv sync
+# =============================================================================
+
 [dependency-groups]
+
+# Development tools
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.4.0",
     "mypy>=1.9",
+    "pyinstaller>=6.0.0",
 ]
+
+# Documentation tools - ALL MkDocs dependencies here
 docs = [
     "mkdocs>=1.6.0",
     "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.25.0",
     "mkdocs-autorefs>=1.4.0",
+    "mkdocstrings[python]>=0.25.0",
     "pymdown-extensions>=10.21.3",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
 ]
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+# =============================================================================
+# BUILD SYSTEM
+# =============================================================================
+
 [build-system]
-requires      = ["hatchling"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["accessibility_mgr"]
 
-# ── Ruff ──────────────────────────────────────────────────────────────────────
+# =============================================================================
+# TOOL CONFIGURATIONS
+# =============================================================================
+
 [tool.ruff]
-line-length    = 99
+line-length = 99
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -79,15 +91,14 @@ ignore = ["E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["accessibility_mgr"]
 
-# ── Mypy ──────────────────────────────────────────────────────────────────────
 [tool.mypy]
-python_version         = "3.12"
-strict                 = false
+python_version = "3.12"
+strict = false
 ignore_missing_imports = true
-warn_unused_ignores    = true
-warn_return_any        = true
+warn_unused_ignores = true
+warn_return_any = true
 
-# ── Pytest ────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths    = ["tests"]
+testpaths = ["tests"]
+

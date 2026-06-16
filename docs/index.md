@@ -1,42 +1,93 @@
 # Accessibility Project Management
 
-Accessibility Project Management is a NiceGUI-based production system for accessibility workflows. The documentation is generated with MkDocs and the Python API reference is built from docstrings using mkdocstrings.
+**Professional workflow and inventory platform for accessibility production teams.**
 
-## What this documentation covers
+---
 
-- Application startup and UI navigation
-- Database schema and query helpers
-- Services that coordinate workflow execution and tool discovery
-- UI pages, dialogs, and shared components
-- Mounted FastAPI API and internal API facade
-- Legacy SQLAlchemy data models
-- Artifact-based ingestion and file placement conventions
-- Metadata governance options and admin tooling
-- EPUB3/DAISY production and DAISY pipeline orchestration
+## 🎯 Overview
 
-## Recent updates
+The **Accessibility Project Management (APM)** system is a **NiceGUI-based local web application** designed to streamline and manage the production of accessible materials for educational and professional environments. It provides comprehensive workflow tracking, file management, inventory control, and quality assurance for:
 
-- The REST API is mounted at `/api` and supports optional API-key authentication.
-- Dashboard cards, a quick-create launcher, and an upcoming deadlines widget improve operator navigation.
-- Job detail pages now support export summaries, bulk actions, and overdue due-date highlighting.
-- Search uses FTS5 indexes where available and falls back to SQLite `LIKE` queries when needed.
-- Ingestion routes source files to `artifacts/<Project Title>/` with structured
-  filenames and preservation-aware metadata linkage.
-- Metadata entry is constrained to governed option sets, with Dublin Core field
-  examples and option popups in editing dialogs.
-- EPUB3/DAISY jobs are exposed as a dedicated production workflow.
-- DAISY Pipeline is exposed under Pipelines (not QA Tooling).
-- Electronics inventory now renders all categories, including empty sections,
-  and supports inline creation of new categories from the component dialog.
+- **Braille transcription and embossing**
+- **Large print production**
+- **eBraille digital formats**
+- **EPUB3 and DAISY accessible e-books**
+- **Tactile graphics (thermoform, hand-tooled, embossed)**
+- **3-D printing for accessibility aids**
 
-## Local documentation workflow
+APM combines **job management, file ingestion, metadata tracking, QA tooling integration, and consumables inventory** into a single, cohesive platform backed by **SQLite** for local data persistence.
 
-1. Install the docs dependencies with `uv sync --group docs`.
-2. Preview the site with `uv run mkdocs serve`.
-3. Build the static site with `uv run mkdocs build --strict`.
+---
 
-## Published site
+## ✨ Key Features
 
-The GitHub Actions workflow deploys the site to:
+### 📋 Production Workflow Management
+- **Dedicated workflow pages** for each production type
+- **Step-by-step tracking** with completion, reversion, and delivery capture
+- **Event logging** for full auditability
+- **Student record linkage** for cross-job history
 
-- [https://mrhunsaker.github.io/AccessibilityProjectmanagement](https://mrhunsaker.github.io/AccessibilityProjectmanagement)
+### 📁 File Ingestion & Preservation
+- **Drag-and-drop or path-based ingestion**
+- **Automatic SHA-256 checksums** and PREMIS-style event logging
+- **File-use classification** and provenance tracking
+- **Organized storage** in `artifacts/<Project Title>/...`
+
+### 📊 Search & Reporting
+- **Global search** across jobs, metadata, students, files, and events
+- **Exact checksum matching** for file identification
+- **Filterable reports** by school, grade, type, status, and date range
+- **CSV export** for all reports
+
+### 📦 Inventory Control
+- **Filament tracking** (brand, color, type, diameter, quantity, cost, supplier)
+- **Braille paper management** (type, size, label, quantity, supplier)
+- **Electronics inventory** (configurable categories for components)
+- **Low-stock warnings** and transaction history
+
+### ✅ Quality Assurance
+- **Integration with industry-standard tools**: DAISY Ace, EPUBCheck, Liblouis, BRLTTY, Pandoc, DAISY Pipeline 2
+- **QA run storage** in database, linked to jobs
+
+### 🔗 Provenance & Lineage
+- **Full event history** for all operations
+- **Mermaid-based lineage viewer** for file-to-job relationships
+
+### 🔐 Security & Access Control
+- **PBKDF2-HMAC-SHA-256 password hashing**
+- **Fernet encryption** for sensitive data
+- **Role-Based Access Control (RBAC)** for multi-user environments
+
+### 📡 API
+- **RESTful API** mounted at `/api`
+- **Optional authentication** via API keys
+
+---
+## 🚀 Getting Started
+
+New to APM? Follow our **[Installation Guide](getting-started/installation.md)** to set up your environment.
+
+---
+## 📖 Documentation Structure
+   Section | Description |
+ |---------|-------------|
+ | **[Getting Started](getting-started/)** | Installation, configuration, and initial setup |
+ | **[User Guide](user-guide/)** | Comprehensive guide to using APM features |
+ | **[Administration](administration/)** | Admin tasks, security, backups, and API |
+ | **[Development](development/)** | Architecture, contributing, and extending APM |
+ | **[Reference](reference/)** | Environment variables, tools, database schema, and security |
+
+---
+## 🤝 Community & Support
+
+- **Issues**: [GitHub Issues](https://github.com/mrhunsaker/AccessibilityProjectManagement/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mrhunsaker/AccessibilityProjectManagement/discussions)
+- **Email**: [github@mail.hunsakerweb.com](mailto:github@mail.hunsakerweb.com)
+
+---
+## 📜 License
+
+APM is released under the **[MIT License](license.md)**.
+
+---
+*Empowering accessibility production teams with professional-grade workflow management.*

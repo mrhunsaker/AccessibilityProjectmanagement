@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  accessibility-manager:
+    build:
+      context: .
+      containerfile: Containerfile
+    container_name: accessibility-manager
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    volumes:
+      # Persistent data (required)
+      - ./data:/data
+      # Configuration (required)
+      - ./.secrets:/app/.secrets:ro,z
+      - ./tools.ini:/app/tools.ini:ro,z
+      # Optional: Persist artifacts and backups on host
+      - ./artifacts:/data/artifacts
+      - ./backups:/data/backups
+    environment:
+      - NICEGUI_BROWSER_ONLY=1
+      - ACCESSMAN_DB_PATH=/data/accessibility_manager.db
+      - ACCESSMAN_BACKUP_DIR=/data/backups
+      - ACCESSMAN_LOG_LEVEL=INFO
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  data:

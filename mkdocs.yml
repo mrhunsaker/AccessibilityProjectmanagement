@@ -1,74 +1,98 @@
 site_name: Accessibility Project Management
-site_description: Accessibility-focused production management for braille, large print, eBraille, tactile graphics, and 3-D printing workflows.
-site_url: https://mrhunsaker.github.io/AccessibilityProjectmanagement/
-repo_url: https://github.com/mrhunsaker/AccessibilityProjectmanagement
-repo_name: AccessibilityProjectmanagement
-edit_uri: blob/main/
+site_description: Professional documentation for the Accessibility Project Management platform
+site_author: Michael Ryan Hunsaker, M.Ed., Ph.D.
+site_url: https://mrhunsaker.github.io/AccessibilityProjectManagement/
 
-nav:
-  - Home: index.md
-  - Overview: overview.md
-  - Project Docs:
-      - Implementation Plan: IMPLEMENTATION_PLAN.md
-  - Reference:
-      - API: reference/api.md
-      - Application: reference/app.md
-      - Database: reference/database.md
-      - Security: reference/security.md
-      - Services: reference/services.md
-      - UI: reference/ui.md
-      - Models: reference/models.md
+repo_name: mrhunsaker/AccessibilityProjectManagement
+repo_url: https://github.com/mrhunsaker/AccessibilityProjectManagement
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2024-2026 Michael Ryan Hunsaker
 
 theme:
   name: material
-  features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.path
-    - navigation.top
-    - content.code.copy
-    - content.action.edit
-    - search.highlight
-    - search.share
+  language: en
   palette:
     - scheme: default
-      primary: blue grey
+      primary: indigo
       accent: blue
       toggle:
-        icon: material/brightness-7
+        icon: material/weather-night
         name: Switch to dark mode
     - scheme: slate
-      primary: blue grey
-      accent: light blue
+      primary: indigo
+      accent: blue
       toggle:
-        icon: material/brightness-4
+        icon: material/weather-sunny
         name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+  icon:
+    logo: material/book-open-variant
+    repo: fontawesome/brands/github
 
 plugins:
   - search
+  - autorefs
   - mkdocstrings:
       handlers:
         python:
-          paths:
-            - /home/ryhunsaker/GitHubRepos/AccessibilityProjectmanagement
-          options:
-            show_root_heading: true
-            show_root_toc_entry: false
-            show_signature_annotations: true
-            members_order: source
-            merge_init_into_class: true
-            filters:
-              - "!^_"
+          paths: [accessibility_mgr]
+  - git-revision-date:
+      enabled: true
 
 markdown_extensions:
+  - abbr
   - admonition
   - attr_list
   - def_list
+  - footnotes
   - md_in_html
+  - tables
   - toc:
       permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
   - pymdownx.tabbed:
       alternate_style: true
-  - tables
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Configuration: getting-started/configuration.md
+  - User Guide:
+      - Dashboard: user-guide/dashboard.md
+      - Workflows: user-guide/workflows/overview.md
+  - Administration:
+      - API: administration/api.md
+  - Reference:
+      - Environment Variables: reference/environment-variables.md
+  - License: license.md
+
+extra:
+  generator: false
