@@ -57,22 +57,38 @@ class SecretVaultService:
         name: str,
         value: str,
     ) -> SecretRecord:
+        # FUN-024: validate inputs before attempting encryption
+        if not name or not name.strip():
+            raise ValueError("Secret name must be a non-empty string.")
+        if value is None:
+            raise ValueError("Secret value must not be None.")
+
         record = SecretRecord(
-            name=name,
+            name=name.strip(),
             encrypted_value=self._encrypt(value),
             created_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        self._secrets[name] = record
+        self._secrets[name.strip()] = record
         return record
 
     def retrieve_secret(self, name: str) -> str | None:
-        record = self._secrets.get(name)
+        # FUN-024: validate lookup key
+        if not name or not name.strip():
+            raise ValueError("Secret name must be a non-empty string.")
 
+        record = self._secrets.get(name.strip())
         if not record:
             return None
 
-        return self._decrypt(record.encrypted_value)
+        # FUN-025: surface decryption failures with a useful message
+        try:
+            return self._decrypt(record.encrypted_value)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Secret '{name}' exists but could not be decrypted. "
+                "The vault key may have changed since the secret was stored."
+            ) from exc
 
     def list_secrets(self) -> list[dict]:
         return [

@@ -582,15 +582,16 @@ def braille_jobs_page(content_area: ui.element) -> None:
                     braille_jobs_page(content_area)
                 _job_dialog(_do)
 
-            ui.keyboard(
-                on_key=lambda e: ui.run_javascript(
-                    "if (!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) "
-                    "{ window._apm_new_braille && window._apm_new_braille(); }"
-                ) if getattr(e, "action", "") == "keydown"
-                and str(getattr(e, "key", "")).lower() == "n" else None
-            )
+            # FUN-008: use Ctrl+N so this never fires while the user types in a field
+            def _handle_key_braille(e) -> None:
+                if (
+                    getattr(e, "action", "") == "keydown"
+                    and str(getattr(e, "key", "")).lower() == "n"
+                    and getattr(e, "ctrlKey", False)
+                ):
+                    _new()
 
-
+            ui.keyboard(on_key=_handle_key_braille)
 
             ui.button("+ New Job", on_click=_new).classes(
                 "bg-blue-600 text-white rounded-lg px-4 py-2"
@@ -737,17 +738,11 @@ def braille_jobs_page(content_area: ui.element) -> None:
                 ui.button("Next", on_click=lambda: _set_page(state["page"] + 1)).props(
                     "flat dense"
                 ).classes("text-slate-600").props("disable" if not has_next else "")
-                            def _handle_key(e) -> None:
-                                if getattr(e, "action", "") != "keydown":
-                                    return
-                                if str(getattr(e, "key", "")).lower() != "n":
-                                    return
-                                # Only fire when Ctrl is held so typing 'n' in search fields is unaffected.
-                                if not getattr(e, "ctrlKey", False):
-                                    return
-                                _new()
 
-                            ui.keyboard(on_key=_handle_key)
+            job_grid.clear()
+            with job_grid:
+                if not filtered:
+                    ui.label("No braille jobs found.").classes(
                         "text-slate-400 col-span-full text-center py-8"
                     )
                     return

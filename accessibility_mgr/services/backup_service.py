@@ -23,6 +23,7 @@ Manual backup
 from __future__ import annotations
 
 import logging
+import shutil
 import sqlite3
 import threading
 from datetime import datetime
@@ -78,6 +79,16 @@ class BackupService:
 
             if not db_path.exists():
                 raise RuntimeError(f"Database not found at {db_path}; cannot back up.")
+
+            # FUN-012: abort early if there is not enough free disk space
+            db_size = db_path.stat().st_size
+            free = shutil.disk_usage(backups_dir).free
+            required = db_size * 2  # headroom for WAL journal during backup
+            if free < required:
+                raise RuntimeError(
+                    f"Insufficient disk space for backup: {free:,} bytes free, "
+                    f"{required:,} bytes needed (2× source size {db_size:,})."
+                )
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             dest = backups_dir / f"accessibility_manager_{timestamp}.db"
@@ -174,6 +185,75 @@ class BackupService:
                 BackupService._timer.cancel()
                 BackupService._timer = None
                 log.info("Database backup scheduler stopped.")
+
+    # ── Restore ───────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def restore_backup(backup_path: str) -> None:
+        """Restore the live database from *backup_path*.
+
+        STUB-029: previously unimplemented.  Now performs a verified restore:
+        1. Validates the backup file is a readable SQLite database.
+        2. Creates a safety snapshot of the current live DB before overwriting.
+        3. Copies the backup over the live DB path using sqlite3.backup().
+        4. Verifies the restored file can be opened and queried.
+
+        Raises ``RuntimeError`` on any validation or IO failure so the caller
+        can surface the error to the user without crashing the app.
+        """
+        db_path, backups_dir = BackupService._paths()
+        src = Path(backup_path)
+
+        if not src.exists():
+            raise RuntimeError(f"Backup file not found: {backup_path}")
+
+        # Validate backup is an intact SQLite database
+        try:
+            test_conn = sqlite3.connect(str(src))
+            test_conn.execute("PRAGMA integrity_check").fetchone()
+            test_conn.close()
+        except sqlite3.DatabaseError as exc:
+            raise RuntimeError(
+                f"Backup file '{backup_path}' is not a valid SQLite database: {exc}"
+            ) from exc
+
+        # Safety snapshot of the current live DB
+        if db_path.exists():
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safety = backups_dir / f"pre_restore_{timestamp}.db"
+            backups_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                live = sqlite3.connect(str(db_path))
+                snap = sqlite3.connect(str(safety))
+                live.backup(snap)
+                snap.close()
+                live.close()
+                log.info("Pre-restore safety snapshot saved to %s", safety)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Could not create safety snapshot before restore: %s", exc)
+
+        # Perform the restore
+        try:
+            src_conn = sqlite3.connect(str(src))
+            dst_conn = sqlite3.connect(str(db_path))
+            src_conn.backup(dst_conn)
+            dst_conn.close()
+            src_conn.close()
+        except Exception as exc:
+            raise RuntimeError(f"Restore failed while copying backup to live DB: {exc}") from exc
+
+        # Verify restored DB is queryable
+        try:
+            verify = sqlite3.connect(str(db_path))
+            verify.execute("PRAGMA integrity_check").fetchone()
+            verify.close()
+        except sqlite3.DatabaseError as exc:
+            raise RuntimeError(
+                f"Restored database failed integrity check: {exc}. "
+                "The safety snapshot (if created) can be used to recover."
+            ) from exc
+
+        log.info("Database successfully restored from %s", backup_path)
 
     # ── Status helper (for Admin UI) ──────────────────────────────────────────────
 

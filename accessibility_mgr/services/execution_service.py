@@ -8,7 +8,22 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+# SEC-007: Only these executables may be launched by ExecutionService.
+ALLOWED_EXECUTABLES: frozenset[str] = frozenset({
+    "ace",
+    "brltty",
+    "epubcheck",
+    "file2brl",
+    "lou_translate",
+    "pandoc",
+    "pipeline2",
+    "pipeline2-cli",
+    "which",   # used by check_tool_available on POSIX
+    "where",   # used by check_tool_available on Windows
+})
 
 
 @dataclass
@@ -36,6 +51,17 @@ class ExecutionService:
     ) -> ExecutionResult:
         """Run a shell command and return the full result."""
         cmd_str = " ".join(command)
+        exe_name = Path(command[0]).name
+        if exe_name not in ALLOWED_EXECUTABLES:
+            return ExecutionResult(
+                command=cmd_str,
+                success=False,
+                output=(
+                    f"Executable '{exe_name}' is not in the permitted allowlist. "
+                    "Add it to ALLOWED_EXECUTABLES in execution_service.py if required."
+                ),
+                return_code=-4,
+            )
         try:
             result = subprocess.run(
                 command,

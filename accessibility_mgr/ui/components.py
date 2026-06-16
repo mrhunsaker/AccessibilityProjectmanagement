@@ -61,7 +61,8 @@ def confirm_dialog(
     on_confirm: Callable[[], None],
     title: str = "Confirm",
 ) -> None:
-    """Confirm dialog.
+    """Show a modal confirmation dialog; call on_confirm only if the user confirms."""
+    with ui.dialog() as dialog, ui.card().classes("p-6 gap-4 min-w-80"):
         ui.label(title).classes("text-lg font-semibold text-slate-800")
         ui.label(message).classes("text-slate-600")
         with ui.row().classes("gap-3 justify-end w-full mt-2"):
@@ -70,14 +71,6 @@ def confirm_dialog(
             )
 
             def _do() -> None:
-                """ do.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
                 dialog.close()
                 on_confirm()
 

@@ -1,11 +1,20 @@
-"""Authentication and API token infrastructure."""
+"""Authentication and API token infrastructure.
+
+GEN-009 / FUN-031: Tokens are currently stored in-memory only and are lost on
+restart.  Revocation and token rotation are not persistent.  A future migration
+should back this with the database (api_token table).  All validation attempts
+are now logged for audit purposes.
+"""
 
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -95,25 +104,37 @@ class AuthenticationService:
             "expires_at": token.expires_at,
         }
 
-    def validate_token(self, raw_token: str) -> bool:
-        hashed = hashlib.sha256(
-            raw_token.encode("utf-8")
-        ).hexdigest()
+    def validate_token(self, raw_token: str, *, caller_ip: str = "unknown") -> bool:
+        """Validate *raw_token* and log the attempt.
 
+        FUN-031: every call is logged with timestamp and caller_ip so
+        operators can detect brute-force attempts.  Token values are never
+        logged — only token_ids.
+        """
+        hashed = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         now = datetime.now(timezone.utc)
 
         for token in self._tokens:
             if not token.active:
                 continue
-
             if token.token_hash != hashed:
                 continue
-
             if datetime.fromisoformat(token.expires_at) < now:
+                log.warning(
+                    "validate_token: expired token presented [id=%s owner=%s ip=%s]",
+                    token.token_id, token.owner, caller_ip,
+                )
                 return False
-
+            log.info(
+                "validate_token: accepted [id=%s owner=%s ip=%s]",
+                token.token_id, token.owner, caller_ip,
+            )
             return True
 
+        log.warning(
+            "validate_token: rejected unknown/invalid token [ip=%s at=%s]",
+            caller_ip, now.isoformat(),
+        )
         return False
 
     def create_session(

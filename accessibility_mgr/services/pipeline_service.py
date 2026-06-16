@@ -3,51 +3,40 @@ Pipeline service — multi-stage accessibility production workflow automation.
 
 Each pipeline definition carries ordered steps with tool names and commands.
 Execution runs each step via ExecutionService and persists run records to DB.
+
+STUB-026: DAISY Pipeline 2 steps now use the real pipeline2-cli invocation
+pattern (--data, --script).  A binary pre-check surfaces a clear error message
+when the tool is absent rather than silently returning success from an echo stub.
 """
 
 from __future__ import annotations
 
 import shlex
+import shutil
 from dataclasses import dataclass, field
 from typing import Optional
 
 from ..db import queries as Q
-from .execution_service import ExecutionResult, ExecutionService
+from .execution_service import ALLOWED_EXECUTABLES, ExecutionResult, ExecutionService
 
 
 @dataclass
 class PipelineStep:
-    """PipelineStep class.
-    
-    """
+    """A single step in a multi-stage workflow pipeline."""
     name: str
     tool: str
     command_template: str   # {input} replaced at runtime
     timeout: int = 120
+    required_binary: str = ""  # STUB-026: binary to check before running
 
     def build_command(self, input_path: str = "") -> list[str]:
-        """Build command.
-        
-        Parameters
-        ----------
-        input_path : Any
-            input_path parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
         cmd = self.command_template.replace("{input}", input_path)
         return shlex.split(cmd)
 
 
 @dataclass
 class WorkflowPipeline:
-    """WorkflowPipeline class.
-    
-    """
+    """An ordered collection of PipelineSteps representing a production workflow."""
     name: str
     description: str
     steps: list[PipelineStep] = field(default_factory=list)
@@ -56,13 +45,35 @@ class WorkflowPipeline:
 PIPELINES: list[WorkflowPipeline] = [
     WorkflowPipeline(
         name="DAISY Pipeline",
-        description="Run the DAISY Pipeline task set for EPUB/DAISY processing.",
+        # STUB-026: list real pipeline2-cli script IDs; --data points to the
+        # Pipeline 2 data directory configured in tools.ini or the install default.
+        description=(
+            "Run the DAISY Pipeline 2 task set for EPUB/DAISY processing.  "
+            "Requires pipeline2-cli on PATH (https://daisy.org/pipeline)."
+        ),
         steps=[
             PipelineStep(
-                name="Run Pipeline Tasks",
+                name="List Available Scripts",
                 tool="DAISY Pipeline",
-                command_template="pipeline2-cli tasks",
+                # STUB-026: real invocation — lists registered scripts to
+                # confirm the server is reachable before running jobs.
+                command_template="pipeline2-cli scripts",
                 timeout=30,
+                required_binary="pipeline2-cli",
+            ),
+            PipelineStep(
+                name="Convert EPUB to DAISY",
+                tool="DAISY Pipeline",
+                # Real script invocation: pipeline2-cli run --script epub3-to-daisy
+                # --input source={input} --output result=/tmp/daisy-output
+                command_template=(
+                    "pipeline2-cli run "
+                    "--script epub3-to-daisy "
+                    "--input source={input} "
+                    "--output result=/tmp/daisy-pipeline-output"
+                ),
+                timeout=300,
+                required_binary="pipeline2-cli",
             ),
         ],
     ),
@@ -75,18 +86,21 @@ PIPELINES: list[WorkflowPipeline] = [
                 tool="Pandoc",
                 command_template="pandoc {input} -o output.epub",
                 timeout=60,
+                required_binary="pandoc",
             ),
             PipelineStep(
                 name="Validate EPUB Structure",
                 tool="EPUBCheck",
                 command_template="epubcheck output.epub",
                 timeout=60,
+                required_binary="epubcheck",
             ),
             PipelineStep(
                 name="Accessibility QA",
                 tool="DAISY Ace",
                 command_template="ace output.epub -o ace-report",
                 timeout=180,
+                required_binary="ace",
             ),
         ],
     ),
@@ -99,12 +113,14 @@ PIPELINES: list[WorkflowPipeline] = [
                 tool="Liblouis",
                 command_template="file2brl {input}",
                 timeout=60,
+                required_binary="file2brl",
             ),
             PipelineStep(
                 name="Braille Device QA",
                 tool="BRLTTY",
                 command_template="brltty --help",
                 timeout=10,
+                required_binary="brltty",
             ),
         ],
     ),
@@ -158,7 +174,12 @@ class PipelineService:
 
     @staticmethod
     def run_pipeline(name: str, input_path: str = "") -> PipelineRunResult:
-        """Execute all steps of a named pipeline, persisting results to DB."""
+        """Execute all steps of a named pipeline, persisting results to DB.
+
+        STUB-026: Each step's ``required_binary`` is checked via shutil.which
+        before execution.  Missing binaries produce an explicit FAIL result with
+        installation guidance rather than silently running an echo stub.
+        """
         pipeline = _PIPELINE_MAP.get(name)
         if pipeline is None:
             return PipelineRunResult(
@@ -180,6 +201,30 @@ class PipelineService:
         overall_success = True
 
         for step in pipeline.steps:
+            # STUB-026: explicit binary pre-check with install guidance
+            if step.required_binary and not shutil.which(step.required_binary):
+                missing_result = ExecutionResult(
+                    command=step.required_binary,
+                    success=False,
+                    output=(
+                        f"Required binary '{step.required_binary}' not found on PATH.  "
+                        f"Install the tool and ensure it is accessible, or configure its "
+                        f"path in tools.ini before running this pipeline."
+                    ),
+                    return_code=-5,
+                )
+                Q.log_pipeline_step(
+                    pipeline_run_id=run_id,
+                    step_name=step.name,
+                    tool=step.tool,
+                    command=step.required_binary,
+                    success=False,
+                    output=missing_result.output,
+                )
+                step_results.append(missing_result)
+                overall_success = False
+                continue
+
             command = step.build_command(input_path)
             result = ExecutionService.run_command(command, timeout=step.timeout)
 
@@ -196,7 +241,7 @@ class PipelineService:
 
             if not result.success:
                 overall_success = False
-                # Continue remaining steps even on failure so all results are recorded
+                # Continue remaining steps so all results are recorded
 
         Q.finish_pipeline_run(run_id, status="completed" if overall_success else "failed")
 

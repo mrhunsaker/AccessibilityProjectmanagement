@@ -8,7 +8,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-DATABASE_PATH = Path("accessibility_mgr.db")
+def _default_db_path() -> Path:
+    """FUN-006: resolve the canonical DB path from schema to avoid drift."""
+    try:
+        from ..db.schema import DB_PATH
+        return DB_PATH
+    except Exception:
+        # Fallback for standalone / test use where schema is not importable
+        return Path("accessibility_mgr.db")
+
+
+DATABASE_PATH = _default_db_path()
 
 
 @dataclass(slots=True)

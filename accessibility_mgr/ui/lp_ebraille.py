@@ -553,18 +553,20 @@ def _lp_jobs_page(
                     title_override=f"New {page_title[:-5] if page_title.endswith(' Jobs') else page_title}",
                 )
 
-            ui.keyboard(
-                on_key=lambda e: _new()
-                if getattr(e, "action", "") == "keydown"
-                and str(getattr(e, "key", "")).lower() == "n"
-                else None
-            )
-
-
-
             ui.button("+ New Job", on_click=_new).classes(
                 f"{accent_class} text-white rounded-lg px-4 py-2"
             )
+
+            # FUN-004: single Ctrl+N keyboard handler at the correct (page) scope
+            def _handle_key_lp(e) -> None:
+                if (
+                    getattr(e, "action", "") == "keydown"
+                    and str(getattr(e, "key", "")).lower() == "n"
+                    and getattr(e, "ctrlKey", False)
+                ):
+                    _new()
+
+            ui.keyboard(on_key=_handle_key_lp)
 
         pager_row = ui.row().classes("items-center gap-2 mb-3")
         bulk_row = ui.row().classes("items-center gap-2 mb-3")
@@ -625,11 +627,12 @@ def _lp_jobs_page(
                                 "due_date",
                                 "delivery_date",
                             ],
-                                        def _handle_key_lp(e) -> None:
-                                            if getattr(e, "action", "") == "keydown" and str(getattr(e, "key", "")).lower() == "n" and getattr(e, "ctrlKey", False):
-                                                _new()
-
-                                        ui.keyboard(on_key=_handle_key_lp)
+                        )
+                        writer.writeheader()
+                        for row in selected:
+                            writer.writerow(
+                                {
+                                    "id": row.get("id"),
                                     "title": row.get("title", ""),
                                     "job_type": row.get("job_type", ""),
                                     "requester": row.get("requester", ""),

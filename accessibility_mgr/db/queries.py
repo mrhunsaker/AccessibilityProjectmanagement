@@ -186,6 +186,13 @@ def delete_filament(row_id: int) -> None:
 
 
 def deduct_filament(row_id: int, grams: float) -> None:
+    """Deduct *grams* from filament stock.
+
+    FUN-011: grams must be strictly positive.  Zero is a no-op; negative values
+    would silently *add* stock (MAX(0, qty - negative) = qty + |negative|).
+    """
+    if grams <= 0:
+        raise ValueError(f"grams must be positive, got {grams!r}")
     with get_conn() as conn:
         conn.execute(
             "UPDATE filament SET quantity_g = MAX(0, quantity_g - ?), "
@@ -784,10 +791,24 @@ def ingest_file(
     grade_level: str = "",
     subject: str = "",
 ) -> int:
-    """Copy a file into the artifact store, compute SHA-256, and create a file_object record."""
-    src = Path(source_path)
+    """Copy a file into the artifact store, compute SHA-256, and create a file_object record.
+
+    SEC-004 / FUN-023: the *source_path* must exist and must resolve to a path
+    inside FILES_DIR (the staging area).  This prevents callers from staging
+    arbitrary files from anywhere on the filesystem into the artifact store.
+    """
+    src = Path(source_path).resolve()
     if not src.exists():
         raise FileNotFoundError(f"Source file not found: {src}")
+
+    # SEC-004: ensure source resolves inside the permitted staging directory
+    try:
+        src.relative_to(FILES_DIR.resolve())
+    except ValueError:
+        raise PermissionError(
+            f"ingest_file: source '{src}' is outside the permitted staging directory "
+            f"'{FILES_DIR}'.  Stage files via the upload handler before ingesting."
+        )
 
     file_uuid = str(uuid.uuid4())
 
@@ -878,7 +899,16 @@ def delete_file_object(file_id: int) -> None:
         )
         _sp = Path(row["stored_path"])
         stored = _sp if _sp.is_absolute() else FILES_DIR / _sp
-        stored.unlink(missing_ok=True)
+        stored = stored.resolve()
+        # SEC-004: only unlink if the resolved path is inside ARTIFACTS_DIR or FILES_DIR
+        safe_roots = (ARTIFACTS_DIR.resolve(), FILES_DIR.resolve())
+        if any(str(stored).startswith(str(root)) for root in safe_roots):
+            stored.unlink(missing_ok=True)
+        else:
+            import logging as _log
+            _log.getLogger(__name__).warning(
+                "delete_file_object: refusing to unlink '%s' outside permitted dirs", stored
+            )
     with get_conn() as conn:
         conn.execute("DELETE FROM file_object WHERE id = ?", (file_id,))
 

@@ -29,14 +29,21 @@ def _ensure_runtime_started() -> None:
         _queue.enqueue(workflow_name="epub_accessibility_pipeline", asset_id=1, priority=1)
         _queue.enqueue(workflow_name="metadata_governance_pipeline", asset_id=2, priority=3)
 
+    import logging
     from ..services.pipeline_service import PipelineService
+
+    _wm_log = logging.getLogger(__name__)
 
     def _real_handler(job) -> None:
         """Dispatch workflow jobs to PipelineService by workflow_name."""
         try:
-            PipelineService.run(job["workflow_name"], asset_id=job.get("asset_id"))
-        except Exception:  # noqa: BLE001
-            pass
+            PipelineService.run_pipeline(job.workflow_name)
+        except Exception as exc:  # noqa: BLE001
+            _wm_log.error(
+                "Worker handler error for workflow %r (asset %s): %s",
+                job.workflow_name, job.asset_id, exc,
+                exc_info=True,
+            )
 
     _runtime.start(_real_handler)
 

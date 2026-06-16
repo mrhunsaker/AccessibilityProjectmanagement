@@ -353,16 +353,13 @@ def print_jobs_page(content_area: ui.element) -> None:
                         notify_error(f"Error: {exc}")
                 _print_job_dialog(_do)
 
-            ui.keyboard(
-                on_key=lambda e: _new()
-                if getattr(e, "action", "") == "keydown"
-                and str(getattr(e, "key", "")).lower() == "n"
-                else None
-            )
-
-
+            # FUN-003: removed duplicate bare-N handler; only Ctrl+N fires _new()
             def _handle_key_print(e) -> None:
-                if getattr(e, "action", "") == "keydown" and str(getattr(e, "key", "")).lower() == "n" and getattr(e, "ctrlKey", False):
+                if (
+                    getattr(e, "action", "") == "keydown"
+                    and str(getattr(e, "key", "")).lower() == "n"
+                    and getattr(e, "ctrlKey", False)
+                ):
                     _new()
 
             ui.keyboard(on_key=_handle_key_print)

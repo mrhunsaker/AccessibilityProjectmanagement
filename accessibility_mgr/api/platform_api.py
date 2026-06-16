@@ -24,8 +24,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-_require_api_key = os.getenv("ACCESSMAN_API_AUTH_REQUIRED", "0").lower() in {
-    "1", "true", "yes", "on"
+_require_api_key = os.getenv("ACCESSMAN_API_AUTH_REQUIRED", "1").lower() not in {
+    "0", "false", "no", "off"
 }
 _configured_api_key = os.getenv("ACCESSMAN_API_KEY", "").strip()
 if _configured_api_key:

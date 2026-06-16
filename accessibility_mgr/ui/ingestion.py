@@ -445,24 +445,30 @@ def ingestion_page(content_area: ui.element) -> None:
                 uploads_dir = Q.FILES_DIR
 
                 def _handle_upload(event: events.UploadEventArguments) -> None:
-                    """ handle upload.
-                    
-                    Parameters
-                    ----------
-                    event : Any
-                        event parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
+                    """Handle a file upload event.
+
+                    SEC-005: ``event.name`` comes directly from the browser and
+                    may contain path separators or traversal sequences such as
+                    ``../../etc/passwd``.  We sanitise it to a plain basename
+                    before constructing any filesystem path.
                     """
                     if not up_project_inp.value.strip():
                         notify_error("Project Title is required for artifact storage")
                         return
+
+                    # SEC-005: strip all directory components and reject suspicious names
+                    raw_name   = Path(event.name).name          # basename only
+                    safe_name  = "".join(
+                        c for c in raw_name if c.isalnum() or c in "._- "
+                    ).strip()
+                    if not safe_name:
+                        notify_error(
+                            f"Upload rejected: filename '{event.name}' is not safe."
+                        )
+                        return
+
                     # Stage the upload temporarily in job_files/, then ingest to artifacts/
-                    stage = uploads_dir / event.name
+                    stage = uploads_dir / safe_name
                     stage.write_bytes(event.content.read())
                     try:
                         _up_tools = [r["inp"].value.strip() for r in up_tool_rows if r["inp"].value.strip()]

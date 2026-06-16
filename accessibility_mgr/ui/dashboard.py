@@ -199,12 +199,17 @@ def dashboard_page(content_area: ui.element) -> None:
     content_area.clear()
 
     with content_area:
-        ui.keyboard(
-            on_key=lambda e: _open_quick_create_dialog(content_area)
-            if getattr(e, "action", "") == "keydown"
-            and str(getattr(e, "key", "")).lower() == "n"
-            else None
-        )
+        # FUN-007: guard with Ctrl modifier so typing "n" in a form field
+        # doesn't accidentally open the create dialog.
+        def _handle_key_dashboard(e) -> None:
+            if (
+                getattr(e, "action", "") == "keydown"
+                and str(getattr(e, "key", "")).lower() == "n"
+                and getattr(e, "ctrlKey", False)
+            ):
+                _open_quick_create_dialog(content_area)
+
+        ui.keyboard(on_key=_handle_key_dashboard)
 
         section_header("Dashboard", "Overview of your accessibility materials studio")
 

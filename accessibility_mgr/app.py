@@ -234,7 +234,16 @@ BackupService.start()
 
 def render_page(content: ui.column, page: dict) -> None:
     content.clear()
-    handler = page["handler"]
+    handler = page.get("handler")
+    # FUN-020: guard against None handler rather than letting AttributeError surface
+    if handler is None:
+        with content, ui.card().classes(
+            "w-full border border-amber-200 bg-amber-50 p-4 rounded-xl"
+        ):
+            ui.label(f"Page '{page.get('name', '?')}' has no handler registered.").classes(
+                "text-amber-700 font-semibold"
+            )
+        return
     try:
         sig = inspect.signature(handler)
         if len(sig.parameters) == 0:
@@ -270,21 +279,76 @@ def _is_authenticated() -> bool:
 
 @ui.page("/login")
 def login_page() -> None:
-    """Password-protected login page."""
+    """Password-protected login page.
+
+    SEC-001: Passwords are verified with PBKDF2-HMAC-SHA-256.
+             ACCESSMAN_PASSWORD_HASH must be produced by:
+               python -c "import hashlib,os,base64; salt=os.urandom(16);
+                 dk=hashlib.pbkdf2_hmac('sha256',b'yourpassword',salt,260000);
+                 print(base64.b64encode(salt+dk).decode())"
+             For backwards-compat a 64-hex-char legacy SHA-256 hash is still
+             accepted but triggers a deprecation warning.
+
+    FUN-019: When ACCESSMAN_PASSWORD_HASH is unset the app no longer silently
+             auto-approves access.  Instead it blocks login and shows a clear
+             setup warning.  Set ACCESSMAN_UNPROTECTED=1 only for offline dev.
+
+    FUN-022: Empty-password submissions are rejected before any hashing.
+    """
     import hashlib
+    import base64
+    import hmac
 
     ui.page_title("Login — " + APP_TITLE)
     _expected_hash = os.getenv("ACCESSMAN_PASSWORD_HASH", "").strip()
+    _unprotected   = os.getenv("ACCESSMAN_UNPROTECTED", "0").lower() in {"1", "true", "yes"}
 
     if not _expected_hash:
-        # No password configured — auto-approve single-operator deployments.
-        nicegui_app.storage.user["authenticated"] = True
-        ui.navigate.to("/")
+        if _unprotected:
+            log.warning(
+                "ACCESSMAN_UNPROTECTED=1 — authentication is disabled. "
+                "Do NOT use this in production."
+            )
+            nicegui_app.storage.user["authenticated"] = True
+            ui.navigate.to("/")
+        else:
+            # FUN-019: no silent auto-approve
+            with ui.column().classes(
+                "items-center justify-center w-full min-h-screen bg-slate-100"
+            ):
+                with ui.card().classes("p-8 gap-4 w-96 shadow-xl rounded-2xl border-red-300"):
+                    ui.label("⚠ No Password Configured").classes(
+                        "text-lg font-bold text-red-700 text-center"
+                    )
+                    ui.label(
+                        "Set ACCESSMAN_PASSWORD_HASH in your .secrets file to enable login. "
+                        "For offline dev only, set ACCESSMAN_UNPROTECTED=1."
+                    ).classes("text-sm text-slate-600 text-center")
         return
 
     if _is_authenticated():
         ui.navigate.to("/")
         return
+
+    def _verify(candidate: str) -> bool:
+        """SEC-001: verify against PBKDF2 hash, with legacy SHA-256 fallback."""
+        if len(_expected_hash) == 64 and all(c in "0123456789abcdef" for c in _expected_hash):
+            # Legacy plain SHA-256 (64 hex chars) — accept but warn
+            log.warning(
+                "ACCESSMAN_PASSWORD_HASH is a plain SHA-256 hex digest. "
+                "Regenerate it with PBKDF2 — see the login_page docstring."
+            )
+            entered = hashlib.sha256(candidate.encode()).hexdigest()
+            return hmac.compare_digest(entered, _expected_hash)
+        # PBKDF2-HMAC-SHA-256: hash = base64(salt[16] || dk[32])
+        try:
+            raw  = base64.b64decode(_expected_hash)
+            salt = raw[:16]
+            stored_dk = raw[16:]
+            dk = hashlib.pbkdf2_hmac("sha256", candidate.encode(), salt, 260000)
+            return hmac.compare_digest(dk, stored_dk)
+        except Exception:
+            return False
 
     with ui.column().classes("items-center justify-center w-full min-h-screen bg-slate-100"):
         with ui.card().classes("p-8 gap-4 w-80 shadow-xl rounded-2xl"):
@@ -296,8 +360,11 @@ def login_page() -> None:
             err = ui.label("").classes("text-red-500 text-xs")
 
             def _login() -> None:
-                entered = hashlib.sha256(pw.value.encode()).hexdigest()
-                if entered == _expected_hash:
+                # FUN-022: reject empty passwords before hashing
+                if not pw.value:
+                    err.set_text("Password cannot be empty")
+                    return
+                if _verify(pw.value):
                     nicegui_app.storage.user["authenticated"] = True
                     ui.navigate.to("/")
                 else:
@@ -343,7 +410,8 @@ def index() -> None:  # noqa: C901 - top-level page builder; complexity comes fr
             "w-full bg-white border-b border-slate-200 px-6 py-3 items-center justify-end shadow-sm"
         ):
             def _logout() -> None:
-                nicegui_app.storage.user["authenticated"] = False
+                # FUN-021: clear entire user session, not just the auth flag
+                nicegui_app.storage.user.clear()
                 ui.navigate.to("/login")
 
             ui.button(icon="person_off", on_click=_logout).props(
@@ -468,14 +536,25 @@ def index() -> None:  # noqa: C901 - top-level page builder; complexity comes fr
             ).classes("text-slate-600 hover:text-slate-900")
 
 def load_secrets():
+    """Load KEY=VALUE secrets from .secrets into os.environ.
+
+    SEC-002: uses partition('=') so values containing '=' (e.g. base64 Fernet
+    keys) are preserved intact.  Blank lines and comment lines are skipped.
+    FUN-013: strips whitespace from both key and value independently.
+    """
     secrets_path = '.secrets'
     if not os.path.exists(secrets_path):
         raise FileNotFoundError(f"Secrets file '{secrets_path}' not found.")
-    
+
     with open(secrets_path, 'r') as file:
         for line in file:
-            key, value = line.strip().split('=')
-            os.environ[key] = value
+            stripped = line.strip()
+            if not stripped or stripped.startswith('#'):
+                continue
+            key, sep, value = stripped.partition('=')
+            if not sep:
+                continue  # malformed line — no '=' found; skip silently
+            os.environ[key.strip()] = value.strip()
 
 def main() -> None:
     """Console-script entry point for ``uv run AccessMan``."""
