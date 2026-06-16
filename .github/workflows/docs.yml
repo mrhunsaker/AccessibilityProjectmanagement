@@ -41,6 +41,7 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
+          uv pip install -e .  # Install your project in editable mode
           uv pip install mkdocs-material mkdocs-autorefs mkdocstrings-python pymdown-extensions mkdocs-git-revision-date-plugin
 
       - name: Build documentation
