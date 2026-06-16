@@ -37,12 +37,16 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
+          uv venv
+          source .venv/bin/activate
           uv pip install mkdocs-material mkdocs-autorefs mkdocstrings-python pymdown-extensions
 
       - name: Build documentation
-        run: mkdocs build
+        run: |
+          source .venv/bin/activate
+          mkdocs build
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
