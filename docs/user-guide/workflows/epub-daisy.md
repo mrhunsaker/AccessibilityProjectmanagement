@@ -1,8 +1,3 @@
-Here's the **clean, copy/paste-ready version** with the Mermaid diagram properly formatted:
-
----
-
-```markdown
 # EPUB3/DAISY Workflow
 
 **Creating accessible e-books and digital talking books.**
@@ -236,5 +231,5 @@ my-epub/
 - [Braille Workflow](braille.md) - For braille versions
 - [Large Print Workflow](large-print.md) - For large print versions
 - [Tactile Graphics Workflow](tactile-graphics.md) - For tactile images
-```
+
 

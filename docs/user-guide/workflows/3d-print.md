@@ -94,5 +94,7 @@ graph TD
 ## 🔗 Related Workflows
 
 - [Tactile Graphics Workflow](tactile-graphics.md) - For 2D tactile elements
+
 - [Braille Workflow](braille.md) - For accompanying text
-- [Inventory Management](../inventory.md) - For filament tracking
+
+  

@@ -69,13 +69,17 @@ New to APM? Follow our **[Installation Guide](getting-started/installation.md)**
 
 ---
 ## 📖 Documentation Structure
-   Section | Description |
- |---------|-------------|
- | **[Getting Started](getting-started/)** | Installation, configuration, and initial setup |
- | **[User Guide](user-guide/)** | Comprehensive guide to using APM features |
- | **[Administration](administration/)** | Admin tasks, security, backups, and API |
- | **[Development](development/)** | Architecture, contributing, and extending APM |
- | **[Reference](reference/)** | Environment variables, tools, database schema, and security |
+
+| Section | Description |
+|---------|-------------|
+| **[Getting Started](getting-started/index.md)** | Installation, configuration, and initial setup |
+| **[User Guide](user-guide/index.md)** | Comprehensive guide to using APM features |
+| **[Administration](administration/index.md)** | Admin tasks, security, backups, and API |
+| **[Development](development/index.md)** | Architecture, contributing, and extending APM |
+| **[Operations](operations/index.md)** | Deployment, monitoring, and scaling |
+| **[Reference](reference/index.md)** | Environment variables, tools, database schema, and security |
+| **[Project](project/index.md)** | Roadmap, release process, and contributing guidelines |
+| **[Support](support/index.md)** | FAQ, troubleshooting, and contact information |
 
 ---
 ## 🤝 Community & Support

@@ -32,6 +32,7 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.sections
+    - navigation.indexes
     - toc.integrate
     - search.suggest
     - search.highlight
@@ -83,15 +84,79 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
+      - getting-started/index.md
       - Installation: getting-started/installation.md
       - Configuration: getting-started/configuration.md
+      - First Steps: getting-started/first-steps.md
   - User Guide:
+      - user-guide/index.md
       - Dashboard: user-guide/dashboard.md
-      - Workflows: user-guide/workflows/overview.md
+      - Quick Create: user-guide/quick-create.md
+      - Search: user-guide/search.md
+      - Lineage Viewer: user-guide/lineage-viewer.md
+      - Workflows:
+          - user-guide/workflows/index.md
+          - Overview: user-guide/workflows/overview.md
+          - Braille: user-guide/workflows/braille.md
+          - Large Print: user-guide/workflows/large-print.md
+          - eBraille: user-guide/workflows/ebraille.md
+          - EPUB3 / DAISY: user-guide/workflows/epub-daisy.md
+          - Tactile Graphics: user-guide/workflows/tactile-graphics.md
+          - 3-D Print: user-guide/workflows/3d-print.md
+          - Pipelines: user-guide/workflows/pipelines.md
+          - Students: user-guide/workflows/students.md
   - Administration:
-      - API: administration/api.md
+      - administration/index.md
+      - REST API: administration/api.md
+      - Backup & Restore: administration/backup-restore.md
+      - Configurable Categories: administration/categories.md
+      - Database Migrations: administration/migration.md
+      - Performance: administration/performance.md
+      - Printers & Embossers: administration/printers-embossers.md
+      - Security Guide: administration/security.md
+      - Multi-Tenancy: administration/tenants.md
+      - Users & Roles: administration/users-roles.md
+  - Development:
+      - development/index.md
+      - Architecture Overview: overview.md
+      - Code Structure: development/code-structure.md
+      - Custom Metadata Fields: development/custom-fields.md
+      - Custom Workflows & Pipelines: development/custom-workflows.md
+      - Debugging: development/debugging.md
+      - Local Development Setup: development/local-dev.md
+      - Extending APM: development/plugins.md
+      - Testing: development/test-cases.md
+  - Operations:
+      - operations/index.md
+      - Deployment: operations/deployment.md
+      - Monitoring: operations/monitoring.md
+      - Scaling: operations/scaling.md
   - Reference:
+      - reference/index.md
+      - API (Code Reference): reference/api.md
+      - Application: reference/app.md
+      - Architecture Decisions (ADRs): reference/architecture-decisions.md
+      - Data Flow: reference/data-flow.md
+      - Database: reference/database.md
       - Environment Variables: reference/environment-variables.md
+      - Error Codes: reference/error-codes.md
+      - Glossary: reference/glossary.md
+      - Keyboard Shortcuts: reference/keyboard-shortcuts.md
+      - Models: reference/models.md
+      - Security Reference: reference/security.md
+      - Services: reference/services.md
+      - UI: reference/ui.md
+  - Project:
+      - project/index.md
+      - Contributing: project/contributors.md
+      - Release Process: project/release-process.md
+      - Roadmap: project/roadmap.md
+  - Support:
+      - support/index.md
+      - Contact: support/contact.md
+      - FAQ: support/faq.md
+      - Troubleshooting: support/troubleshooting.md
+  - Changelog: changelog.md
   - License: license.md
 
 extra:

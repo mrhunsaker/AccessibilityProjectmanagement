@@ -19,6 +19,7 @@ graph LR
     E --> G[Delivered]
     C --> H[On Hold]
     H --> C
+```
 
 ## 📋 Common Workflow Features
 ### Status Tracking
