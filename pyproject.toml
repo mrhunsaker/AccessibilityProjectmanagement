@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-AccessMan = "accessibility_mgr.app:main"
+APM = "accessibility_mgr.app:main"
 AccessMan-seed = "accessibility_mgr.db.seed_import:main"
 
 [project.urls]
@@ -65,6 +65,9 @@ docs = [
     "mkdocs-git-revision-date-localized-plugin>=1.2.0",
     "mkdocs-git-revision-date-plugin>=0.3.2",
 ]
+
+[tool.uv]
+default-groups = ["dev", "docs"]
 
 # =============================================================================
 # BUILD SYSTEM

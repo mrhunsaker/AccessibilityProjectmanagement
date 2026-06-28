@@ -13,7 +13,7 @@ graph TD
     A --> D[Recent Activity Card]
     A --> E[Quick Create Panel]
     A --> F[Upcoming Deadlines Widget]
-
+```
 
 ## 🎨 Dashboard Sections
 ### 📌 Active Jobs
