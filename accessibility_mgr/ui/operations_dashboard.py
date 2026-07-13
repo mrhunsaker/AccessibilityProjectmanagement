@@ -2,24 +2,21 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from uuid import uuid4
-
 from nicegui import ui
 
-from ..services.analytics import AnalyticsService
+from ..db import queries as Q
 from ..services.artifact_retention import ArtifactRetentionService
 from ..services.audit_log import AuditLogService
 from ..services.compliance_reporting import ComplianceReportingService
 from ..services.distributed_workers import DistributedWorkerRegistry
 from ..services.event_stream import EventStreamService
 from ..services.multi_tenant import MultiTenantService
+from ..services.singletons import analytics as _analytics
 from ..services.sla_monitoring import SLAMonitoringService
 from ..services.workflow_dag import WorkflowDAGService
-from .components import section_header
+from .components import notify_error, notify_success, section_header
 
 
-_analytics = AnalyticsService()
 _sla = SLAMonitoringService()
 _dag = WorkflowDAGService()
 _tenants = MultiTenantService()
@@ -28,51 +25,11 @@ _audit = AuditLogService()
 _workers = DistributedWorkerRegistry()
 _events = EventStreamService()
 _compliance = ComplianceReportingService()
-_seeded = False
-
-def _seed_once() -> None:
-    global _seeded
-    if _seeded:
-        return
-
-    _analytics.record_metric(
-        metric_name="qa_accessibility_score",
-        metric_value=98,
-        category="qa",
-        metadata={"pipeline": "epub_accessibility_pipeline"},
-    )
-    _analytics.record_metric(
-        metric_name="metadata_validation_pass_rate",
-        metric_value=94,
-        category="governance",
-    )
-    _analytics.record_metric(
-        metric_name="pipeline_retry_rate",
-        metric_value=3,
-        category="operations",
-    )
-
-    _dag.register_workflow(workflow_name="ingest")
-    _dag.register_workflow(workflow_name="transform", dependencies=["ingest"])
-    _dag.register_workflow(workflow_name="qa", dependencies=["transform"])
-
-    _workers.register_node(node_id="worker-1", hostname="localhost")
-    _events.subscribe(event_type="workflow_status", callback_url="http://localhost/webhook")
-    _sla.register_workflow(workflow_name="ingest", asset_id=1, sla_minutes=30)
-    _audit.record_event(
-        event_type="dashboard_seeded",
-        actor="system",
-        payload={"source": "operations_dashboard"},
-    )
-
-    _seeded = True
 
 
 
 def operations_dashboard_page(content_area: ui.element) -> None:
     """Render operational analytics dashboard."""
-    _seed_once()
-
     content_area.clear()
 
     def _render() -> None:
@@ -110,28 +67,61 @@ def operations_dashboard_page(content_area: ui.element) -> None:
                     "bg-green-600 text-white"
                 )
 
-                def _publish_event() -> None:
-                    _events.publish(
-                        event_type="workflow_status",
-                        payload={"status": "ok", "sequence": len(stream_events) + 1},
-                    )
-                    _render()
+                def _publish_event_form() -> None:
+                    with ui.dialog() as d, ui.card().classes("p-6 gap-3 w-[440px]"):
+                        ui.label("Publish Platform Event").classes("text-lg font-bold text-slate-800")
+                        etype_inp = ui.input("Event Type*", placeholder="e.g. job_completed, pipeline_failed").classes("w-full")
+                        payload_inp = ui.textarea("Payload (JSON)", placeholder='{"job_id": 42, "status": "ok"}').classes("w-full")
 
-                ui.button("Publish Test Event", on_click=_publish_event).classes(
-                    "bg-amber-600 text-white"
-                )
+                        def _do_publish() -> None:
+                            import json as _json
+                            etype = etype_inp.value.strip()
+                            if not etype:
+                                notify_error("Event type is required.")
+                                return
+                            raw = payload_inp.value.strip()
+                            try:
+                                payload = _json.loads(raw) if raw else {}
+                            except ValueError:
+                                notify_error("Payload must be valid JSON or empty.")
+                                return
+                            _events.publish(event_type=etype, payload=payload)
+                            d.close()
+                            notify_success(f"Event '{etype}' published.")
+                            _render()
 
-                def _register_worker() -> None:
-                    idx = len(workers) + 1
-                    _workers.register_node(
-                        node_id=f"worker-{idx}",
-                        hostname=f"host-{idx}",
-                    )
-                    _render()
+                        with ui.row().classes("justify-end gap-2 mt-2"):
+                            ui.button("Cancel", on_click=d.close).props("flat").classes("text-slate-500")
+                            ui.button("Publish", on_click=_do_publish).classes("bg-amber-600 text-white")
+                    d.open()
 
-                ui.button("Register Worker", on_click=_register_worker).classes(
-                    "bg-slate-700 text-white"
-                )
+                ui.button("＋ Publish Event", on_click=_publish_event_form).classes("bg-amber-600 text-white")
+
+                def _register_worker_form() -> None:
+                    with ui.dialog() as d, ui.card().classes("p-6 gap-3 w-[440px]"):
+                        ui.label("Register Worker Node").classes("text-lg font-bold text-slate-800")
+                        nid_inp = ui.input("Node ID*", placeholder="e.g. worker-prod-01").classes("w-full")
+                        host_inp = ui.input("Hostname*", placeholder="e.g. prod-server-01.internal").classes("w-full")
+
+                        def _do_register() -> None:
+                            nid = nid_inp.value.strip()
+                            host = host_inp.value.strip()
+                            if not nid or not host:
+                                notify_error("Node ID and hostname are required.")
+                                return
+                            _workers.register_node(node_id=nid, hostname=host)
+                            _audit.record_event(event_type="worker_registered", actor="operator",
+                                                payload={"node_id": nid, "hostname": host})
+                            d.close()
+                            notify_success(f"Worker '{nid}' registered.")
+                            _render()
+
+                        with ui.row().classes("justify-end gap-2 mt-2"):
+                            ui.button("Cancel", on_click=d.close).props("flat").classes("text-slate-500")
+                            ui.button("Register", on_click=_do_register).classes("bg-slate-700 text-white")
+                    d.open()
+
+                ui.button("＋ Register Worker", on_click=_register_worker_form).classes("bg-slate-700 text-white")
 
             with ui.grid(columns=4).classes("w-full gap-4 mb-6"):
                 with ui.card().classes("p-5 rounded-xl border border-slate-200"):
@@ -187,30 +177,58 @@ def operations_dashboard_page(content_area: ui.element) -> None:
                 with ui.card().classes("p-5 rounded-xl border border-slate-200"):
                     ui.label("Tenancy & Retention").classes("text-base font-semibold text-slate-700 mb-2")
 
-                    def _create_org() -> None:
-                        idx = len(organizations) + 1
-                        org = _tenants.create_organization(f"Organization {idx}")
-                        _tenants.add_member(
-                            username=f"operator{idx}",
-                            organization_id=org.organization_id,
-                            role="operator",
-                        )
-                        _render()
+                    def _add_org_form() -> None:
+                        with ui.dialog() as d, ui.card().classes("p-6 gap-3 w-[420px]"):
+                            ui.label("Add Organization").classes("text-lg font-bold text-slate-800")
+                            org_name = ui.input("Organization Name*", placeholder="e.g. District 42 Special Ed").classes("w-full")
+                            role_sel = ui.select(["operator", "admin", "viewer"], value="operator", label="Initial member role").classes("w-full")
+                            username_inp = ui.input("Initial member username*", placeholder="e.g. jdoe").classes("w-full")
 
-                    ui.button("Add Sample Organization", on_click=_create_org).props("flat dense").classes(
-                        "text-blue-600"
-                    )
+                            def _submit_org() -> None:
+                                name = org_name.value.strip()
+                                username = username_inp.value.strip()
+                                if not name:
+                                    notify_error("Organization name is required.")
+                                    return
+                                if not username:
+                                    notify_error("Member username is required.")
+                                    return
+                                org = _tenants.create_organization(name)
+                                _tenants.add_member(username=username, organization_id=org.organization_id, role=role_sel.value)
+                                _audit.record_event(event_type="organization_created", actor=username, payload={"org": name, "role": role_sel.value})
+                                d.close()
+                                notify_success(f"Organization '{name}' created.")
+                                _render()
 
-                    def _register_retention() -> None:
-                        p = Path("artifacts") / f"retention-{uuid4().hex[:8]}.tmp"
-                        p.parent.mkdir(parents=True, exist_ok=True)
-                        p.write_text("retention marker", encoding="utf-8")
-                        _retention.register_artifact(str(p), retention_days=1)
-                        _render()
+                            with ui.row().classes("justify-end gap-2 mt-2"):
+                                ui.button("Cancel", on_click=d.close).props("flat").classes("text-slate-500")
+                                ui.button("Create", on_click=_submit_org).classes("bg-blue-600 text-white")
+                        d.open()
 
-                    ui.button("Register Artifact", on_click=_register_retention).props("flat dense").classes(
-                        "text-indigo-600"
-                    )
+                    ui.button("＋ Add Organization", on_click=_add_org_form).props("flat dense").classes("text-blue-600")
+
+                    def _add_retention_form() -> None:
+                        with ui.dialog() as d, ui.card().classes("p-6 gap-3 w-[420px]"):
+                            ui.label("Register Artifact for Retention").classes("text-lg font-bold text-slate-800")
+                            path_inp = ui.input("Artifact Path*", placeholder="/path/to/artifact.epub").classes("w-full")
+                            days_inp = ui.number("Retention Days*", value=90, min=1).classes("w-full")
+
+                            def _submit_ret() -> None:
+                                path = path_inp.value.strip()
+                                if not path:
+                                    notify_error("Artifact path is required.")
+                                    return
+                                _retention.register_artifact(path, retention_days=int(days_inp.value or 90))
+                                d.close()
+                                notify_success(f"Artifact registered for {int(days_inp.value)} day retention.")
+                                _render()
+
+                            with ui.row().classes("justify-end gap-2 mt-2"):
+                                ui.button("Cancel", on_click=d.close).props("flat").classes("text-slate-500")
+                                ui.button("Register", on_click=_submit_ret).classes("bg-indigo-600 text-white")
+                        d.open()
+
+                    ui.button("＋ Register Artifact", on_click=_add_retention_form).props("flat dense").classes("text-indigo-600")
                     ui.label(f"Organizations: {len(organizations)}").classes("text-xs text-slate-500")
                     ui.label(f"Memberships: {len(memberships)}").classes("text-xs text-slate-500")
                     ui.label(f"Artifacts tracked: {len(retention_records)}").classes("text-xs text-slate-500")

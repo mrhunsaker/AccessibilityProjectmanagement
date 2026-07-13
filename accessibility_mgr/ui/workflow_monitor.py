@@ -6,12 +6,10 @@ import os
 
 from nicegui import ui
 
+from ..services.singletons import queue as _queue
 from ..services.worker_runtime import WorkerRuntime
-from ..services.workflow_queue import WorkflowQueueService
 from .components import section_header
 
-
-_queue = WorkflowQueueService()
 _runtime = WorkerRuntime(_queue)
 
 _started = False

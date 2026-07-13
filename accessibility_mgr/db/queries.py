@@ -72,6 +72,8 @@ __all__ = [
     "record_delivery",
     # QA
     "log_qa_run", "list_qa_runs",
+    "log_qa_measure", "list_qa_measures",
+    "log_cicd_validation_run", "list_cicd_validation_runs",
     # Pipeline
     "start_pipeline_run", "finish_pipeline_run", "log_pipeline_step",
     "list_pipeline_runs", "list_pipeline_step_runs",
@@ -1407,6 +1409,120 @@ def list_qa_runs(
             ))
         return _rows(conn.execute(
             "SELECT * FROM qa_run ORDER BY ran_at DESC LIMIT ?", (limit,),
+        ))
+
+
+# ── QA measures (AUDIT-FIX-002) ────────────────────────────────────────────────
+# Structured, human-reviewed accessibility QA measures captured from the
+# EPUB QA review popup. Distinct from qa_run, which logs raw tool output.
+
+def log_qa_measure(
+    *,
+    engine: str,
+    epub_path: str,
+    passed: bool,
+    score: int,
+    error_count: int = 0,
+    warning_count: int = 0,
+    info_count: int = 0,
+    issues: Optional[list[dict[str, Any]]] = None,
+    job_type: Optional[str] = None,
+    job_id: Optional[int] = None,
+    reviewer: Optional[str] = None,
+    reviewer_notes: str = "",
+    checked_at: Optional[str] = None,
+) -> int:
+    """Persist a reviewer-submitted QA measure and return its row id.
+
+    When the measure is linked to a job (job_type + job_id), this also
+    writes a QA_MEASURE_SUBMITTED entry to that job's event log so the
+    result is visible alongside the job's other history, consistent with
+    how log_qa_run results are linked via FIX-012 in ui/qa.py.
+    """
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO qa_measure (engine,epub_path,job_type,job_id,passed,"
+            "score,error_count,warning_count,info_count,issues,reviewer,"
+            "reviewer_notes,checked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                engine, epub_path, job_type, job_id, 1 if passed else 0, score,
+                error_count, warning_count, info_count,
+                json.dumps(issues or []), reviewer, reviewer_notes, checked_at,
+            ),
+        )
+        measure_id = int(cur.lastrowid)
+
+    if job_type and job_id:
+        log_event(
+            job_type, job_id, "QA_MEASURE_SUBMITTED",
+            event_outcome="SUCCESS" if passed else "FAILURE",
+            agent=reviewer or "system",
+            detail=(
+                f"{engine} accessibility QA — score {score}, "
+                f"{error_count} error(s), {warning_count} warning(s)"
+            ),
+            extra_metadata={"qa_measure_id": measure_id, "score": score},
+        )
+
+    return measure_id
+
+
+def list_qa_measures(
+    *,
+    job_type: Optional[str] = None,
+    job_id: Optional[int] = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        if job_type and job_id:
+            rows = _rows(conn.execute(
+                "SELECT * FROM qa_measure WHERE job_type=? AND job_id=? "
+                "ORDER BY submitted_at DESC LIMIT ?",
+                (job_type, job_id, limit),
+            ))
+        else:
+            rows = _rows(conn.execute(
+                "SELECT * FROM qa_measure ORDER BY submitted_at DESC LIMIT ?",
+                (limit,),
+            ))
+
+    for row in rows:
+        if row.get("issues"):
+            try:
+                row["issues"] = json.loads(row["issues"])
+            except (TypeError, ValueError):
+                row["issues"] = []
+        else:
+            row["issues"] = []
+
+    return rows
+
+
+# ── CI/CD validation history ────────────────────────────────────────────────
+
+def log_cicd_validation_run(
+    *,
+    pipeline_id: str,
+    epub_path: str,
+    status: str,
+    executed_at: str,
+    ace_exit: Optional[int] = None,
+    epubcheck_exit: Optional[int] = None,
+) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO cicd_validation_run "
+            "(pipeline_id, epub_path, status, executed_at, ace_exit, epubcheck_exit) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (pipeline_id, epub_path, status, executed_at, ace_exit, epubcheck_exit),
+        )
+        return int(cur.lastrowid)
+
+
+def list_cicd_validation_runs(limit: int = 50) -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        return _rows(conn.execute(
+            "SELECT * FROM cicd_validation_run ORDER BY id DESC LIMIT ?", (limit,)
         ))
 
 

@@ -6,9 +6,21 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Callable, Protocol
 
-from .workflow_queue import WorkflowJob, WorkflowQueueService
+from .workflow_queue import WorkflowJob
+
+
+class _QueueLike(Protocol):
+    """Duck-typed queue interface.
+
+    Matches both WorkflowQueueService (in-memory) and
+    PersistentWorkflowQueue (SQLite-backed) — see services/singletons.py.
+    """
+
+    def next_job(self) -> WorkflowJob | None: ...
+    def complete_job(self, job: WorkflowJob) -> None: ...
+    def fail_job(self, job: WorkflowJob) -> None: ...
 
 
 @dataclass(slots=True)
@@ -33,7 +45,7 @@ class WorkerRuntime:
 
     def __init__(
         self,
-        queue_service: WorkflowQueueService,
+        queue_service: _QueueLike,
     ) -> None:
         self.queue_service = queue_service
         self._executions: list[WorkerExecution] = []

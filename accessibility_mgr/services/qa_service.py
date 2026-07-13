@@ -24,12 +24,15 @@ class QATool:
     executable: str
     command_template: str
     timeout: int = 120
+    manual_review: bool = False  # When True, no CLI runs — reviewer fills a form
 
     def build_command(self, input_path: str = "") -> list[str]:
         cmd = self.command_template.replace("{input}", input_path)
         return shlex.split(cmd)
 
     def is_available(self) -> bool:
+        if self.manual_review:
+            return True  # manual tools are always "available"
         return ExecutionService.check_tool_available(self.executable)
 
 
@@ -80,11 +83,13 @@ QA_TOOLS: list[QATool] = [
         description=(
             "Tactile and accessible 3-D print review. "
             "ANZAGG covers tactile readability standards, educational object review, "
-            "and tactile pedagogy validation. Manual review workflow."
+            "and tactile pedagogy validation. Manual review workflow — "
+            "no CLI tool exists; a reviewer fills in findings via a form."
         ),
-        executable="echo",
-        command_template="echo ANZAGG validation requires manual tactile review of: {input}",
-        timeout=5,
+        executable="",
+        command_template="",
+        timeout=0,
+        manual_review=True,
     ),
 ]
 
@@ -124,6 +129,21 @@ class QAService:
                 return_code=-1,
             )
 
+        if tool.manual_review:
+            # Manual-review tools have no CLI — the UI must route them to
+            # the review form (qa.py _run_tool_dialog → manual branch).
+            # If run_tool is called for one anyway, surface an honest error
+            # rather than running echo and recording a fake SUCCESS.
+            return ExecutionResult(
+                command="(manual review — no CLI)",
+                success=False,
+                output=(
+                    f"'{name}' is a manual-review workflow with no CLI tool. "
+                    "Use the 'Record Manual Review' form to submit findings."
+                ),
+                return_code=-2,
+            )
+
         command = tool.build_command(input_path)
         result = ExecutionService.run_command(command, timeout=tool.timeout)
 
@@ -153,3 +173,47 @@ class QAService:
             )
 
         return result
+
+    @staticmethod
+    def log_manual_qa_review(
+        tool_name: str,
+        asset_path: str,
+        passed: bool,
+        reviewer: str,
+        notes: str,
+        job_type: Optional[str] = None,
+        job_id: Optional[int] = None,
+    ) -> None:
+        """Persist a manual QA review finding to qa_run and optionally to a job's event log.
+
+        Used by the 'Record Manual Review' form for tools where no CLI
+        exists (manual_review=True), such as ANZAGG Validation. Writing a
+        real record here replaces the previous behavior of running `echo`
+        and fabricating a SUCCESS result.
+        """
+        outcome = "PASS" if passed else "FAIL"
+        summary = f"Manual review by {reviewer or 'unknown'}: {outcome}. {notes}".strip()
+
+        Q.log_qa_run(
+            tool_name=tool_name,
+            command="(manual review)",
+            success=passed,
+            output=summary,
+            job_type=job_type,
+            job_id=job_id,
+        )
+
+        if job_type and job_id:
+            Q.log_event(
+                job_type, job_id,
+                "MANUAL_QA_REVIEW",
+                "SUCCESS" if passed else "FAILURE",
+                agent=reviewer or "reviewer",
+                detail=f"{tool_name} manual review: {outcome}",
+                extra_metadata={
+                    "tool": tool_name,
+                    "asset_path": asset_path,
+                    "reviewer": reviewer,
+                    "notes": notes,
+                },
+            )

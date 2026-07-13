@@ -61,6 +61,14 @@ PAGE_DEFINITIONS: list[dict] = [
         "description": "Operational KPI and analytics dashboard",
         "group": "Overview",
     },
+    {
+        "name": "Workflow Monitor",                 # AUDIT-FIX-004/006
+        "icon": "schedule",
+        "module": "accessibility_mgr.ui.workflow_monitor",
+        "function": "workflow_monitor_page",
+        "description": "Background workflow queue and worker execution status",
+        "group": "Overview",
+    },
     # ── Production Jobs ───────────────────────────────────────────────────────
     {
         "name": "Students",                         # FIX-010
@@ -178,11 +186,35 @@ PAGE_DEFINITIONS: list[dict] = [
         "group": "QA & Automation",
     },
     {
+        "name": "EPUB QA Review",                   # AUDIT-FIX-002
+        "icon": "fact_check",
+        "module": "accessibility_mgr.ui.qa_dashboard",
+        "function": "qa_dashboard_page",
+        "description": "Run DAISY Ace and submit reviewed accessibility measures",
+        "group": "QA & Automation",
+    },
+    {
+        "name": "CI/CD Validation",                 # AUDIT-FIX follow-up
+        "icon": "rule",
+        "module": "accessibility_mgr.ui.cicd_dashboard",
+        "function": "cicd_dashboard",
+        "description": "Release-gate accessibility validation with persisted history",
+        "group": "QA & Automation",
+    },
+    {
         "name": "Pipelines",
         "icon": "account_tree",
         "module": "accessibility_mgr.ui.pipelines",
         "function": "pipelines_page",
         "description": "Multi-stage workflow automation",
+        "group": "QA & Automation",
+    },
+    {
+        "name": "Toolchain Status",                 # AUDIT-FIX-001
+        "icon": "build_circle",
+        "module": "accessibility_mgr.ui.binary_integrations_dashboard",
+        "function": "binary_integrations_dashboard",
+        "description": "DAISY Ace, EPUBCheck, and Liblouis binary availability",
         "group": "QA & Automation",
     },
     # ── Admin ─────────────────────────────────────────────────────────────────

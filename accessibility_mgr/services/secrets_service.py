@@ -12,11 +12,20 @@ from pathlib import Path
 
 
 SECRETS_DIR = Path("secrets")
-SECRETS_DIR.mkdir(exist_ok=True)
-# SEC-006: restrict directory to owner read/write/execute only
-SECRETS_DIR.chmod(stat.S_IRWXU)
-
 SECRETS_FILE = SECRETS_DIR / "auth.json"
+
+
+def _ensure_secrets_dir() -> None:
+    """Create the secrets directory with owner-only permissions, on first use.
+
+    AUDIT-FIX-009: this used to run at module import time, meaning
+    `import services.secrets_service` alone created a `secrets/` directory
+    (and chmod'd it) in whatever the current working directory happened to
+    be. It now only happens when a secret is actually saved.
+    """
+    SECRETS_DIR.mkdir(exist_ok=True)
+    # SEC-006: restrict directory to owner read/write/execute only
+    SECRETS_DIR.chmod(stat.S_IRWXU)
 
 
 def _secure_write(path: Path, data: str) -> None:
@@ -50,6 +59,7 @@ class SecretsService:
     @staticmethod
     def save_secret(key: str, value: str) -> None:
         """Persist *key*/*value* into the secrets file with 0600 permissions."""
+        _ensure_secrets_dir()
         secrets = SecretsService.load_secrets()
         secrets[key] = value
         _secure_write(SECRETS_FILE, json.dumps(secrets, indent=2))
