@@ -14,13 +14,9 @@ This layer standardizes:
 
 from __future__ import annotations
 
-import json
 import subprocess
-import tempfile
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
 
 
 @dataclass(slots=True)
@@ -86,56 +82,14 @@ class AccessibilityToolchainService:
                 executed_at=datetime.now(timezone.utc).isoformat(),
             )
 
-    def run_mock_ace(self, epub_path: str) -> dict[str, Any]:
-        """Representative DAISY Ace integration stub."""
-
-        with tempfile.NamedTemporaryFile(
-            suffix=".json",
-            delete=False,
-        ) as report:
-            payload = {
-                "tool": "daisy-ace",
-                "epub": epub_path,
-                "score": 98,
-                "violations": [],
-            }
-
-            report.write(json.dumps(payload).encode("utf-8"))
-            report.flush()
-
-            result = self.execute(
-                tool_name="DAISY Ace",
-                command=["echo", "Simulated DAISY Ace Execution"],
-                artifact_paths=[report.name],
-            )
-
-            return {
-                "execution": asdict(result),
-                "report_path": report.name,
-            }
-
-    def run_mock_epubcheck(self, epub_path: str) -> dict[str, Any]:
-        """Representative EPUBCheck integration stub."""
-
-        with tempfile.NamedTemporaryFile(
-            suffix=".xml",
-            delete=False,
-        ) as report:
-            report.write(
-                b"<epubcheck status='passed'></epubcheck>"
-            )
-            report.flush()
-
-            result = self.execute(
-                tool_name="EPUBCheck",
-                command=["echo", "Simulated EPUBCheck Execution"],
-                artifact_paths=[report.name],
-            )
-
-            return {
-                "execution": asdict(result),
-                "report_path": report.name,
-            }
+    # AUDIT-FIX-001: run_mock_ace() / run_mock_epubcheck() were removed from
+    # this class.  They never invoked DAISY Ace or EPUBCheck — they wrote a
+    # hardcoded "score: 98, violations: []" payload and ran `echo` as the
+    # "command", so any caller always saw a fabricated passing result.
+    # Real DAISY Ace / EPUBCheck / Liblouis execution now lives in
+    # AccessibilityBinaryIntegrationService (services/toolchain_binaries.py),
+    # which discovers the real binary on PATH and reports "unavailable"
+    # honestly instead of faking success. See ui/toolchain_dashboard.py.
 
 
 __all__ = [

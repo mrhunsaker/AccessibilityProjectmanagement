@@ -39,18 +39,126 @@ def _tool_card(tool: QATool, result_area: ui.element) -> None:
 
             with ui.column().classes("gap-2 shrink-0"):
                 def _run(t: QATool = tool) -> None:
-                    _run_tool_dialog(t, result_area)
+                    if t.manual_review:
+                        _manual_review_dialog(t, result_area)
+                    else:
+                        _run_tool_dialog(t, result_area)
 
-                ui.button("▶ Run Validation", on_click=_run).classes(
-                    "bg-blue-600 text-white text-sm rounded-lg px-3 py-1"
-                )
+                btn_label = "📋 Record Review" if tool.manual_review else "▶ Run Validation"
+                btn_cls = "bg-amber-600 text-white text-sm rounded-lg px-3 py-1" if tool.manual_review else "bg-blue-600 text-white text-sm rounded-lg px-3 py-1"
+                ui.button(btn_label, on_click=_run).classes(btn_cls)
 
                 def _hist(t: QATool = tool) -> None:
                     _show_history(t.name, result_area)
 
-                ui.button("📋 View History", on_click=_hist).props("flat dense").classes(
+                ui.button("📜 View History", on_click=_hist).props("flat dense").classes(
                     "text-slate-500 text-sm"
                 )
+
+
+def _manual_review_dialog(tool: QATool, result_area: ui.element) -> None:
+    """Form popup for manual-review tools (no CLI exists).
+
+    Replaces the previous behavior of running `echo` and silently logging a
+    fake SUCCESS. The reviewer fills in their actual findings here; the result
+    is stored via QAService.log_manual_qa_review → qa_run table.
+    """
+    with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[540px] max-w-full"):
+        ui.label(f"Record Manual Review: {tool.name}").classes(
+            "text-xl font-bold text-slate-800"
+        )
+        ui.label(tool.description).classes("text-sm text-slate-500 mb-1")
+        ui.label(
+            "No automated CLI exists for this tool. Fill in your review findings below."
+        ).classes("text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2")
+
+        asset_path_inp = ui.input(
+            "Asset / File Reviewed",
+            placeholder="/path/to/tactile-graphic.stl or job reference",
+        ).classes("w-full")
+
+        reviewer_inp = ui.input(
+            "Reviewer Name*",
+            placeholder="Who performed this review?",
+        ).classes("w-full")
+
+        passed_switch = ui.switch("Review Passed", value=True)
+
+        notes_inp = ui.textarea(
+            "Review Notes*",
+            placeholder=(
+                "Describe findings: tactile readability, label clarity, "
+                "educational object suitability, accessibility standards met/not met…"
+            ),
+        ).classes("w-full")
+
+        ui.separator().classes("my-2")
+        ui.label("Link to Job (optional)").classes(
+            "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+        )
+        ui.label(
+            "When linked, this review result appears in that job's event log."
+        ).classes("text-xs text-slate-400 mb-1")
+
+        with ui.row().classes("gap-3 w-full"):
+            job_type_sel = ui.select(
+                ["(none)", "braille", "lp_ebraille", "tactile", "print"],
+                value="(none)",
+                label="Job Type",
+            ).classes("flex-1")
+            job_id_inp = ui.input(
+                "Job ID", placeholder="numeric ID"
+            ).classes("flex-1")
+
+        with ui.row().classes("justify-end gap-3 mt-4"):
+            ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
+
+            def _submit() -> None:
+                reviewer = reviewer_inp.value.strip()
+                notes = notes_inp.value.strip()
+                if not reviewer:
+                    notify_error("Reviewer name is required.")
+                    return
+                if not notes:
+                    notify_error("Review notes are required.")
+                    return
+
+                jtype = job_type_sel.value if job_type_sel.value != "(none)" else None
+                jid_str = job_id_inp.value.strip()
+                jid = int(jid_str) if jtype and jid_str.isdigit() else None
+                passed = bool(passed_switch.value)
+
+                QAService.log_manual_qa_review(
+                    tool_name=tool.name,
+                    asset_path=asset_path_inp.value.strip(),
+                    passed=passed,
+                    reviewer=reviewer,
+                    notes=notes,
+                    job_type=jtype,
+                    job_id=jid,
+                )
+
+                dlg.close()
+                notify_success(f"{tool.name} review recorded.")
+
+                result_area.clear()
+                with result_area:
+                    ok_color = "text-green-700 border-green-200 bg-green-50" if passed else "text-red-700 border-red-200 bg-red-50"
+                    with ui.card().classes(f"p-5 rounded-xl border {ok_color} w-full"):
+                        icon = "✅" if passed else "❌"
+                        ui.label(
+                            f"{icon} {tool.name} — {'PASSED' if passed else 'FAILED'} (manual review)"
+                        ).classes("font-bold text-base mb-1")
+                        ui.label(f"Reviewer: {reviewer}").classes("text-sm text-slate-600")
+                        ui.label(f"Notes: {notes}").classes("text-sm text-slate-600")
+                        if jtype and jid:
+                            ui.label(
+                                f"Linked to {jtype} job #{jid} — result recorded in event log"
+                            ).classes("text-xs text-indigo-600 mt-1")
+
+            ui.button("Submit Review", on_click=_submit).classes("bg-amber-600 text-white")
+
+    dlg.open()
 
 
 def _run_tool_dialog(tool: QATool, result_area: ui.element) -> None:

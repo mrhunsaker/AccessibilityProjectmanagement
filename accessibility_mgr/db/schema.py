@@ -263,6 +263,45 @@ CREATE TABLE IF NOT EXISTS qa_run (
 );
 
 -- ═══════════════════════════════════════════════════════════════
+-- CI/CD VALIDATION HISTORY (persisted; replaces in-memory list
+-- in CICDValidationHookService._history)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS cicd_validation_run (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    pipeline_id  TEXT NOT NULL,
+    epub_path    TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    executed_at  TEXT NOT NULL,
+    ace_exit     INTEGER,
+    epubcheck_exit INTEGER
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- QA MEASURES (AUDIT-FIX-002: structured, reviewer-submitted QA
+-- measures captured from the EPUB QA review popup, distinct from
+-- the raw qa_run execution log above)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS qa_measure (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    engine         TEXT NOT NULL,
+    epub_path      TEXT NOT NULL,
+    job_type       TEXT,
+    job_id         INTEGER,
+    passed         INTEGER NOT NULL DEFAULT 0,
+    score          INTEGER NOT NULL DEFAULT 0,
+    error_count    INTEGER NOT NULL DEFAULT 0,
+    warning_count  INTEGER NOT NULL DEFAULT 0,
+    info_count     INTEGER NOT NULL DEFAULT 0,
+    issues         TEXT,
+    reviewer       TEXT,
+    reviewer_notes TEXT,
+    checked_at     TEXT,
+    submitted_at   TEXT DEFAULT (datetime('now'))
+);
+
+-- ═══════════════════════════════════════════════════════════════
 -- PIPELINE EXECUTIONS
 -- ═══════════════════════════════════════════════════════════════
 

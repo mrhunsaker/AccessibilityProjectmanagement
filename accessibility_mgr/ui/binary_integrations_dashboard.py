@@ -21,17 +21,22 @@ def binary_integrations_dashboard(content_area: ui.element) -> None:
 
     ace_binary = _service.discover_binary("ace")
     epubcheck_binary = _service.discover_binary("epubcheck")
+    liblouis_binary = (
+        _service.discover_binary("file2brl")
+        or _service.discover_binary("lou_translate")
+    )
 
     with content_area:
         section_header(
             "Production Accessibility Toolchain",
-            "Production DAISY Ace and EPUBCheck binary integrations",
+            "Production DAISY Ace, EPUBCheck, and Liblouis binary integrations",
         )
 
-        with ui.grid(columns=2).classes("w-full gap-4"):
+        with ui.grid(columns=3).classes("w-full gap-4"):
             for label, binary in [
                 ("DAISY Ace CLI", ace_binary),
                 ("EPUBCheck", epubcheck_binary),
+                ("Liblouis (file2brl / lou_translate)", liblouis_binary),
             ]:
                 with ui.card().classes(
                     "p-5 rounded-xl border border-slate-200"
@@ -73,10 +78,10 @@ def binary_integrations_dashboard(content_area: ui.element) -> None:
             ]
 
             for item in readiness:
-                ui.row().classes("items-center gap-2 py-1")
-                ui.icon("check_circle").classes(
-                    "text-green-600"
-                )
-                ui.label(item).classes(
-                    "text-sm text-slate-700"
-                )
+                with ui.row().classes("items-center gap-2 py-1"):
+                    ui.icon("check_circle").classes(
+                        "text-green-600"
+                    )
+                    ui.label(item).classes(
+                        "text-sm text-slate-700"
+                    )
