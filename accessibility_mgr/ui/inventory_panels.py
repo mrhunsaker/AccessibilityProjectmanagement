@@ -19,36 +19,12 @@ from .components import (
 
 
 def _text_value(value: object) -> str:
-    """ text value.
-    
-    Parameters
-    ----------
-    value : Any
-        value parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return the stripped string, or empty string for non-strings."""
     return value.strip() if isinstance(value, str) else ""
 
 
 def _slugify_category(label: str) -> str:
-    """ slugify category.
-    
-    Parameters
-    ----------
-    label : Any
-        label parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Convert a label to a URL-safe slug for use as a category key."""
     slug = re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
     return slug
 
@@ -56,22 +32,7 @@ def _slugify_category(label: str) -> str:
 # ── Filament ──────────────────────────────────────────────────────────────────
 
 def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
-    """ filament dialog.
-    
-    Parameters
-    ----------
-    on_save : Any
-        on_save parameter.
-    
-    existing : Any
-        existing parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Open a dialog for adding or editing a filament inventory item."""
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[500px] max-w-full"):
         ui.label("Edit Filament" if is_edit else "Add Filament").classes(
@@ -123,14 +84,7 @@ def _filament_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Validate required fields and save the filament form data."""
                 if not brand.value.strip() or not color.value.strip():
                     notify_error("Brand and Color are required")
                     return
@@ -170,28 +124,9 @@ def filament_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
-                """ new.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Open the add-filament dialog."""
                 def _do(data: dict) -> None:
-                    """ do.
-                    
-                    Parameters
-                    ----------
-                    data : Any
-                        data parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new filament record and refresh the page."""
                     Q.add_filament(**data)
                     notify_success("Filament added")
                     filament_page(content_area)
@@ -245,33 +180,9 @@ def filament_page(content_area: ui.element) -> None:
                                 )
                             with ui.row().classes("gap-1"):
                                 def _edit(fil: dict = f) -> None:
-                                    """ edit.
-                                    
-                                    Parameters
-                                    ----------
-                                    fil : Any
-                                        fil parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Open the edit dialog for an existing filament."""
                                     def _do(data: dict) -> None:
-                                        """ do.
-                                        
-                                        Parameters
-                                        ----------
-                                        data : Any
-                                            data parameter.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Update an existing filament record and refresh the page."""
                                         Q.update_filament(fil["id"], **data)
                                         notify_success("Updated")
                                         filament_page(content_area)
@@ -283,30 +194,11 @@ def filament_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _del(fil: dict = f) -> None:
-                                    """ del.
-                                    
-                                    Parameters
-                                    ----------
-                                    fil : Any
-                                        fil parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Initiate deletion of a filament with confirmation."""
                                     import sqlite3
 
                                     def _do() -> None:
-                                        """ do.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Execute filament deletion."""
                                         try:
                                             Q.delete_filament(fil["id"])
                                             notify_success("Deleted")
@@ -329,38 +221,11 @@ def filament_page(content_area: ui.element) -> None:
 # ── Braille Paper ─────────────────────────────────────────────────────────────
 
 def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
-    """ paper dialog.
-    
-    Parameters
-    ----------
-    on_save : Any
-        on_save parameter.
-    
-    existing : Any
-        existing parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Open a dialog for adding or editing a braille paper inventory item."""
     is_edit = existing is not None
 
     def _text(value: object) -> str:
-        """ text.
-        
-        Parameters
-        ----------
-        value : Any
-            value parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
+        """Return the stripped string, or empty string for non-strings."""
         return value.strip() if isinstance(value, str) else ""
 
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[480px] max-w-full"):
@@ -401,14 +266,7 @@ def _paper_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Validate required fields and save the paper form data."""
                 try:
                     pt_val = pv[pts.index(pt_sel.value)]
                 except (ValueError, IndexError):
@@ -439,28 +297,9 @@ def paper_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
-                """ new.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Open the add-paper dialog."""
                 def _do(data: dict) -> None:
-                    """ do.
-                    
-                    Parameters
-                    ----------
-                    data : Any
-                        data parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new paper record and refresh the page."""
                     Q.add_paper(**data)
                     notify_success("Paper added")
                     paper_page(content_area)
@@ -510,33 +349,9 @@ def paper_page(content_area: ui.element) -> None:
                                 )
                             with ui.row().classes("gap-1"):
                                 def _e(pp: dict = p) -> None:
-                                    """ e.
-                                    
-                                    Parameters
-                                    ----------
-                                    pp : Any
-                                        pp parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Open the edit dialog for an existing paper item."""
                                     def _do(data: dict) -> None:
-                                        """ do.
-                                        
-                                        Parameters
-                                        ----------
-                                        data : Any
-                                            data parameter.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Update an existing paper record and refresh the page."""
                                         Q.update_paper(pp["id"], **data)
                                         notify_success("Updated")
                                         paper_page(content_area)
@@ -548,28 +363,9 @@ def paper_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _d(pp: dict = p) -> None:
-                                    """ d.
-                                    
-                                    Parameters
-                                    ----------
-                                    pp : Any
-                                        pp parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Initiate deletion of a paper item with confirmation."""
                                     def _do() -> None:
-                                        """ do.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Execute paper deletion."""
                                         Q.delete_paper(pp["id"])
                                         notify_success("Deleted")
                                         paper_page(content_area)
@@ -584,22 +380,7 @@ def paper_page(content_area: ui.element) -> None:
 # ── Electronics ───────────────────────────────────────────────────────────────
 
 def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
-    """ elec dialog.
-    
-    Parameters
-    ----------
-    on_save : Any
-        on_save parameter.
-    
-    existing : Any
-        existing parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Open a dialog for adding or editing an electronics inventory component."""
     is_edit = existing is not None
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
         ui.label("Edit Component" if is_edit else "Add Component").classes(
@@ -625,14 +406,7 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
         cat_sel = ui.select(cats, label="Category*", value=cur_cl).classes("w-full")
 
         def _new_category_dialog() -> None:
-            """ new category dialog.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
+            """Open a sub-dialog for creating a new electronics category."""
             with ui.dialog() as cat_dlg, ui.card().classes("p-5 gap-3 w-[420px] max-w-full"):
                 ui.label("Create New Electronics Category").classes("text-lg font-semibold")
                 ui.label("Type a category name to continue.").classes("text-sm text-slate-500")
@@ -640,28 +414,14 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
 
                 with ui.row().classes("justify-end gap-2 mt-2"):
                     def _cancel() -> None:
-                        """ cancel.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
+                        """Reset the category selector and close the dialog."""
                         cat_sel.value = cats[0] if cats else None
                         cat_dlg.close()
 
                     ui.button("Cancel", on_click=_cancel).props("flat")
 
                     def _create() -> None:
-                        """ create.
-                        
-                        Returns
-                        -------
-                        Any
-                            Function result.
-                        
-                        """
+                        """Validate input and create a new category in the database."""
                         label = _text_value(new_label.value)
                         if not label:
                             notify_error("New category is required")
@@ -711,19 +471,7 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
             cat_dlg.open()
 
         def _on_cat_change(_) -> None:
-            """ on cat change.
-            
-            Parameters
-            ----------
-            e : Any
-                e parameter.
-            
-            Returns
-            -------
-            Any
-                Function result.
-            
-            """
+            """Open the new-category dialog when EMPTY is selected in the category dropdown."""
             if cat_sel.value == "EMPTY":
                 _new_category_dialog()
 
@@ -776,14 +524,7 @@ def _elec_dialog(on_save, existing: Optional[dict] = None) -> None:
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                """ save.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Validate required fields and save the electronics component form data."""
                 name_text = _text_value(name.value)
                 brand_text = _text_value(brand.value)
                 spec_text = _text_value(spec.value)
@@ -838,28 +579,9 @@ def electronics_page(content_area: ui.element) -> None:
             ui.element("div").classes("flex-1")
 
             def _new() -> None:
-                """ new.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Open the add-component dialog."""
                 def _do(data: dict) -> None:
-                    """ do.
-                    
-                    Parameters
-                    ----------
-                    data : Any
-                        data parameter.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new electronics component and refresh the page."""
                     Q.add_electronic(**data)
                     notify_success("Component added")
                     electronics_page(content_area)
@@ -925,33 +647,9 @@ def electronics_page(content_area: ui.element) -> None:
                                     )
                             with ui.row().classes("gap-1 shrink-0"):
                                 def _e(it: dict = item) -> None:
-                                    """ e.
-                                    
-                                    Parameters
-                                    ----------
-                                    it : Any
-                                        it parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Open the edit dialog for an electronics component."""
                                     def _do(data: dict) -> None:
-                                        """ do.
-                                        
-                                        Parameters
-                                        ----------
-                                        data : Any
-                                            data parameter.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Update an existing electronics component and refresh the page."""
                                         Q.update_electronic(it["id"], **data)
                                         notify_success("Updated")
                                         electronics_page(content_area)
@@ -963,28 +661,9 @@ def electronics_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _d(it: dict = item) -> None:
-                                    """ d.
-                                    
-                                    Parameters
-                                    ----------
-                                    it : Any
-                                        it parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Initiate deletion of an electronics component."""
                                     def _do() -> None:
-                                        """ do.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Execute electronics component deletion."""
                                         Q.delete_electronic(it["id"])
                                         notify_success("Deleted")
                                         electronics_page(content_area)
@@ -1032,33 +711,9 @@ def electronics_page(content_area: ui.element) -> None:
                                     )
                             with ui.row().classes("gap-1 shrink-0"):
                                 def _e(it: dict = item) -> None:
-                                    """ e.
-                                    
-                                    Parameters
-                                    ----------
-                                    it : Any
-                                        it parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Open the edit dialog for a legacy electronics component."""
                                     def _do(data: dict) -> None:
-                                        """ do.
-                                        
-                                        Parameters
-                                        ----------
-                                        data : Any
-                                            data parameter.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Update a legacy electronics component and refresh the page."""
                                         Q.update_electronic(it["id"], **data)
                                         notify_success("Updated")
                                         electronics_page(content_area)
@@ -1070,28 +725,9 @@ def electronics_page(content_area: ui.element) -> None:
                                 ).classes("text-blue-600 text-xs")
 
                                 def _d(it: dict = item) -> None:
-                                    """ d.
-                                    
-                                    Parameters
-                                    ----------
-                                    it : Any
-                                        it parameter.
-                                    
-                                    Returns
-                                    -------
-                                    Any
-                                        Function result.
-                                    
-                                    """
+                                    """Initiate deletion of a legacy electronics component."""
                                     def _do() -> None:
-                                        """ do.
-                                        
-                                        Returns
-                                        -------
-                                        Any
-                                            Function result.
-                                        
-                                        """
+                                        """Execute legacy electronics component deletion."""
                                         Q.delete_electronic(it["id"])
                                         notify_success("Deleted")
                                         electronics_page(content_area)

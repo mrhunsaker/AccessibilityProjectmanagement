@@ -15,18 +15,6 @@ Purpose: system-level controls and operational administration UI.
 
 ::: accessibility_mgr.ui.admin
 
-## Authentication page
-
-Purpose: login/session interactions and auth-facing page flow.
-
-::: accessibility_mgr.ui.authentication
-
-## Automation page
-
-Purpose: interactive automation task controls.
-
-::: accessibility_mgr.ui.automation
-
 ## Binary integrations dashboard
 
 Purpose: external binary integration status and controls.
@@ -123,12 +111,6 @@ Purpose: 3-D print job management and workflow updates.
 
 ::: accessibility_mgr.ui.print_jobs
 
-## Production page
-
-Purpose: production execution flow and output management UI.
-
-::: accessibility_mgr.ui.production
-
 ## QA page
 
 Purpose: QA execution and review interactions.
@@ -147,12 +129,6 @@ Purpose: faceted reporting and export of jobs across workflow types.
 
 ::: accessibility_mgr.ui.reports
 
-## Schema governance page
-
-Purpose: schema/rule governance configuration and status display.
-
-::: accessibility_mgr.ui.schema_governance
-
 ## Search page
 
 Purpose: cross-entity search UI over jobs, files, metadata, and events.
@@ -165,40 +141,14 @@ Purpose: security posture views and access-related controls.
 
 ::: accessibility_mgr.ui.security_dashboard
 
-## Students page
-
-Purpose: student records and cross-job production history views.
-
-::: accessibility_mgr.ui.students
-
 ## Tactile graphics page
 
 Purpose: tactile graphics job management and step progression.
 
 ::: accessibility_mgr.ui.tactile_graphics
 
-## Toolchain dashboard
-
-Purpose: toolchain health, configuration, and command availability views.
-
-::: accessibility_mgr.ui.toolchain_dashboard
-
 ## Workflow monitor
 
 Purpose: queued workflow execution monitoring and state transitions.
 
 ::: accessibility_mgr.ui.workflow_monitor
-
-## Workflows page
-
-Purpose: workflow orchestration UI and manual queue actions.
-
-::: accessibility_mgr.ui.workflows
-
-## UI subpackages
-
-Purpose: namespace containers for panel and modal components.
-
-::: accessibility_mgr.ui.panels
-
-::: accessibility_mgr.ui.modals

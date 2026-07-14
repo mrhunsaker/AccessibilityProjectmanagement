@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Workflow Overview
+## Workflow Overview
 
 ```mermaid
 graph TD
@@ -17,7 +17,7 @@ graph TD
 
 ---
 
-## 📋 Detailed Steps
+## Detailed Steps
 
 ### 1. Model Acquisition/Creation
 - **Purpose**: Obtain or create 3D model
@@ -34,7 +34,6 @@ graph TD
   - Orient for optimal printing
   - Add supports if needed
   - Slice for printer
-- **Tools**: [TODO: Add your slicing software here]
 
 ### 3. Printing
 - **Purpose**: Produce physical object
@@ -43,7 +42,6 @@ graph TD
   - Load filament
   - Configure printer settings
   - Start print job
-- **Equipment**: [TODO: Add your 3D printers here]
 
 ### 4. Post-Processing
 - **Purpose**: Finish the printed object
@@ -69,32 +67,22 @@ graph TD
   - Update filament inventory
 
 ---
-## 🛠️ Equipment & Materials
 
-### 3D Printers
-| Printer | Filament Type | Max Build Volume | Notes |
-|---------|---------------|------------------|-------|
-| [TODO] | [TODO] | [TODO] | [TODO] |
-
-### Filament Inventory
-| Filament | Color | Diameter | Quantity | Cost/kg | Supplier |
-|----------|-------|----------|----------|---------|----------|
-| [TODO] | [TODO] | [TODO] | [TODO] | [TODO] | [TODO] |
-
----
-## 📊 Best Practices
+## Best Practices
 
 ### Design Guidelines
-- [TODO: Add your design best practices]
+- Design for the specific printer's capabilities
+- Use appropriate wall thickness for structural integrity
+- Consider support material removal in design
 
 ### Printing Tips
-- [TODO: Add your printing best practices]
+- Calibrate printer before each job
+- Monitor first layer adhesion
+- Use appropriate print speed for detail level
 
 ---
-## 🔗 Related Workflows
+
+## Related Workflows
 
 - [Tactile Graphics Workflow](tactile-graphics.md) - For 2D tactile elements
-
 - [Braille Workflow](braille.md) - For accompanying text
-
-  

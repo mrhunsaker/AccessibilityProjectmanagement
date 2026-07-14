@@ -6,28 +6,24 @@ AccessibilityProjectManagement/
 │   ├── __init__.py          # Legacy import aliases (db, services, ui)
 │   ├── app.py               # NiceGUI entry point, page registry, startup
 │   ├── api/
-│   │   ├── platform_api.py  # FastAPI app mounted at /api
-│   │   └── rest_api.py      # Internal service facade
+│   │   └── platform_api.py  # FastAPI app mounted at /api
 │   ├── db/
 │   │   ├── schema.py        # CREATE TABLE, migrations, init_db()
 │   │   ├── queries.py       # All SQL — CRUD + search + reporting
-│   │   ├── seed_import.py   # CSV inventory import CLI
-│   │   └── database.py      # Legacy SQLAlchemy Base
+│   │   └── seed_import.py   # CSV inventory import CLI
 │   ├── integrations/
 │   │   └── cicd_hooks.py    # CI/CD accessibility validation hooks
-│   ├── models/              # Legacy SQLAlchemy ORM models
-│   ├── security/
-│   │   ├── secret_vault.py  # Fernet-encrypted secret storage
-│   │   └── tenant_rbac.py   # Tenant-scoped RBAC
 │   ├── services/
-│   │   ├── singletons.py    # Shared service instances
+│   │   ├── singletons.py    # Shared service instances (SQLite-backed)
 │   │   ├── authentication.py
-│   │   ├── auth_service.py
 │   │   ├── backup_service.py
 │   │   ├── pipeline_service.py
 │   │   ├── qa_service.py
 │   │   ├── execution_service.py
 │   │   ├── tools_service.py
+│   │   ├── persistent_queue.py
+│   │   ├── persistent_analytics.py
+│   │   ├── persistent_provenance.py
 │   │   └── ...              # Analytics, provenance, SLA, etc.
 │   └── ui/
 │       ├── components.py    # Shared badges, dialogs, progress bars
@@ -39,7 +35,6 @@ AccessibilityProjectManagement/
 │       ├── lp_ebraille.py
 │       ├── tactile_graphics.py
 │       ├── print_jobs.py
-│       ├── students.py
 │       ├── reports.py
 │       ├── search.py
 │       ├── ingestion.py
@@ -66,8 +61,9 @@ placeholders.
 an explicit `allowed` set before constructing any UPDATE statement.
 
 **Singleton services** — `services/singletons.py` exports shared instances
-of `WorkflowQueueService`, `AnalyticsService`, `ProvenanceRegistry`, and
-`AuthenticationService` so the UI and REST API share the same in-memory state.
+of `PersistentWorkflowQueue`, `PersistentAnalyticsService`,
+`PersistentProvenanceRegistry`, and `AuthenticationService` so the UI and
+REST API share the same durable state.
 
 **Page registry** — `PAGE_DEFINITIONS` in `app.py` is the single source of
 truth for navigation structure.  Adding a page only requires adding an entry

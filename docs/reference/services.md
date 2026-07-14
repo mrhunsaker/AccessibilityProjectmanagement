@@ -33,18 +33,6 @@ Purpose: user/session authentication workflows and credential validation.
 
 ::: accessibility_mgr.services.authentication
 
-## Auth service facade
-
-Purpose: higher-level auth service API used by pages and API endpoints.
-
-::: accessibility_mgr.services.auth_service
-
-## Automation
-
-Purpose: execute scripted operational tasks and automation flows.
-
-::: accessibility_mgr.services.automation_service
-
 ## Backup
 
 Purpose: scheduled and on-demand database backups with retention.
@@ -81,18 +69,6 @@ Purpose: controlled command/process execution used by pipeline tasks.
 
 ::: accessibility_mgr.services.execution_service
 
-## Metadata audit
-
-Purpose: metadata audit and verification helpers.
-
-::: accessibility_mgr.services.metadata_audit
-
-## Metadata schema
-
-Purpose: metadata schema definitions and validation surface.
-
-::: accessibility_mgr.services.metadata_schema_service
-
 ## Metadata validation
 
 Purpose: validation rules for metadata payloads and constraints.
@@ -104,12 +80,6 @@ Purpose: validation rules for metadata payloads and constraints.
 Purpose: tenant isolation and tenant-scoped helper operations.
 
 ::: accessibility_mgr.services.multi_tenant
-
-## Notifications
-
-Purpose: alert and notification dispatch helpers.
-
-::: accessibility_mgr.services.notification_service
 
 ## Persistent analytics
 
@@ -135,35 +105,11 @@ Purpose: pipeline orchestration, step flow, and status lifecycle.
 
 ::: accessibility_mgr.services.pipeline_service
 
-## Preservation
-
-Purpose: preservation and long-term integrity operations.
-
-::: accessibility_mgr.services.preservation_service
-
-## Production
-
-Purpose: production workflow orchestration and output tracking.
-
-::: accessibility_mgr.services.production_service
-
-## Production toolchain
-
-Purpose: production toolchain integration helpers.
-
-::: accessibility_mgr.services.production_toolchain
-
 ## Provenance registry
 
 Purpose: provenance event registration and lookup.
 
 ::: accessibility_mgr.services.provenance_registry
-
-## QA persistence
-
-Purpose: persistence support for QA runs and outcomes.
-
-::: accessibility_mgr.services.qa_persistence
 
 ## QA service
 
@@ -177,29 +123,11 @@ Purpose: role-based access control logic and permission checks.
 
 ::: accessibility_mgr.services.rbac
 
-## Schema governance
-
-Purpose: governance checks for schema consistency and policy adherence.
-
-::: accessibility_mgr.services.schema_governance_service
-
-## Secrets service
-
-Purpose: service facade for secret retrieval and secret lifecycle calls.
-
-::: accessibility_mgr.services.secrets_service
-
 ## SLA monitoring
 
 Purpose: SLA tracking and breach detection helpers.
 
 ::: accessibility_mgr.services.sla_monitoring
-
-## Subprocess sandbox
-
-Purpose: controlled subprocess execution boundaries for safer automation.
-
-::: accessibility_mgr.services.subprocess_sandbox
 
 ## Toolchain core
 
@@ -212,12 +140,6 @@ Purpose: shared toolchain runtime helpers.
 Purpose: discovery and management of external binary dependencies.
 
 ::: accessibility_mgr.services.toolchain_binaries
-
-## Toolchain security
-
-Purpose: policy and safety checks for toolchain execution.
-
-::: accessibility_mgr.services.toolchain_security
 
 ## Tools service
 
@@ -237,14 +159,8 @@ Purpose: DAG representation for workflow steps and dependencies.
 
 ::: accessibility_mgr.services.workflow_dag
 
-## Workflow dependencies
-
-Purpose: dependency resolution for workflow scheduling.
-
-::: accessibility_mgr.services.workflow_dependencies
-
 ## Workflow queue
 
-Purpose: in-memory queue operations for workflow jobs.
+Purpose: workflow job data structures.
 
 ::: accessibility_mgr.services.workflow_queue

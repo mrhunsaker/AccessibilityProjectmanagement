@@ -90,19 +90,7 @@ def notify_success(msg: str) -> None:
 
 
 def notify_error(msg: str) -> None:
-    """Notify error.
-    
-    Parameters
-    ----------
-    msg : Any
-        msg parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Show a red error notification toast."""
     ui.notify(msg, type="negative", position="top-right")
 
 
@@ -117,32 +105,13 @@ def validate_iso_date(value: str, label: str) -> bool:
 
 
 def file_use_badge(file_use: str) -> None:
-    """File use badge.
-    
-    Parameters
-    ----------
-    file_use : Any
-        file_use parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render a colored badge indicating the file's role (e.g. ORIGINAL, DERIVATIVE)."""
     cls = FILE_USE_COLORS.get(file_use, "bg-slate-100 text-slate-600")
     ui.badge(file_use).classes(f"text-xs px-2 py-0.5 rounded {cls}")
 
 
 def card_row(*labels: tuple[str, Any], cls: str = "") -> None:
-    """Card row.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render a row of label-value pairs inside a card layout."""
     with ui.row().classes(f"gap-6 flex-wrap {cls}"):
         for key, val in labels:
             with ui.column().classes("gap-0"):

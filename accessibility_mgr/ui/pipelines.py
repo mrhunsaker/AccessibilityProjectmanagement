@@ -17,22 +17,7 @@ from .components import notify_error, notify_success, section_header
 
 
 def _pipeline_card(pipeline: WorkflowPipeline, result_area: ui.element) -> None:
-    """ pipeline card.
-    
-    Parameters
-    ----------
-    pipeline : Any
-        pipeline parameter.
-    
-    result_area : Any
-        result_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render a card for a single pipeline with its steps and action buttons."""
     with ui.card().classes("p-5 rounded-xl border border-slate-200 w-full"):
         ui.label(pipeline.name).classes("font-semibold text-slate-800 text-base")
         ui.label(pipeline.description).classes("text-sm text-slate-500 mb-3")
@@ -52,19 +37,7 @@ def _pipeline_card(pipeline: WorkflowPipeline, result_area: ui.element) -> None:
 
         with ui.row().classes("gap-2"):
             def _run(p: WorkflowPipeline = pipeline) -> None:
-                """ run.
-                
-                Parameters
-                ----------
-                p : Any
-                    p parameter.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Open the execute-pipeline dialog for the given pipeline."""
                 _run_pipeline_dialog(p, result_area)
 
             ui.button("▶ Execute Pipeline", on_click=_run).classes(
@@ -72,19 +45,7 @@ def _pipeline_card(pipeline: WorkflowPipeline, result_area: ui.element) -> None:
             )
 
             def _hist(p: WorkflowPipeline = pipeline) -> None:
-                """ hist.
-                
-                Parameters
-                ----------
-                p : Any
-                    p parameter.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Show execution history for the given pipeline."""
                 _show_pipeline_history(p.name, result_area)
 
             ui.button("📋 View History", on_click=_hist).props("flat dense").classes(
@@ -93,22 +54,7 @@ def _pipeline_card(pipeline: WorkflowPipeline, result_area: ui.element) -> None:
 
 
 def _run_pipeline_dialog(pipeline: WorkflowPipeline, result_area: ui.element) -> None:
-    """ run pipeline dialog.
-    
-    Parameters
-    ----------
-    pipeline : Any
-        pipeline parameter.
-    
-    result_area : Any
-        result_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Open a dialog to configure and execute a pipeline."""
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
         ui.label(f"Execute: {pipeline.name}").classes("text-xl font-bold text-slate-800")
         ui.label(pipeline.description).classes("text-sm text-slate-500")
@@ -129,14 +75,7 @@ def _run_pipeline_dialog(pipeline: WorkflowPipeline, result_area: ui.element) ->
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _execute() -> None:
-                """ execute.
-                
-                Returns
-                -------
-                Any
-                    Function result.
-                
-                """
+                """Close dialog, show spinner, and execute pipeline in background thread."""
                 dlg.close()
                 result_area.clear()
                 with result_area:
@@ -147,14 +86,7 @@ def _run_pipeline_dialog(pipeline: WorkflowPipeline, result_area: ui.element) ->
                         ui.spinner("dots", size="sm")
 
                 def _do() -> None:
-                    """ do.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Run the pipeline and render results."""
                     run_result = PipelineService.run_pipeline(
                         pipeline.name, input_path=input_path.value.strip()
                     )
@@ -170,22 +102,7 @@ def _run_pipeline_dialog(pipeline: WorkflowPipeline, result_area: ui.element) ->
 
 
 def _render_pipeline_result(pipeline: WorkflowPipeline, run_result: object) -> None:
-    """ render pipeline result.
-    
-    Parameters
-    ----------
-    pipeline : Any
-        pipeline parameter.
-    
-    run_result : Any
-        run_result parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Render pipeline execution results with per-step success/failure status."""
     overall = getattr(run_result, "overall_success", False)
     step_results = getattr(run_result, "step_results", [])
     run_id = getattr(run_result, "run_id", -1)
@@ -229,22 +146,7 @@ def _render_pipeline_result(pipeline: WorkflowPipeline, run_result: object) -> N
 
 
 def _show_pipeline_history(pipeline_name: str, result_area: ui.element) -> None:
-    """ show pipeline history.
-    
-    Parameters
-    ----------
-    pipeline_name : Any
-        pipeline_name parameter.
-    
-    result_area : Any
-        result_area parameter.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Display recent execution history for a named pipeline."""
     runs = Q.list_pipeline_runs(limit=20)
     runs = [r for r in runs if r.get("pipeline_name") == pipeline_name]
     result_area.clear()

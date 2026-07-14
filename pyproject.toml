@@ -31,13 +31,15 @@ dependencies = [
 
 [project.scripts]
 APM = "accessibility_mgr.app:main"
+AccessMan = "accessibility_mgr.app:main"
+APM-seed = "accessibility_mgr.db.seed_import:main"
 AccessMan-seed = "accessibility_mgr.db.seed_import:main"
 
 [project.urls]
-Homepage = "https://github.com/mrhunsaker/accessible-materials-manager"
-Issues = "https://github.com/mrhunsaker/accessible-materials-manager/issues"
-Discussions = "https://github.com/mrhunsaker/accessible-materials-manager/discussions"
-Changelog = "https://github.com/mrhunsaker/accessible-materials-manager/RELEASING.md"
+Homepage = "https://github.com/mrhunsaker/AccessibilityProjectManagement"
+Issues = "https://github.com/mrhunsaker/AccessibilityProjectManagement/issues"
+Discussions = "https://github.com/mrhunsaker/AccessibilityProjectManagement/discussions"
+Changelog = "https://github.com/mrhunsaker/AccessibilityProjectManagement/RELEASING.md"
 
 # =============================================================================
 # DEPENDENCY GROUPS - All dependencies in one place

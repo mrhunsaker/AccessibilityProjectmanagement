@@ -24,8 +24,8 @@ def _ensure_runtime_started() -> None:
 
     if os.getenv("ACCESSMAN_DEV", "0").lower() in {"1", "true", "yes"}:
         # Seed dev-only demo jobs so the monitor is not empty during development.
-        _queue.enqueue(workflow_name="epub_accessibility_pipeline", asset_id=1, priority=1)
-        _queue.enqueue(workflow_name="metadata_governance_pipeline", asset_id=2, priority=3)
+        _queue.enqueue(workflow_name="Accessible EPUB Pipeline", asset_id=1, priority=1)
+        _queue.enqueue(workflow_name="DAISY Pipeline", asset_id=2, priority=3)
 
     import logging
     from ..services.pipeline_service import PipelineService
@@ -34,13 +34,11 @@ def _ensure_runtime_started() -> None:
 
     def _real_handler(job) -> None:
         """Dispatch workflow jobs to PipelineService by workflow_name."""
-        try:
-            PipelineService.run_pipeline(job.workflow_name)
-        except Exception as exc:  # noqa: BLE001
-            _wm_log.error(
-                "Worker handler error for workflow %r (asset %s): %s",
-                job.workflow_name, job.asset_id, exc,
-                exc_info=True,
+        result = PipelineService.run_pipeline(job.workflow_name)
+        if not result.overall_success:
+            failed = [sr.command for sr in result.step_results if not sr.success]
+            raise RuntimeError(
+                f"Pipeline {job.workflow_name!r} failed: {', '.join(failed)}"
             )
 
     _runtime.start(_real_handler)

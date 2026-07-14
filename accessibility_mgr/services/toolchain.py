@@ -89,7 +89,7 @@ class AccessibilityToolchainService:
     # Real DAISY Ace / EPUBCheck / Liblouis execution now lives in
     # AccessibilityBinaryIntegrationService (services/toolchain_binaries.py),
     # which discovers the real binary on PATH and reports "unavailable"
-    # honestly instead of faking success. See ui/toolchain_dashboard.py.
+    # honestly instead of faking success. See ui/binary_integrations_dashboard.py.
 
 
 __all__ = [

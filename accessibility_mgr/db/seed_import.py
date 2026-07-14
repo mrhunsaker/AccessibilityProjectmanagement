@@ -375,14 +375,7 @@ def import_seed_csv(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """ build parser.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Build the CLI argument parser for the seed import command."""
     parser = argparse.ArgumentParser(
         description="Seed Accessibility Manager inventory tables from a CSV file.",
     )

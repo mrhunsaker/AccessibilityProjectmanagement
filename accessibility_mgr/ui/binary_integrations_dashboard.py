@@ -65,7 +65,7 @@ def binary_integrations_dashboard(content_area: ui.element) -> None:
         with ui.card().classes(
             "w-full mt-6 p-5 rounded-xl border border-slate-200"
         ):
-            ui.label("Operational Readiness").classes(
+            ui.label("Execution Framework Capabilities").classes(
                 "text-base font-semibold text-slate-700 mb-3"
             )
 
@@ -79,8 +79,8 @@ def binary_integrations_dashboard(content_area: ui.element) -> None:
 
             for item in readiness:
                 with ui.row().classes("items-center gap-2 py-1"):
-                    ui.icon("check_circle").classes(
-                        "text-green-600"
+                    ui.icon("info").classes(
+                        "text-blue-500"
                     )
                     ui.label(item).classes(
                         "text-sm text-slate-700"

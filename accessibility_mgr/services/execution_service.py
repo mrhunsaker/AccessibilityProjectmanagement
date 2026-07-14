@@ -28,9 +28,7 @@ ALLOWED_EXECUTABLES: frozenset[str] = frozenset({
 
 @dataclass
 class ExecutionResult:
-    """ExecutionResult class.
-    
-    """
+    """Result of a subprocess command execution."""
     command: str
     success: bool
     output: str
@@ -38,9 +36,7 @@ class ExecutionResult:
 
 
 class ExecutionService:
-    """ExecutionService class.
-    
-    """
+    """Controlled subprocess execution with allowlist and timeout enforcement."""
     DEFAULT_TIMEOUT: int = 120  # seconds
 
     @staticmethod

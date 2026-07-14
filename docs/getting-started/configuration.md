@@ -18,7 +18,7 @@ Load from `.secrets` file in repository root.
 ### Optional Variables
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ACCESSMAN_API_AUTH_REQUIRED` | `0` | Enable API authentication (`1` = enabled) |
+| `ACCESSMAN_API_AUTH_REQUIRED` | `1` | Enable API authentication (`0` = disabled) |
 | `ACCESSMAN_API_KEY` | - | API key for authentication |
 | `ACCESSMAN_DB_PATH` | User data dir | Path to SQLite database |
 | `ACCESSMAN_BACKUP_DIR` | `backups/` | Backup directory |

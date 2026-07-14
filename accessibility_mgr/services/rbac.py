@@ -46,6 +46,7 @@ class RBACService:
                     "qa.execute",
                     "workflow.manage",
                     "analytics.view",
+                    "governance.manage",
                 },
             )
         )

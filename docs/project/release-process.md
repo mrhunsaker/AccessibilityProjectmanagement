@@ -6,7 +6,7 @@ APM uses **calendar versioning**: `YYYY.M.N` (year, month, patch).
 
 ## 🔖 Steps
 
-1. **Update `CHANGELOG.md`** with the new version heading and changes.
+1. **Update `CHANGES.md`** with the new version heading and changes.
 2. **Bump the version** in `pyproject.toml` (or wherever `__version__` is
    defined).
 3. **Tag the commit**:
@@ -26,7 +26,7 @@ APM uses **calendar versioning**: `YYYY.M.N` (year, month, patch).
 ## 📋 Pre-Release Checklist
 
 - [ ] All failing pages are resolved or documented as known issues
-- [ ] `CHANGELOG.md` is up to date
+- [ ] `CHANGES.md` is up to date
 - [ ] Default seed data in `schema.py` matches documentation
 - [ ] `docs/` stubs are filled in for any new features
 - [ ] Manual test checklist in [Test Cases](../development/test-cases.md) passes

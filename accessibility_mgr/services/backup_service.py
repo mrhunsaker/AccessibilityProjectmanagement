@@ -192,7 +192,7 @@ class BackupService:
     def restore_backup(backup_path: str) -> None:
         """Restore the live database from *backup_path*.
 
-        STUB-029: previously unimplemented.  Now performs a verified restore:
+        Performs a verified restore:
         1. Validates the backup file is a readable SQLite database.
         2. Creates a safety snapshot of the current live DB before overwriting.
         3. Copies the backup over the live DB path using sqlite3.backup().

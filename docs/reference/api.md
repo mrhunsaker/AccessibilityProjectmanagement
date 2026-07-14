@@ -16,9 +16,3 @@ Purpose: mounted FastAPI routes, auth/token checks, and externally reachable
 workflow/analytics endpoints.
 
 ::: accessibility_mgr.api.platform_api
-
-## Internal REST facade
-
-Purpose: internal service-level API abstractions used by orchestration code.
-
-::: accessibility_mgr.api.rest_api

@@ -18,6 +18,13 @@ import logging
 from nicegui import app as nicegui_app
 from nicegui import ui
 
+log_level_name = os.getenv("ACCESSMAN_LOG_LEVEL", "INFO").strip().upper()
+log_level = getattr(logging, log_level_name, logging.INFO)
+logging.basicConfig(
+    level=log_level,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
 log = logging.getLogger(__name__)
 
 from accessibility_mgr.api.platform_api import app as platform_api_app
