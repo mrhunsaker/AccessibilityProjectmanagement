@@ -156,51 +156,6 @@ APM supports **Time-based One-Time Password (TOTP)** 2FA:
 
 ## 🔑 Secret Management
 
-### Secret Vault Service
-
-APM includes a **SecretVaultService** for encrypting sensitive data using **Fernet symmetric encryption** (AES-128 in CBC mode with PKCS7 padding).
-
-#### Fernet Key Generation
-
-```bash
-python -c "from cryptography.fernet import Fernet; print('ACCESSMAN_VAULT_KEY=' + Fernet.generate_key().decode())"
-```
-
-**Requirements**:
-
-- 32 URL-safe base64-encoded bytes
-- Unique for each deployment
-- Never committed to version control
-- Rotated periodically
-
-#### Using the Vault
-
-```python
-from accessibility_mgr.security.secret_vault import SecretVaultService
-
-# Initialize vault (automatically uses ACCESSMAN_VAULT_KEY)
-vault = SecretVaultService()
-
-# Store a secret
-vault.store_secret(name="api_key", value="sk_live_abc123...")
-
-# Retrieve a secret
-api_key = vault.retrieve_secret("api_key")
-
-# List all secrets
-secrets = vault.list_secrets()
-```
-
-#### Secret Types
-
-Store any sensitive data in the vault:
-
-- API keys for external services
-- Database credentials
-- Encryption keys
-- Service account tokens
-- Configuration secrets
-
 ### Environment Variables
 
 APM loads sensitive configuration from `.secrets` file:
@@ -242,14 +197,11 @@ APM uses a **flexible RBAC system** to control user access.
 #### Default Roles
 
 
-| Role                  | Description           | Permissions                                       |
-| --------------------- | --------------------- | ------------------------------------------------- |
-| **Admin**             | Full system access    | All permissions                                   |
-| **Manager**           | Production management | Create/edit jobs, view all data, manage inventory |
-| **Technician**        | Production execution  | View/assign jobs, update status, record time      |
-| **Viewer**            | Read-only access      | View all data, no modifications                   |
-| **QA Specialist**     | Quality assurance     | Run QA tools, view QA results, create QA profiles |
-| **Inventory Manager** | Inventory control     | Manage inventory, view reports, process orders    |
+| Role            | Description           | Permissions                                        |
+| --------------- | --------------------- | -------------------------------------------------- |
+| **Administrator** | Full system access  | All permissions                                    |
+| **Operator**      | Production operations | Create/edit jobs, run pipelines, view all data     |
+| **Reviewer**      | Quality review        | View jobs, review QA results, approve deliveries   |
 
 
 #### Permission Categories
@@ -258,10 +210,10 @@ APM uses a **flexible RBAC system** to control user access.
 | Category      | Description          | Example Permissions                         |
 | ------------- | -------------------- | ------------------------------------------- |
 | **Jobs**      | Job management       | Create, Read, Update, Delete, Assign        |
-| **Inventory** | Inventory control    | View, Add, Edit, Delete, Transact           |
+| **Pipelines** | Pipeline execution   | Create, Run, View status, Cancel            |
 | **QA**        | Quality assurance    | Run tools, View results, Create profiles    |
-| **Reports**   | Reporting            | View, Create, Edit, Delete, Export          |
-| **Users**     | User management      | View, Create, Edit, Delete, Deactivate      |
+| **Reports**   | Reporting            | View, Create, Export                        |
+| **Users**     | User management      | View, Create, Edit, Deactivate              |
 | **Settings**  | System configuration | View, Edit                                  |
 | **API**       | API access           | Access, Create tokens, Manage keys          |
 | **Admin**     | Administration       | Manage roles, View logs, System maintenance |

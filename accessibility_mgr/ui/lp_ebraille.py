@@ -805,10 +805,3 @@ def epub3_daisy_jobs_page(content_area: ui.element) -> None:
         content_area, "epub3_daisy", "EPUB3 / DAISY Jobs",
         "EPUB3 and DAISY production tracking", "bg-teal-600",
     )
-
-
-def lp_ebraille_page(content_area: ui.element) -> None:
-    _lp_jobs_page(
-        content_area, None, "Large Print / eBraille Jobs",
-        "Large print and eBraille production tracking", "bg-green-600",
-    )

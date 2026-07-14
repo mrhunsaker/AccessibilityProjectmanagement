@@ -113,10 +113,7 @@ class AccessibilityBinaryIntegrationService:
     ) -> dict:
         """Translate *source_path* to BRF using Liblouis.
 
-        STUB-027: Previously this method did not exist; calls fell through to
-        the generic QAService which always returned a stub echo result.  This
-        implementation uses the real ``file2brl`` (preferred) or
-        ``lou_translate`` binary.
+        Uses the real ``file2brl`` (preferred) or ``lou_translate`` binary.
 
         Parameters
         ----------

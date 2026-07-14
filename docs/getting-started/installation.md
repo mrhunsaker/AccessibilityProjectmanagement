@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
 ### Supported Operating Systems
 - **Linux** (Ubuntu 22.04+, Fedora 38+, Arch Linux)
@@ -12,29 +12,34 @@
 - **Windows** (10 21H2+, 11)
 
 ### Required Software
-   Requirement | Version | Verification Command |
- |-------------|---------|---------------------|
- | **Python** | ≥3.12 | `python --version` |
- | **[uv](https://github.com/astral-sh/uv)** | Latest | `uv --version` |
- | **Git** | ≥2.30 | `git --version` |
+
+| Requirement | Version | Verification Command |
+|-------------|---------|---------------------|
+| **Python** | >= 3.12 | `python --version` |
+| **[uv](https://github.com/astral-sh/uv)** | Latest | `uv --version` |
+| **Git** | >= 2.30 | `git --version` |
 
 ---
 
-## 🛠️ Installation Steps
+## Installation Steps
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/mrhunsaker/AccessibilityProjectManagement.git
 cd AccessibilityProjectManagement
+```
 
 ### 2. Install Dependencies
-``bash
+
+```bash
 uv sync
 ```
 
 ### 3. Configure Secrets
 
-Create a `.secrets. file in the **repository root** (not inside `accessibility_mgr/`)
+Create a `.secrets` file in the **repository root** (not inside `accessibility_mgr/`):
+
 ```bash
 touch .secrets
 chmod 600 .secrets
@@ -48,7 +53,7 @@ Storage Secret:
 python -c "import secrets; print('STORAGE_SECRET=' + secrets.token_urlsafe(32))" >> .secrets
 ```
 
-Password Has (PBKDF2-HMAC-SHA-256):
+Password Hash (PBKDF2-HMAC-SHA-256):
 
 ```bash
 python -c "
@@ -60,35 +65,27 @@ print('ACCESSMAN_PASSWORD_HASH=' + base64.b64encode(salt + dk).decode())
 " >> .secrets
 ```
 
-Fernet Vault Key:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print('ACCESSMAN_VAULT_KEY=' + Fernet.generate_key().decode())" >> .secrets
-```
-
-### 4. COnfigure External Tools (Optional)
+### 4. Configure External Tools (Optional)
 
 ```bash
 cp tools.ini.example tools.ini
 ```
 
-Edit `tools.ini` to specify paths to yourt external tools
+Edit `tools.ini` to specify paths to your external tools.
 
-### 5. Runt he Application
+### 5. Run the Application
 
 ```bash
 uv run AccessMan
 ```
 
-Open your beowser to [http://localhost:8765](http://localhost:8765)
+Open your browser to [http://localhost:8765](http://localhost:8765)
 
-### Troubleshooting:
+### Troubleshooting
 
 | Issue | Solution |
 | --- | --- |
-| ModuleNotFoundError | Run uv sync |
-| FileNotFoundError: .secrets | Create .secrets in repository root |
-| ValueError: Storage secret is missing | Add STORAGE_SECRET to .secrets |
-| Port 8765 already in use | Change port in app.py |
-
-
+| ModuleNotFoundError | Run `uv sync` |
+| FileNotFoundError: .secrets | Create `.secrets` in repository root |
+| ValueError: Storage secret is missing | Add `STORAGE_SECRET` to `.secrets` |
+| Port 8765 already in use | Change port in `app.py` |

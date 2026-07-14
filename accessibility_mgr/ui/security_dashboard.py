@@ -30,7 +30,7 @@ def security_dashboard_page(content_area: ui.element) -> None:
     with content_area:
         section_header(
             "Security & Authorization",
-            "Role-based access control and governance authorization",
+            "Reference implementation — RBAC is not yet enforced on live sessions",
         )
 
         with ui.grid(columns=2).classes("w-full gap-4 mb-6"):
@@ -50,8 +50,8 @@ def security_dashboard_page(content_area: ui.element) -> None:
                 ui.label("Authorization Checks").classes(
                     "text-sm text-slate-500"
                 )
-                ui.label("Active").classes(
-                    "text-3xl font-bold text-green-600"
+                ui.label("Simulated Only").classes(
+                    "text-3xl font-bold text-amber-600"
                 )
 
         with ui.card().classes(

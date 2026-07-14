@@ -27,9 +27,3 @@ Purpose: typed CRUD and workflow queries used by UI pages and services.
 Purpose: CSV normalization and controlled import into inventory tables.
 
 ::: accessibility_mgr.db.seed_import
-
-## ORM compatibility base
-
-Purpose: legacy SQLAlchemy compatibility for model modules.
-
-::: accessibility_mgr.db.database

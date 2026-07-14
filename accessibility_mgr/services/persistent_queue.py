@@ -52,6 +52,7 @@ class PersistentWorkflowQueue:
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
         return sqlite3.connect(self.database_path)
 
     def _initialize(self) -> None:

@@ -8,11 +8,8 @@ from __future__ import annotations
 from nicegui import ui
 
 from ..db import queries as Q
-from ..services.provenance_registry import ProvenanceRegistry
+from ..services import singletons
 from .components import section_header
-
-
-_provenance = ProvenanceRegistry()
 
 _dev_seeded = False
 
@@ -24,19 +21,19 @@ def _seed_dev_provenance() -> None:
     if _dev_seeded or os.getenv("ACCESSMAN_DEV", "0").lower() not in {"1", "true", "yes"}:
         return
     _dev_seeded = True
-    _provenance.register_event(
+    singletons.provenance.register_event(
         asset_id=1,
         event_type="metadata_update",
         summary="Accessibility metadata updated",
         metadata={"editor": "operator"},
     )
-    _provenance.register_event(
+    singletons.provenance.register_event(
         asset_id=1,
         event_type="qa_report",
         summary="DAISY Ace QA report generated",
         metadata={"score": 100},
     )
-    _provenance.register_event(
+    singletons.provenance.register_event(
         asset_id=2,
         event_type="pipeline_retry",
         summary="Accessibility pipeline retry requested",

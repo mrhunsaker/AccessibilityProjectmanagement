@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Workflow Overview
+## Workflow Overview
 
 ```mermaid
 graph TD
@@ -17,7 +17,7 @@ graph TD
 
 ---
 
-## 📋 Detailed Steps
+## Detailed Steps
 
 ### 1. Assessment
 - **Purpose**: Determine tactile graphics requirements
@@ -36,7 +36,6 @@ graph TD
   - Simplify complex images
   - Add braille labels
   - Define textures and layers
-- **Tools**: [TODO: Add your tools here]
 
 ### 3. Production
 - **Purpose**: Create physical tactile graphic
@@ -45,7 +44,6 @@ graph TD
   - Embossing
   - Hand-tooled
   - 3D printed
-- **Equipment**: [TODO: Add your equipment here]
 
 ### 4. Quality Assurance
 - **Purpose**: Verify accuracy and usability
@@ -62,19 +60,18 @@ graph TD
   - Update inventory
 
 ---
-## 🛠️ Tools & Equipment
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| [TODO] | [TODO] | [TODO] |
+## Best Practices
 
----
-## 📊 Best Practices
-
-- [TODO: Add your best practices here]
+- Simplify complex images to essential elements
+- Use consistent textures to represent different concepts
+- Include braille labels for all important features
+- Test with students before final production
+- Document design decisions for future reference
 
 ---
-## 🔗 Related Workflows
+
+## Related Workflows
 
 - [Braille Workflow](braille.md) - For accompanying text
 - [3-D Print Workflow](3d-print.md) - For 3D tactile elements

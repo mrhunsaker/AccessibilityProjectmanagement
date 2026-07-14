@@ -163,8 +163,9 @@ def test_backfill_metadata_keys_merges_duplicate_target_values():
     assert "dc title" not in keys
 
 
-def test_search_all_supports_sha256_exact_match_branch(tmp_path):
-    src = tmp_path / "sample.txt"
+def test_search_all_supports_sha256_exact_match_branch():
+    src = Q.FILES_DIR / "sample.txt"
+    src.parent.mkdir(parents=True, exist_ok=True)
     src.write_text("search checksum payload", encoding="utf-8")
 
     file_id = Q.ingest_file(str(src), format_name="txt")

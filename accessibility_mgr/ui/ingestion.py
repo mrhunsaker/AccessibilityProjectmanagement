@@ -103,14 +103,7 @@ def ingestion_page(content_area: ui.element) -> None:
                 tool_col = ui.column().classes("w-full gap-1")
 
                 def _add_tool() -> None:
-                    """ add tool.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new tool input row to the tool list."""
                     with tool_col:
                         with ui.row().classes("w-full gap-1 items-center") as row:
                             inp = ui.input(placeholder='e.g. brailleblaster').classes(
@@ -119,19 +112,7 @@ def ingestion_page(content_area: ui.element) -> None:
                             ref: dict = {"inp": inp, "row": row}
                             tool_rows.append(ref)
                             def _rm_tool(r=ref) -> None:
-                                """ rm tool.
-                                
-                                Parameters
-                                ----------
-                                r : Any
-                                    r parameter.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
+                                """Remove a tool input row from the tool list."""
                                 r["row"].delete()
                                 if r in tool_rows:
                                     tool_rows.remove(r)
@@ -148,14 +129,7 @@ def ingestion_page(content_area: ui.element) -> None:
                 proc_col = ui.column().classes("w-full gap-1")
 
                 def _add_proc() -> None:
-                    """ add proc.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new process input row to the process list."""
                     with proc_col:
                         with ui.row().classes("w-full gap-1 items-center") as row:
                             inp = ui.input(
@@ -164,19 +138,7 @@ def ingestion_page(content_area: ui.element) -> None:
                             ref = {"inp": inp, "row": row}
                             proc_rows.append(ref)
                             def _rm_proc(r=ref) -> None:
-                                """ rm proc.
-                                
-                                Parameters
-                                ----------
-                                r : Any
-                                    r parameter.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
+                                """Remove a process input row from the process list."""
                                 r["row"].delete()
                                 if r in proc_rows:
                                     proc_rows.remove(r)
@@ -205,14 +167,7 @@ def ingestion_page(content_area: ui.element) -> None:
                 result_card: list[ui.element] = []
 
                 def _ingest() -> None:
-                    """ ingest.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Validate inputs and ingest a file from a specified path into the database."""
                     src = path_inp.value.strip()
                     if not src:
                         notify_error("File path is required")
@@ -355,14 +310,7 @@ def ingestion_page(content_area: ui.element) -> None:
                 up_tool_col = ui.column().classes("w-full gap-1")
 
                 def _up_add_tool() -> None:
-                    """ up add tool.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new tool input row to the upload panel's tool list."""
                     with up_tool_col:
                         with ui.row().classes("w-full gap-1 items-center") as row:
                             inp = ui.input(placeholder='e.g. brailleblaster').classes(
@@ -371,19 +319,7 @@ def ingestion_page(content_area: ui.element) -> None:
                             ref: dict = {"inp": inp, "row": row}
                             up_tool_rows.append(ref)
                             def _rm(r=ref) -> None:
-                                """ rm.
-                                
-                                Parameters
-                                ----------
-                                r : Any
-                                    r parameter.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
+                                """Remove a tool input row from the upload panel's tool list."""
                                 r["row"].delete()
                                 if r in up_tool_rows:
                                     up_tool_rows.remove(r)
@@ -400,14 +336,7 @@ def ingestion_page(content_area: ui.element) -> None:
                 up_proc_col = ui.column().classes("w-full gap-1")
 
                 def _up_add_proc() -> None:
-                    """ up add proc.
-                    
-                    Returns
-                    -------
-                    Any
-                        Function result.
-                    
-                    """
+                    """Add a new process input row to the upload panel's process list."""
                     with up_proc_col:
                         with ui.row().classes("w-full gap-1 items-center") as row:
                             inp = ui.input(
@@ -416,19 +345,7 @@ def ingestion_page(content_area: ui.element) -> None:
                             ref = {"inp": inp, "row": row}
                             up_proc_rows.append(ref)
                             def _rm(r=ref) -> None:
-                                """ rm.
-                                
-                                Parameters
-                                ----------
-                                r : Any
-                                    r parameter.
-                                
-                                Returns
-                                -------
-                                Any
-                                    Function result.
-                                
-                                """
+                                """Remove a process input row from the upload panel's process list."""
                                 r["row"].delete()
                                 if r in up_proc_rows:
                                     up_proc_rows.remove(r)

@@ -117,51 +117,23 @@ def _load_runtime_option_groups() -> dict[str, list[str]]:
 
 
 def get_option_groups() -> dict[str, list[str]]:
-    """Get option groups.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return metadata option groups loaded from DB or defaults."""
     return _load_runtime_option_groups()
 
 
 def get_dublin_core_keys() -> list[str]:
-    """Get dublin core keys.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return the active Dublin Core metadata key list."""
     return list(get_option_groups().get("Dublin Core", []))
 
 
 def get_non_dc_allowed_keys() -> list[str]:
-    """Get non dc allowed keys.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return non-Dublin-Core keys (eBraille Profile + METS/PREMIS)."""
     groups = get_option_groups()
     return list(groups.get("eBraille Profile", [])) + list(groups.get("METS / PREMIS", []))
 
 
 def get_allowed_metadata_keys() -> list[str]:
-    """Get allowed metadata keys.
-    
-    Returns
-    -------
-    Any
-        Function result.
-    
-    """
+    """Return all allowed metadata keys across all option groups."""
     groups = get_option_groups()
     return list(groups.get("Dublin Core", [])) + get_non_dc_allowed_keys()
 

@@ -3,10 +3,6 @@ Pipeline service — multi-stage accessibility production workflow automation.
 
 Each pipeline definition carries ordered steps with tool names and commands.
 Execution runs each step via ExecutionService and persists run records to DB.
-
-STUB-026: DAISY Pipeline 2 steps now use the real pipeline2-cli invocation
-pattern (--data, --script).  A binary pre-check surfaces a clear error message
-when the tool is absent rather than silently returning success from an echo stub.
 """
 
 from __future__ import annotations
@@ -27,7 +23,7 @@ class PipelineStep:
     tool: str
     command_template: str   # {input} replaced at runtime
     timeout: int = 120
-    required_binary: str = ""  # STUB-026: binary to check before running
+    required_binary: str = ""  # Binary to check before running
 
     def build_command(self, input_path: str = "") -> list[str]:
         cmd = self.command_template.replace("{input}", input_path)
@@ -45,8 +41,6 @@ class WorkflowPipeline:
 PIPELINES: list[WorkflowPipeline] = [
     WorkflowPipeline(
         name="DAISY Pipeline",
-        # STUB-026: list real pipeline2-cli script IDs; --data points to the
-        # Pipeline 2 data directory configured in tools.ini or the install default.
         description=(
             "Run the DAISY Pipeline 2 task set for EPUB/DAISY processing.  "
             "Requires pipeline2-cli on PATH (https://daisy.org/pipeline)."
@@ -55,8 +49,6 @@ PIPELINES: list[WorkflowPipeline] = [
             PipelineStep(
                 name="List Available Scripts",
                 tool="DAISY Pipeline",
-                # STUB-026: real invocation — lists registered scripts to
-                # confirm the server is reachable before running jobs.
                 command_template="pipeline2-cli scripts",
                 timeout=30,
                 required_binary="pipeline2-cli",
@@ -131,9 +123,7 @@ _PIPELINE_MAP: dict[str, WorkflowPipeline] = {p.name: p for p in PIPELINES}
 
 @dataclass
 class PipelineRunResult:
-    """PipelineRunResult class.
-    
-    """
+    """Outcome of a complete pipeline execution, including per-step results."""
     pipeline_name: str
     run_id: int
     step_results: list[ExecutionResult]
@@ -145,40 +135,21 @@ class PipelineService:
 
     @staticmethod
     def list_pipelines() -> list[WorkflowPipeline]:
-        """List pipelines.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
+        """Return all registered workflow pipelines."""
         return PIPELINES
 
     @staticmethod
     def get_pipeline(name: str) -> Optional[WorkflowPipeline]:
-        """Get pipeline.
-        
-        Parameters
-        ----------
-        name : Any
-            name parameter.
-        
-        Returns
-        -------
-        Any
-            Function result.
-        
-        """
+        """Look up a pipeline by name, or return None if not found."""
         return _PIPELINE_MAP.get(name)
 
     @staticmethod
     def run_pipeline(name: str, input_path: str = "") -> PipelineRunResult:
         """Execute all steps of a named pipeline, persisting results to DB.
 
-        STUB-026: Each step's ``required_binary`` is checked via shutil.which
-        before execution.  Missing binaries produce an explicit FAIL result with
-        installation guidance rather than silently running an echo stub.
+        Each step's ``required_binary`` is checked via shutil.which before
+        execution.  Missing binaries produce an explicit FAIL result with
+        installation guidance rather than silently returning success.
         """
         pipeline = _PIPELINE_MAP.get(name)
         if pipeline is None:
@@ -201,7 +172,7 @@ class PipelineService:
         overall_success = True
 
         for step in pipeline.steps:
-            # STUB-026: explicit binary pre-check with install guidance
+            # Explicit binary pre-check with install guidance
             if step.required_binary and not shutil.which(step.required_binary):
                 missing_result = ExecutionResult(
                     command=step.required_binary,

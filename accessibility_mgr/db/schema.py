@@ -595,6 +595,113 @@ INSERT OR IGNORE INTO workflow_step (job_type, step_key, label, description, sor
     ('print','printed',   'Printed',   'Print job completed',                           3),
     ('print','inspected', 'Inspected', 'Print inspected for quality',                   4),
     ('print','delivered', 'Delivered', 'Object delivered to requester',                 5);
+
+-- ═══════════════════════════════════════════════════════════════
+-- SLA MONITORING (R10)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS sla_record (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_name  TEXT NOT NULL,
+    asset_id       INTEGER NOT NULL,
+    started_at     TEXT NOT NULL,
+    sla_minutes    INTEGER NOT NULL DEFAULT 30,
+    breached       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS escalation_event (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_name  TEXT NOT NULL,
+    asset_id       INTEGER NOT NULL,
+    severity       TEXT NOT NULL,
+    summary        TEXT NOT NULL,
+    created_at     TEXT NOT NULL
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- WORKFLOW DAG (R11)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS workflow_dag_node (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_name     TEXT NOT NULL UNIQUE,
+    dependencies_json TEXT NOT NULL DEFAULT '[]',
+    retry_limit       INTEGER NOT NULL DEFAULT 3,
+    status            TEXT NOT NULL DEFAULT 'pending'
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- MULTI-TENANT (R12)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS organization (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    organization_id TEXT NOT NULL UNIQUE,
+    name            TEXT NOT NULL,
+    created_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tenant_membership (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    username        TEXT NOT NULL,
+    organization_id TEXT NOT NULL,
+    role            TEXT NOT NULL
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- ARTIFACT RETENTION (R13)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS artifact_retention_record (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    artifact_path   TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    retention_days  INTEGER NOT NULL DEFAULT 30,
+    status          TEXT NOT NULL DEFAULT 'active'
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- AUDIT LOG (R14)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS audit_event (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type  TEXT NOT NULL,
+    actor       TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    event_hash  TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- DISTRIBUTED WORKERS (R15)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS distributed_worker_node (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id       TEXT NOT NULL UNIQUE,
+    hostname      TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'online',
+    registered_at TEXT NOT NULL
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- EVENT STREAM (R16)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS event_subscription (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type    TEXT NOT NULL,
+    callback_url  TEXT NOT NULL,
+    active        INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS platform_event (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type    TEXT NOT NULL,
+    payload_json  TEXT NOT NULL DEFAULT '{}',
+    created_at    TEXT NOT NULL
+);
 """
 
 
