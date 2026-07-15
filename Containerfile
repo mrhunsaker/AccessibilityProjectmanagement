@@ -31,12 +31,15 @@ RUN pip install uv && \
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-# Create data directories
+# Create data directories owned by appuser
 RUN mkdir -p /data/{artifacts,job_files,prints_files,backups} && \
     chown -R appuser:appuser /data
 
 # Switch to non-root user
 USER appuser
+
+# Ensure writable directories exist at runtime (volume mounts may override ownership)
+VOLUME /data
 
 # Expose port
 EXPOSE 8765
