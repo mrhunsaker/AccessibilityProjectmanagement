@@ -62,6 +62,7 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/AccessMan${{ matrix.ext }}
           if-no-files-found: error
+          retention-days: 1
 
   release:
     needs: build
@@ -73,10 +74,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true
 
-      - name: List artifacts
-        run: ls -lhR artifacts/
+      - name: Rename artifacts for release
+        run: |
+          mkdir -p release
+          cp artifacts/AccessMan-linux-x86_64/AccessMan release/AccessMan-linux-x86_64
+          cp artifacts/AccessMan-macos-arm64/AccessMan release/AccessMan-macos-arm64
+          cp artifacts/AccessMan-windows-x86_64.exe/AccessMan.exe release/AccessMan-windows-x86_64.exe
+          chmod +x release/AccessMan-linux-x86_64 release/AccessMan-macos-arm64
+          ls -lh release/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -84,6 +90,6 @@ jobs:
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            artifacts/AccessMan-linux-x86_64
-            artifacts/AccessMan-macos-arm64
-            artifacts/AccessMan-windows-x86_64.exe
+            release/AccessMan-linux-x86_64
+            release/AccessMan-macos-arm64
+            release/AccessMan-windows-x86_64.exe
