@@ -2,7 +2,7 @@ services:
   accessibility-manager:
     build:
       context: .
-      containerfile: Containerfile
+      dockerfile: Containerfile
     container_name: accessibility-manager
     restart: unless-stopped
     ports:
