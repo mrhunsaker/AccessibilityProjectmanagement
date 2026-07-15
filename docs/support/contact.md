@@ -2,7 +2,7 @@
 
 ---
 
-## 🐛 Bug Reports
+## Bug Reports
 
 Open a GitHub Issue:
 <https://github.com/mrhunsaker/AccessibilityProjectManagement/issues>
@@ -17,21 +17,21 @@ Please include:
 
 ---
 
-## 💡 Feature Requests
+## Feature Requests
 
 Open a GitHub Discussion in the **Ideas** category:
 <https://github.com/mrhunsaker/AccessibilityProjectManagement/discussions>
 
 ---
 
-## 📧 Email
+## Email
 
 For non-public inquiries:
 [github@mail.hunsakerweb.com](mailto:github@mail.hunsakerweb.com)
 
 ---
 
-## 📖 Documentation Issues
+## Documentation Issues
 
 If you find an error in this documentation, open a Pull Request or Issue on
 GitHub referencing the specific page and what needs correcting.

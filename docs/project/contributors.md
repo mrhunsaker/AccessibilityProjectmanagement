@@ -4,7 +4,7 @@ Contributions are welcome.  This page explains how to get involved.
 
 ---
 
-## 🤝 How to Contribute
+## How to Contribute
 
 1. **Fork** the repository on GitHub.
 2. Create a **feature branch**: `git checkout -b feature/my-improvement`.
@@ -14,7 +14,7 @@ Contributions are welcome.  This page explains how to get involved.
 
 ---
 
-## 🧭 Code Conventions
+## Code Conventions
 
 - **SQL**: All queries in `db/queries.py` using `?` placeholders.
 - **UI**: NiceGUI components using Tailwind classes from the existing palette.
@@ -25,7 +25,7 @@ Contributions are welcome.  This page explains how to get involved.
 
 ---
 
-## 🐛 Reporting Issues
+## Reporting Issues
 
 Open a GitHub Issue with:
 - APM version / commit hash
@@ -36,7 +36,7 @@ Open a GitHub Issue with:
 
 ---
 
-## 💡 Feature Requests
+## Feature Requests
 
 Open a GitHub Discussion under the **Ideas** category.  Include:
 - The accessibility workflow problem you are solving
@@ -45,7 +45,7 @@ Open a GitHub Discussion under the **Ideas** category.  Include:
 
 ---
 
-## 📜 License
+## License
 
 By contributing you agree that your code will be released under the
-[MIT License](../license.md).
+[Apache License 2.0](../license.md).

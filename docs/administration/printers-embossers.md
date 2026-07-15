@@ -5,7 +5,7 @@ edit, or delete devices under **Admin → Printers** and **Admin → Embossers**
 
 ---
 
-## 🖨️ 3-D Printers
+## 3-D Printers
 
 ### Seed Devices
 
@@ -26,7 +26,7 @@ it has associated print jobs — remove or reassign those jobs first.
 
 ---
 
-## 🖊️ Embossers
+## Embossers
 
 ### Seed Devices
 
@@ -49,16 +49,16 @@ before creating an embosser that uses them.
 
 ---
 
-## ✏️ Editing Devices
+## Editing Devices
 
 Click **Edit** next to any device to open the edit dialog.  All fields can be
 changed.  The device name must remain unique within its table.
 
 ---
 
-## 🗑️ Deleting Devices
+## Deleting Devices
 
-Click **✕** next to a device.  A confirmation dialog is shown.
+Click **** next to a device.  A confirmation dialog is shown.
 
 - **Embossers**: Cannot be deleted if referenced by braille jobs.  Unassign
   the embosser from those jobs first, or leave the embosser and deactivate the
@@ -67,7 +67,7 @@ Click **✕** next to a device.  A confirmation dialog is shown.
 
 ---
 
-## 🔗 Linking to Jobs
+## Linking to Jobs
 
 When creating or editing a **Braille Job**, the embosser selector is populated
 from the embossers table.  When creating a **3-D Print Job**, the printer

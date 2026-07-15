@@ -6,7 +6,7 @@ time from the Admin panel.
 
 ---
 
-## 📁 Backup Location
+## Backup Location
 
 Backups are written to the `backups/` subdirectory of the database data
 directory (resolved at startup via `ACCESSMAN_DB_PATH` or the XDG default):
@@ -20,7 +20,7 @@ directory (resolved at startup via `ACCESSMAN_DB_PATH` or the XDG default):
 
 ---
 
-## ⚙️ How Backups Work
+## How Backups Work
 
 APM uses `sqlite3.Connection.backup()`, which performs a WAL checkpoint
 before copying.  The result is always a **clean, consistent snapshot** even
@@ -35,7 +35,7 @@ while the application is running.
 
 ---
 
-## 🖱️ Trigger a Manual Backup
+## Trigger a Manual Backup
 
 1. Navigate to **Admin → Backups**.
 2. Click **Run Backup Now**.
@@ -43,7 +43,7 @@ while the application is running.
 
 ---
 
-## 🔁 Restore from a Backup
+## Restore from a Backup
 
 > **Warning**: Restoring overwrites the live database.  APM automatically
 > creates a *pre-restore safety snapshot* before overwriting.
@@ -72,7 +72,7 @@ the user.
 
 ---
 
-## 🗑️ Retention & Pruning
+## Retention & Pruning
 
 Only the 10 most-recent `accessibility_manager_*.db` files are kept.
 Older files are deleted automatically after each successful backup.  To keep
@@ -81,7 +81,7 @@ more copies, edit `BackupService._KEEP_BACKUPS` in
 
 ---
 
-## 📋 Backup Log
+## Backup Log
 
 The `backup_log` table stores every backup event:
 

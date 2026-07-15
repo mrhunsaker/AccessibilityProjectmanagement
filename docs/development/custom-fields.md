@@ -5,7 +5,7 @@ APM supports extending job metadata through two mechanisms: the **Admin UI**
 
 ---
 
-## 🖱️ Via Admin UI (recommended)
+## Via Admin UI (recommended)
 
 1. Go to **Admin → Metadata Options**.
 2. Select the group where the new key belongs:
@@ -21,7 +21,7 @@ The key appears immediately in all metadata editor dropdowns and the
 
 ---
 
-## 🗄️ Via Database
+## Via Database
 
 Insert directly into `material_category`:
 
@@ -35,7 +35,7 @@ Valid sections: `metadata_dublin_core`, `metadata_ebraille_profile`,
 
 ---
 
-## 💾 Storing Values
+## Storing Values
 
 Metadata is stored in the `job_metadata` table as key-value pairs:
 
@@ -53,7 +53,7 @@ Q.set_job_metadata("braille", 42, "dc:audience", "Students Grade 7-9")
 
 ---
 
-## 🔍 Querying Custom Metadata
+## Querying Custom Metadata
 
 ```python
 # Get all metadata for a job
@@ -70,7 +70,7 @@ results = Q.search_all("Students Grade 7")
 
 ---
 
-## 🔑 Backfilling Typo Keys
+## Backfilling Typo Keys
 
 If historical data has inconsistent key names, use the backfill tool
 (Admin → Metadata Options → **Backfill Typo Keys**) to preview and apply

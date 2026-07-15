@@ -6,7 +6,7 @@ This page covers the available knobs if you encounter slowness.
 
 ---
 
-## ⚡ SQLite Tuning
+## SQLite Tuning
 
 APM enables WAL mode (`PRAGMA journal_mode = WAL`) and foreign key checks on
 every connection.  These are set in `db/schema.py:get_conn()`.
@@ -24,7 +24,7 @@ conn.execute("PRAGMA temp_store = MEMORY")
 
 ---
 
-## 🔍 Full-Text Search
+## Full-Text Search
 
 Migration `m009` builds FTS5 virtual tables (`braille_job_fts`, etc.) and
 triggers.  These keep search fast even with large job counts.
@@ -43,7 +43,7 @@ INSERT INTO metadata_event_fts(metadata_event_fts) VALUES('rebuild');
 
 ---
 
-## 📄 Pagination
+## Pagination
 
 All list views default to **50 rows per page**.  If pages feel slow, ensure
 that the relevant indexed columns are used.  The schema defines indexes on:
@@ -55,7 +55,7 @@ that the relevant indexed columns are used.  The schema defines indexes on:
 
 ---
 
-## 🗄️ Database Size
+## Database Size
 
 The `file_object` table stores **paths**, not file content.  Large artifact
 stores do not inflate the database.  Typical databases with thousands of jobs
@@ -69,7 +69,7 @@ du -sh ~/.local/share/accessibility_mgr/accessibility_manager.db
 
 ---
 
-## 🔄 Backup Performance
+## Backup Performance
 
 Backups use `sqlite3.Connection.backup()` which checkpoints the WAL and copies
 pages incrementally.  For a 50 MB database this takes under one second.  The

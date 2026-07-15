@@ -6,7 +6,7 @@ immediately and apply app-wide.
 
 ---
 
-## 📂 Category Sections
+## Category Sections
 
 | Section key | Used in | Description |
 |---|---|---|
@@ -29,7 +29,7 @@ immediately and apply app-wide.
 
 ---
 
-## ➕ Adding a Category Value
+## Adding a Category Value
 
 1. Navigate to **Admin → Material Categories**.
 2. Select the target section from the dropdown.
@@ -40,7 +40,7 @@ immediately and apply app-wide.
 
 ---
 
-## ✏️ Editing / Deactivating
+## Editing / Deactivating
 
 Click **Deactivate** next to any value to hide it from dropdowns without
 deleting history.  The value remains in the database and existing records are
@@ -48,7 +48,7 @@ unaffected.  Click **Activate** to restore it.
 
 ---
 
-## 🗑️ Deleting
+## Deleting
 
 Deleting is implemented as a soft-delete (sets `active = 0`).  Values can be
 re-activated at any time.  Physical rows are never removed so that historical
@@ -56,7 +56,7 @@ records remain valid.
 
 ---
 
-## 🔑 Metadata Key Backfill
+## Metadata Key Backfill
 
 If operators have been entering metadata keys manually with typos (e.g.
 `dc_title` instead of `dc:title`), use **Backfill Typo Keys**:

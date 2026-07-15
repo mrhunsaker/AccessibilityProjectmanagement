@@ -6,6 +6,74 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.
 
 ---
 
+# 2026-07-15
+
+## Added
+
+### Test Suite
+- Created `tests/conftest.py` with shared database fixtures
+- Created `tests/test_services.py` with 60 service-layer tests (RBAC, authentication, SLA monitoring, workflow DAG, persistent queue/analytics/provenance, artifact retention, audit log, event stream, distributed workers, multi-tenant, metadata validation, compliance reporting, execution service, worker runtime, base analytics, base provenance, workflow queue)
+- Created `tests/test_api.py` with 16 API endpoint tests (healthcheck, workflow listing/enqueue, analytics summary, provenance events, API key authentication enforcement)
+
+### Build Infrastructure
+- Added `sys._MEIPASS` detection in `app.py` for PyInstaller frozen-mode favicon resolution
+- Added `version.py` for dynamic date-based versioning (YYYY.M.D format)
+- Added `_base_path()` and `_get_version()` helpers in `app.py`
+
+### API Security
+- Added RBAC permission-gated FastAPI dependencies (`_dep_workflow_read`, `_dep_workflow_manage`, `_dep_analytics_view`, `_dep_governance_manage`)
+- Added `governance.manage` permission to the operator role
+
+### Workflow Queue Service
+- Fleshed out `workflow_queue.py` with full `WorkflowQueueService` implementation (in-memory priority queue with `enqueue`, `next_job`, `complete_job`, `fail_job`, `list_jobs`)
+
+## Changed
+
+### Build Scripts
+- Fixed `--add-data` paths in `build_linux.sh`, `build_macos.sh`, `build_windows.bat` (resources directory is at project root, not under `accessibility_mgr/`)
+- Fixed `--icon` path in `build_windows.bat` to `resources\icons\icon.ico`
+- Removed `--icon=...favicon.icns` from `build_macos.sh` (no `.icns` file exists)
+- Fixed `build_windows.bat` entry point path to use backslash
+
+### Containerfile
+- Fixed build order: copy full source before `uv pip install` (hatchling needs source to build wheel)
+- Replaced `curl`-based healthcheck with Python `urllib.request` (curl not in `python:3.12-slim`)
+- Removed premature `COPY tools.ini.example tools.ini`
+
+### podman-compose.yml
+- Removed deprecated `version: '3.8'` key
+
+### Dynamic Versioning
+- Replaced hardcoded `version = "2026.6.9"` with `dynamic = ["version"]` using hatchling `code` source
+- FastAPI app version now reads from `importlib.metadata` at runtime
+- Health endpoint now includes `version` field
+
+### License
+- Changed classifier in `pyproject.toml` from `MIT License` to `Apache Software License`
+- Updated `docs/index.md` and `docs/project/contributors.md` to reference Apache 2.0
+- Replaced MIT license text in `docs/license.md` with Apache 2.0 summary
+
+### Documentation Accessibility
+- Removed all unicode emoji from 35 markdown files in `docs/`
+- Replaced checkmark symbols (`✅`, `❌`) with text (`Yes`, `No`) in table cells
+- All section headers are now plain ASCII text
+
+### Service Fixes
+- Added `conn.row_factory = sqlite3.Row` to `_connect()` in 7 services: `sla_monitoring.py`, `workflow_dag.py`, `artifact_retention.py`, `audit_log.py`, `event_stream.py`, `distributed_workers.py`, `multi_tenant.py`
+
+### Technical Debt
+- Wired `ACCESSMAN_LOG_LEVEL` environment variable into `app.py` logging setup
+- Fixed `CHANGELOG.md` references to `CHANGES.md` in `docs/project/release-process.md`
+- Synced `CHANGES.md` content into `docs/changelog.md`
+
+## Removed
+
+- Removed unused `json` import from `sla_monitoring.py`
+- Removed unused `dataclasses.asdict` import from `sla_monitoring.py` and `workflow_dag.py`
+- Removed unused `dataclasses.field` import from `workflow_queue.py`
+
+---
+
 # 2026-05-17
 
 ## Added

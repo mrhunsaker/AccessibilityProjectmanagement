@@ -5,7 +5,7 @@ is no sign-up flow — accounts are defined in `.secrets` before the app starts.
 
 ---
 
-## 👤 Defining User Accounts
+## Defining User Accounts
 
 Add one `ACCESSMAN_USER_N` variable per account in `.secrets`:
 
@@ -26,7 +26,7 @@ If no `ACCESSMAN_USER_N` variables are set, a single placeholder account
 
 ---
 
-## 🔐 Login
+## Login
 
 Authentication uses a **single shared password** stored as a
 PBKDF2-HMAC-SHA-256 hash in `ACCESSMAN_PASSWORD_HASH`.  All accounts share
@@ -35,7 +35,7 @@ hash generation instructions.
 
 ---
 
-## 🔄 Switching Users
+## Switching Users
 
 After login, click the **person_off** icon in the top-right toolbar to switch
 the active account.  This updates `AuthService.current_user` (in-memory) but
@@ -43,7 +43,7 @@ does not require re-authentication.
 
 ---
 
-## 🛡️ RBAC Roles
+## RBAC Roles
 
 The `RBACService` defines three built-in roles:
 
@@ -57,7 +57,7 @@ Role assignments are visible in **Admin → Security Dashboard**.
 
 ---
 
-## 🔒 Session Management
+## Session Management
 
 Sessions are managed by NiceGUI's `app.storage.user` backed by the
 `STORAGE_SECRET` key.  Clearing the session (logout) calls

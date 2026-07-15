@@ -4,7 +4,7 @@
 
 ---
 
-## 📊 Layout Overview
+## Layout Overview
 
 ```mermaid
 graph TD
@@ -15,8 +15,8 @@ graph TD
     A --> F[Upcoming Deadlines Widget]
 ```
 
-## 🎨 Dashboard Sections
-### 📌 Active Jobs
+## Dashboard Sections
+### Active Jobs
 
 - Purpose: Track jobs currently in progress
 - Features:
@@ -32,7 +32,7 @@ graph TD
   - Status
   - Assigned To
 
-### ⚠️ Low Stock Alerts
+### Low Stock Alerts
 
 - Purpose: Warn about inventory items below minimum thresholds
 - Features:
@@ -45,7 +45,7 @@ graph TD
   - Braille paper
   - Electronics components
 
-### 🕒 Recent Activity
+### Recent Activity
 
 - Purpose: Timeline of recent system events
 - Features:
@@ -59,7 +59,7 @@ graph TD
   -Inventory transactions
   -User actions
 
-### ⚡ Quick Create
+### Quick Create
 
 - Purpose: One-click job creation
 - Features:
@@ -75,7 +75,7 @@ graph TD
   - Tactile Graphics Job
   - 3-D Print Job
 
-### 📅 Upcoming Deadlines
+### Upcoming Deadlines
 
 - Purpose: Jobs due in the next 7 days
 - Features:
@@ -84,7 +84,7 @@ graph TD
   - Click to view job details
 
 
-### 🔧 Customization
+### Customization
 
 - Widget Visibility
   - Toggle widgets on/off in Admin → Dashboard Settings:
@@ -98,7 +98,7 @@ graph TD
   - Theme: Light/Dark/System
   - Color Scheme: Primary and accent colors
 
-### 💡 Pro Tips
+### Pro Tips
 
 - Pin Important Jobs: Star jobs to keep them at the top of lists
 - Bulk Actions: Select multiple jobs to apply status changes

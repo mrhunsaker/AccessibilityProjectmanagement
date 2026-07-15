@@ -4,7 +4,7 @@ Items are loosely ordered by priority.  Dates are aspirational.
 
 ---
 
-## 🟢 Recently Completed
+## Recently Completed
 
 - Student records with cross-job production history (FIX-010)
 - Reports page with school/grade/type/status filtering and CSV export (FIX-015)
@@ -15,7 +15,7 @@ Items are loosely ordered by priority.  Dates are aspirational.
 
 ---
 
-## 🔵 In Progress / Near-Term
+## In Progress / Near-Term
 
 - Restore from backup via Admin UI (currently CLI only)
 - Keyboard shortcut reference page in the app
@@ -23,7 +23,7 @@ Items are loosely ordered by priority.  Dates are aspirational.
 
 ---
 
-## 🟡 Planned
+## Planned
 
 ### Production
 - Bulk metadata editing across multiple jobs
@@ -46,7 +46,7 @@ Items are loosely ordered by priority.  Dates are aspirational.
 
 ---
 
-## 🔴 Under Consideration
+## Under Consideration
 
 - Mobile-responsive layout improvements
 - Role-based UI restrictions (hide pages for non-admin users)

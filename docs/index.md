@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 Overview
+## Overview
 
 The **Accessibility Project Management (APM)** system is a **NiceGUI-based local web application** designed to streamline and manage the production of accessible materials for educational and professional environments. It provides comprehensive workflow tracking, file management, inventory control, and quality assurance for:
 
@@ -19,56 +19,56 @@ APM combines **job management, file ingestion, metadata tracking, QA tooling int
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 📋 Production Workflow Management
+### Production Workflow Management
 - **Dedicated workflow pages** for each production type
 - **Step-by-step tracking** with completion, reversion, and delivery capture
 - **Event logging** for full auditability
 - **Student record linkage** for cross-job history
 
-### 📁 File Ingestion & Preservation
+### File Ingestion & Preservation
 - **Drag-and-drop or path-based ingestion**
 - **Automatic SHA-256 checksums** and PREMIS-style event logging
 - **File-use classification** and provenance tracking
 - **Organized storage** in `artifacts/<Project Title>/...`
 
-### 📊 Search & Reporting
+### Search & Reporting
 - **Global search** across jobs, metadata, students, files, and events
 - **Exact checksum matching** for file identification
 - **Filterable reports** by school, grade, type, status, and date range
 - **CSV export** for all reports
 
-### 📦 Inventory Control
+### Inventory Control
 - **Filament tracking** (brand, color, type, diameter, quantity, cost, supplier)
 - **Braille paper management** (type, size, label, quantity, supplier)
 - **Electronics inventory** (configurable categories for components)
 - **Low-stock warnings** and transaction history
 
-### ✅ Quality Assurance
+### Quality Assurance
 - **Integration with industry-standard tools**: DAISY Ace, EPUBCheck, Liblouis, BRLTTY, Pandoc, DAISY Pipeline 2
 - **QA run storage** in database, linked to jobs
 
-### 🔗 Provenance & Lineage
+### Provenance & Lineage
 - **Full event history** for all operations
 - **Mermaid-based lineage viewer** for file-to-job relationships
 
-### 🔐 Security & Access Control
+### Security & Access Control
 - **PBKDF2-HMAC-SHA-256 password hashing**
 - **Fernet encryption** for sensitive data
 - **Role-Based Access Control (RBAC)** for multi-user environments
 
-### 📡 API
+### API
 - **RESTful API** mounted at `/api`
 - **Optional authentication** via API keys
 
 ---
-## 🚀 Getting Started
+## Getting Started
 
 New to APM? Follow our **[Installation Guide](getting-started/installation.md)** to set up your environment.
 
 ---
-## 📖 Documentation Structure
+## Documentation Structure
 
 | Section | Description |
 |---------|-------------|
@@ -82,16 +82,16 @@ New to APM? Follow our **[Installation Guide](getting-started/installation.md)**
 | **[Support](support/index.md)** | FAQ, troubleshooting, and contact information |
 
 ---
-## 🤝 Community & Support
+## Community & Support
 
 - **Issues**: [GitHub Issues](https://github.com/mrhunsaker/AccessibilityProjectManagement/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/mrhunsaker/AccessibilityProjectManagement/discussions)
 - **Email**: [github@mail.hunsakerweb.com](mailto:github@mail.hunsakerweb.com)
 
 ---
-## 📜 License
+## License
 
-APM is released under the **[MIT License](license.md)**.
+APM is released under the **[Apache License 2.0](license.md)**.
 
 ---
 *Empowering accessibility production teams with professional-grade workflow management.*

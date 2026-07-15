@@ -5,7 +5,7 @@ below cover production-hardening steps for studio or shared-office use.
 
 ---
 
-## 🖥️ Standard Local Deployment
+## Standard Local Deployment
 
 ```bash
 git clone https://github.com/mrhunsaker/AccessibilityProjectManagement.git
@@ -27,7 +27,7 @@ ui.run(host="0.0.0.0", port=8765, ...)
 
 ---
 
-## 🔄 systemd Service (Linux)
+## systemd Service (Linux)
 
 ```ini
 # /etc/systemd/system/accessibility-mgr.service
@@ -54,7 +54,7 @@ sudo systemctl enable --now accessibility-mgr
 
 ---
 
-## 🪟 Windows Task Scheduler
+## Windows Task Scheduler
 
 1. Open **Task Scheduler** → **Create Task**.
 2. **Trigger**: At log on (for the studio user account).
@@ -66,7 +66,7 @@ The `run.bat` launcher in the repository root provides a double-click shortcut.
 
 ---
 
-## 🔀 Reverse Proxy (nginx)
+## Reverse Proxy (nginx)
 
 For HTTPS access:
 
@@ -92,17 +92,17 @@ WebSocket upgrade headers are required for NiceGUI's real-time updates.
 
 ---
 
-## 📦 Data Directory
+## Data Directory
 
 The database, artifact store, and backups all live under:
 
 ```
 ~/.local/share/accessibility_mgr/
-├── accessibility_manager.db
-├── artifacts/
-├── job_files/
-├── prints_files/
-└── backups/
+ accessibility_manager.db
+ artifacts/
+ job_files/
+ prints_files/
+ backups/
 ```
 
 Override with `ACCESSMAN_DB_PATH` to store data on a separate drive.

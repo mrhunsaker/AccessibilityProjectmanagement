@@ -15,6 +15,7 @@ is checked against the ``RBACService`` role registry.
 from __future__ import annotations
 
 import os
+from importlib.metadata import version as _pkg_version
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
@@ -24,9 +25,17 @@ from ..services.singletons import auth as _auth
 from ..services.singletons import provenance as _provenance
 from ..services.singletons import queue as _queue
 
+
+def _api_version() -> str:
+    try:
+        return _pkg_version("accessible-materials-project-management")
+    except Exception:
+        return "dev"
+
+
 app = FastAPI(
     title="Accessibility Operations API",
-    version="0.2.0",
+    version=_api_version(),
 )
 
 _rbac = RBACService()
@@ -120,6 +129,7 @@ def healthcheck() -> dict:
     return {
         "status": "ok",
         "service": "accessibility-operations-api",
+        "version": _api_version(),
     }
 
 

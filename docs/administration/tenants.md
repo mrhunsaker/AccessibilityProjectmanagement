@@ -7,7 +7,7 @@ demonstration layer.  The primary application database is single-tenant
 
 ---
 
-## 🏢 Organization Model
+## Organization Model
 
 Each organization has:
 
@@ -19,7 +19,7 @@ Each organization has:
 
 ---
 
-## 👤 Membership
+## Membership
 
 Users are linked to organizations via `TenantMembership`:
 
@@ -31,7 +31,7 @@ Users are linked to organizations via `TenantMembership`:
 
 ---
 
-## 🔐 RBAC Integration
+## RBAC Integration
 
 Permission checks go through `TenantRBACService` which holds a list of
 `TenantPermission` records keyed by `(organization_id, role, resource, action)`.
@@ -46,7 +46,7 @@ Seed defaults (applied automatically):
 
 ---
 
-## 💡 Current Limitations
+## Current Limitations
 
 The current implementation is **in-memory only** — organizations and
 memberships do not persist between application restarts.  This is by design

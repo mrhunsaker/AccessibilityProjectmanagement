@@ -6,7 +6,7 @@ via `init_db()`.
 
 ---
 
-## 🔄 How It Works
+## How It Works
 
 1. `init_db()` runs the full `_SCHEMA_SQL` block with `CREATE TABLE IF NOT EXISTS`.
    This is idempotent and safe to run on existing databases.
@@ -17,7 +17,7 @@ via `init_db()`.
 
 ---
 
-## 📋 Applied Migrations
+## Applied Migrations
 
 | ID | Description |
 |----|-------------|
@@ -34,7 +34,7 @@ via `init_db()`.
 
 ---
 
-## ➕ Adding a New Migration
+## Adding a New Migration
 
 1. Open `accessibility_mgr/db/schema.py`.
 2. Add a new function `_mNNN_your_description()` inside `_migrate()`.
@@ -56,7 +56,7 @@ _apply_migration(conn, "m011_example_column", _m011_example_column)
 
 ---
 
-## 🔍 Schema Validation
+## Schema Validation
 
 After migrations run, `_validate_step_columns()` verifies that every expected
 `<step>_date` column exists in the live schema.  If any column is missing the
@@ -64,7 +64,7 @@ app raises `RuntimeError` at startup with a clear list of the missing columns.
 
 ---
 
-## 📁 Manual Inspection
+## Manual Inspection
 
 ```bash
 sqlite3 ~/.local/share/accessibility_mgr/accessibility_manager.db \

@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Workflow Steps
+## Workflow Steps
 
 ### 1. **Intake & Requirements**
 - **Purpose**: Gather specifications
@@ -88,7 +88,7 @@
 - **Status**: Delivered
 
 ---
-## 🎨 Formatting Guidelines
+## Formatting Guidelines
 
 ### Font Sizes by Grade Level
    Grade Level | Recommended Size | Minimum Size |
@@ -116,7 +116,7 @@
   - White on black (for some students)
 
 ---
-## 📏 Paper Sizes & Specifications
+## Paper Sizes & Specifications
  | Size | Dimensions | Common Use |
  |------|------------|------------|
  | **Letter** | 8.5" x 11" | Standard documents |
@@ -126,7 +126,7 @@
  | **Custom** | Varies | Special requirements |
 
 ---
-## 🔧 Common Issues & Solutions
+## Common Issues & Solutions
  | Issue | Cause | Solution |
  |-------|-------|----------|
  | **Text too small** | Wrong font size | Increase to minimum 18pt |

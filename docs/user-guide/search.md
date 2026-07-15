@@ -5,7 +5,7 @@ files, metadata, students, and the event log.
 
 ---
 
-## 🔍 How It Works
+## How It Works
 
 APM uses **SQLite FTS5** (Full-Text Search) when available.  It falls back to
 `LIKE '%term%'` queries on databases that pre-date migration `m009`.
@@ -25,7 +25,7 @@ APM uses **SQLite FTS5** (Full-Text Search) when available.  It falls back to
 
 ---
 
-## 🔑 SHA-256 Checksum Search
+## SHA-256 Checksum Search
 
 If you paste a full **64-character hex** SHA-256 string, APM performs an
 **exact match** against `file_object.checksum_sha256` in addition to the
@@ -34,7 +34,7 @@ a specific ingested file by its fingerprint.
 
 ---
 
-## 📤 Using Search Results
+## Using Search Results
 
 Search results are grouped by category.  Each result shows the most relevant
 fields for quick identification.  Click the job title or file name (where
@@ -42,7 +42,7 @@ applicable) to navigate directly to that record.
 
 ---
 
-## ⚡ Performance
+## Performance
 
 - FTS5 searches are typically under 50 ms for databases with thousands of rows.
 - LIKE fallback is slower on very large databases.  See
@@ -50,7 +50,7 @@ applicable) to navigate directly to that record.
 
 ---
 
-## 💡 Tips
+## Tips
 
 - Search is case-insensitive.
 - Partial words match (e.g. `math` matches `mathematics`).

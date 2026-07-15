@@ -5,7 +5,7 @@ accessibility production pipelines.
 
 ---
 
-## 📋 Built-in Pipelines
+## Built-in Pipelines
 
 ### DAISY Pipeline
 
@@ -48,9 +48,9 @@ Translates a text document to Braille.
 
 ---
 
-## ▶️ Executing a Pipeline
+## Executing a Pipeline
 
-1. Click **▶ Execute Pipeline** on the pipeline card.
+1. Click ** Execute Pipeline** on the pipeline card.
 2. Optionally enter an **Input File Path** (required for conversion steps).
 3. Click **Execute**.
 4. Results appear below the pipeline list, showing per-step pass/fail and
@@ -58,9 +58,9 @@ Translates a text document to Braille.
 
 ---
 
-## 📋 Pipeline History
+## Pipeline History
 
-Click **📋 View History** to see the most recent 20 runs for that pipeline.
+Click ** View History** to see the most recent 20 runs for that pipeline.
 Each run shows status (completed / failed), start and finish timestamps, and
 per-step results.
 
@@ -70,7 +70,7 @@ bottom of the Pipelines page.
 
 ---
 
-## 🔒 Binary Pre-Check
+## Binary Pre-Check
 
 Before executing each step, APM checks that the `required_binary` exists via
 `shutil.which()`.  If the binary is missing, the step is marked as failed
@@ -79,7 +79,7 @@ remaining steps still run so all results are recorded.
 
 ---
 
-## ➕ Adding Custom Pipelines
+## Adding Custom Pipelines
 
 See [Custom Workflows](../../development/custom-workflows.md) for
 instructions on adding pipelines in code.

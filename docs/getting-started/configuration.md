@@ -4,7 +4,7 @@
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 Load from `.secrets` file in repository root.
 
@@ -25,7 +25,7 @@ Load from `.secrets` file in repository root.
 | `ACCESSMAN_BACKUP_RETENTION` | `30` | Number of backups to retain |
 
 ---
-## 📂 External Tool Configuration
+## External Tool Configuration
 
 Edit `tools.ini`:
 ```ini

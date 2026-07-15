@@ -21,7 +21,10 @@ def _install_legacy_import_aliases() -> None:
     }
     for alias, target in aliases.items():
         if alias not in sys.modules:
-            sys.modules[alias] = import_module(target)
+            try:
+                sys.modules[alias] = import_module(target)
+            except ImportError:
+                pass  # subpackage not available (e.g. PyInstaller partial bundle)
 
 
 _install_legacy_import_aliases()

@@ -4,13 +4,13 @@
 
 ---
 
-## 🔒 Overview
+## Overview
 
 Security is **paramount** in APM, especially when handling sensitive student data and accessibility materials. This guide covers all aspects of securing your APM instance, from authentication and authorization to data protection and audit compliance.
 
 ---
 
-## 🛡️ Security Architecture
+## Security Architecture
 
 APM employs a **multi-layered security approach**:
 
@@ -38,7 +38,7 @@ graph TD
 
 ---
 
-## 🔐 Authentication
+## Authentication
 
 ### Password Security
 
@@ -63,7 +63,7 @@ print('ACCESSMAN_PASSWORD_HASH=' + base64.b64encode(salt + dk).decode())
 "
 ```
 
-> **⚠️ Security Note**: 
+> ** Security Note**: 
 >
 > - Never use simple or dictionary passwords
 > - Never reuse passwords across systems
@@ -154,7 +154,7 @@ APM supports **Time-based One-Time Password (TOTP)** 2FA:
 
 ---
 
-## 🔑 Secret Management
+## Secret Management
 
 ### Environment Variables
 
@@ -179,7 +179,7 @@ ACCESSMAN_DB_PATH=/var/lib/accessibility_mgr/database.db
 ACCESSMAN_UNPROTECTED=0
 ```
 
-> **⚠️ Critical**: 
+> ** Critical**: 
 >
 > - `.secrets` must be in the **repository root** (not inside `accessibility_mgr/`)
 > - File permissions should be **600** (owner read/write only)
@@ -188,7 +188,7 @@ ACCESSMAN_UNPROTECTED=0
 
 ---
 
-## 🛡️ Authorization
+## Authorization
 
 ### Role-Based Access Control (RBAC)
 

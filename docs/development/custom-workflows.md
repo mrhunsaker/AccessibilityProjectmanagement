@@ -5,7 +5,7 @@ the Admin UI and **pipeline definition** in Python.
 
 ---
 
-## ⚙️ Configuring Workflow Steps
+## Configuring Workflow Steps
 
 Default steps are seeded for each job type.  Additional steps can be added via
 **Admin → Workflow Steps**:
@@ -24,7 +24,7 @@ Default steps are seeded for each job type.  Additional steps can be added via
 
 ---
 
-## 🔧 Adding a New Pipeline
+## Adding a New Pipeline
 
 Pipelines are defined in `services/pipeline_service.py`:
 
@@ -70,7 +70,7 @@ next page load (or restart).
 
 ---
 
-## 🔒 Binary Allow-List
+## Binary Allow-List
 
 `ExecutionService` only launches executables in `ALLOWED_EXECUTABLES`
 (`services/execution_service.py`).  Add your binary name there before

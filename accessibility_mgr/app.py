@@ -1,22 +1,47 @@
 """
-Accessibility Project Manager — NiceGUI application entry point.
+   Copyright 2026 Michael Ryan Hunsaker, M.Ed., Ph.D
 
-Changes applied (see fix_specs.json):
-  FIX-010  Students page added to Production group.
-  FIX-015  Reports page added to Overview group.
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 """
 
 from __future__ import annotations
 
-import os
 import inspect
-from importlib import import_module
-from pathlib import Path
-from typing import Callable
 import logging
+import os
+import sys
+from collections.abc import Callable
+from importlib import import_module
+from importlib.metadata import version as _pkg_version
+from pathlib import Path
 
 from nicegui import app as nicegui_app
 from nicegui import ui
+
+
+def _base_path() -> Path:
+    """Return the bundle root for PyInstaller frozen builds, or the project root."""
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
+
+
+def _get_version() -> str:
+    """Return the package version (date-based, e.g. '2026.7.15')."""
+    try:
+        return _pkg_version("accessible-materials-project-management")
+    except Exception:
+        return "dev"
 
 log_level_name = os.getenv("ACCESSMAN_LOG_LEVEL", "INFO").strip().upper()
 log_level = getattr(logging, log_level_name, logging.INFO)
@@ -33,6 +58,7 @@ from accessibility_mgr.services import tools_service
 from accessibility_mgr.services.backup_service import BackupService
 
 APP_TITLE = "Accessibility Document Generation Project Manager"
+APP_VERSION = _get_version()
 
 PAGE_DEFINITIONS: list[dict] = [
     # ── Overview ──────────────────────────────────────────────────────────────
@@ -334,8 +360,8 @@ def login_page() -> None:
 
     FUN-022: Empty-password submissions are rejected before any hashing.
     """
-    import hashlib
     import base64
+    import hashlib
     import hmac
 
     ui.page_title("Login — " + APP_TITLE)
@@ -354,15 +380,14 @@ def login_page() -> None:
             # FUN-019: no silent auto-approve
             with ui.column().classes(
                 "items-center justify-center w-full min-h-screen bg-slate-100"
-            ):
-                with ui.card().classes("p-8 gap-4 w-96 shadow-xl rounded-2xl border-red-300"):
-                    ui.label("⚠ No Password Configured").classes(
-                        "text-lg font-bold text-red-700 text-center"
-                    )
-                    ui.label(
-                        "Set ACCESSMAN_PASSWORD_HASH in your .secrets file to enable login. "
-                        "For offline dev only, set ACCESSMAN_UNPROTECTED=1."
-                    ).classes("text-sm text-slate-600 text-center")
+            ), ui.card().classes("p-8 gap-4 w-96 shadow-xl rounded-2xl border-red-300"):
+                ui.label("⚠ No Password Configured").classes(
+                    "text-lg font-bold text-red-700 text-center"
+                )
+                ui.label(
+                    "Set ACCESSMAN_PASSWORD_HASH in your .secrets file to enable login. "
+                    "For offline dev only, set ACCESSMAN_UNPROTECTED=1."
+                ).classes("text-sm text-slate-600 text-center")
         return
 
     if _is_authenticated():
@@ -585,7 +610,7 @@ def load_secrets():
     if not os.path.exists(secrets_path):
         raise FileNotFoundError(f"Secrets file '{secrets_path}' not found.")
 
-    with open(secrets_path, 'r') as file:
+    with open(secrets_path) as file:
         for line in file:
             stripped = line.strip()
             if not stripped or stripped.startswith('#'):
@@ -597,13 +622,13 @@ def load_secrets():
 
 def main() -> None:
     """Console-script entry point for ``uv run AccessMan``."""
-    favicon_path = Path(__file__).parent.parent / "resources/icons/favicon.svg"
+    favicon_path = _base_path() / "resources" / "icons" / "favicon.svg"
     load_secrets()
     storage_secret = os.getenv('STORAGE_SECRET')
-    
+
     if not storage_secret:
         raise ValueError("Storage secret is missing or empty.")
-        
+
     ui.run(
         title=APP_TITLE,
         reload=False,

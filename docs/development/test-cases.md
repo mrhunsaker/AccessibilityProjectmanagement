@@ -5,7 +5,7 @@ recommended manual test cases and guidance for adding automated tests.
 
 ---
 
-## ✅ Core Manual Test Checklist
+## Core Manual Test Checklist
 
 ### Authentication
 - [ ] Login with correct password succeeds
@@ -52,7 +52,7 @@ recommended manual test cases and guidance for adding automated tests.
 
 ---
 
-## 🧪 Unit Testing Approach
+## Unit Testing Approach
 
 The data layer (`db/queries.py`) is the highest-value target for unit tests
 because it contains all SQL logic.  Use an in-memory SQLite database:

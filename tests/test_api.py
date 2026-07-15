@@ -104,6 +104,7 @@ class TestHealthcheck:
         data = resp.json()
         assert data["status"] == "ok"
         assert data["service"] == "accessibility-operations-api"
+        assert "version" in data
 
 
 class TestWorkflowEndpoints:

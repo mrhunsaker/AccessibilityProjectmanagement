@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### 1. Log In
 1. Navigate to [http://localhost:8765](http://localhost:8765)
@@ -13,7 +13,7 @@
 
 ---
 
-## 📋 Create Your First Job
+## Create Your First Job
 
 ### Braille Job Example
 1. Click **"Braille Jobs"** in the sidebar
@@ -35,7 +35,7 @@
 
 ---
 
-## 📁 File Ingestion Workflow
+## File Ingestion Workflow
 
 1. **Upload Files**:
    - Drag & drop into the ingestion page
@@ -52,7 +52,7 @@
 
 ---
 
-## 🎯 Dashboard Overview
+## Dashboard Overview
 
 ### Widgets
 - **Active Jobs**: Currently in-progress workflows
@@ -69,7 +69,7 @@
 - **Admin**: Configuration and settings
 
 ---
-## ✅ Next Actions
+## Next Actions
 
 1. [ ] Create 3-5 sample jobs for each workflow type
 2. [ ] Add your inventory items (filament, paper, etc.)

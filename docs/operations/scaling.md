@@ -5,7 +5,7 @@ documents the practical limits and paths to scale when needed.
 
 ---
 
-## 📐 Practical Limits
+## Practical Limits
 
 | Entity | Tested comfortably | Notes |
 |---|---|---|
@@ -17,7 +17,7 @@ documents the practical limits and paths to scale when needed.
 
 ---
 
-## 🗄️ Large Event Logs
+## Large Event Logs
 
 If the event log card on a job detail page is slow, you can archive old events:
 
@@ -33,7 +33,7 @@ appear in the job detail view.
 
 ---
 
-## 🌐 Multi-User / Network Access
+## Multi-User / Network Access
 
 APM's SQLite database supports **one writer at a time**.  For teams of 2-3
 users sharing a database over a LAN:
@@ -49,7 +49,7 @@ PostgreSQL-compatible with minor adjustments (`?` → `%s`, `datetime('now')` �
 
 ---
 
-## 🔄 Workflow Queue
+## Workflow Queue
 
 The in-memory `WorkflowQueueService` is replaced by `PersistentWorkflowQueue`
 (SQLite-backed) when `services/singletons.py` is updated to use it.  This

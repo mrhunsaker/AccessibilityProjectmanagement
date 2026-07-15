@@ -20,16 +20,12 @@ RUN apt-get update && \
 # Create app directory
 WORKDIR /app
 
-# Copy project files
-COPY pyproject.toml uv.lock* ./
+# Copy full source (needed by hatchling to build the wheel)
+COPY . .
 
 # Install dependencies with uv
 RUN pip install uv && \
     uv pip install --system --no-cache-dir .
-
-# Copy application
-COPY accessibility_mgr/ ./accessibility_mgr/
-COPY tools.ini.example tools.ini
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
@@ -45,9 +41,9 @@ USER appuser
 # Expose port
 EXPOSE 8765
 
-# Health check
+# Health check (uses Python instead of curl, which is not in slim images)
 HEALTHCHECK --interval=30s --timeout=3s \
-    CMD curl -f http://localhost:8765/ || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/')" || exit 1
 
 # Run the application
 CMD ["uv", "run", "python", "accessibility_mgr/app.py"]
