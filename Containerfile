@@ -38,9 +38,6 @@ RUN mkdir -p /data/{artifacts,job_files,prints_files,backups} && \
 # Switch to non-root user
 USER appuser
 
-# Ensure writable directories exist at runtime (volume mounts may override ownership)
-VOLUME /data
-
 # Expose port
 EXPOSE 8765
 
