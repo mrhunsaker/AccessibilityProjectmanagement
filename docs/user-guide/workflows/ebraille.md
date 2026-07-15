@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Workflow Steps
+## Workflow Steps
 
 ### 1. **Source Acquisition**
 - **Purpose**: Obtain digital source
@@ -65,7 +65,7 @@
   - Cloud storage link
 
 ---
-## 💾 File Formats
+## File Formats
    Format | Extension | Description | Use Case |
  |--------|-----------|-------------|----------|
  | **BRF** | .brf | Braille Ready Format | Standard digital braille |
@@ -76,30 +76,30 @@
  | **EPUB** | .epub | EPUB with braille | Accessible e-books |
 
 ---
-## 🔌 Device Compatibility
+## Device Compatibility
 
 ### Braille Displays
  | Device | BRF Support | Notes |
  |--------|-------------|-------|
- | **Focus (Freedom Scientific)** | ✅ Yes | All models |
- | **JAWS Braille Display** | ✅ Yes | All models |
- | **BrailleNote (HumanWare)** | ✅ Yes | Requires conversion |
- | **Orbit Reader (APH)** | ✅ Yes | Native support |
- | **Brailliant (APH)** | ✅ Yes | All models |
- | **Esys/Eurobraille** | ✅ Yes | Requires plugin |
+ | **Focus (Freedom Scientific)** | Yes | All models |
+ | **JAWS Braille Display** | Yes | All models |
+ | **BrailleNote (HumanWare)** | Yes | Requires conversion |
+ | **Orbit Reader (APH)** | Yes | Native support |
+ | **Brailliant (APH)** | Yes | All models |
+ | **Esys/Eurobraille** | Yes | Requires plugin |
 
 ### Reading Apps
  | App | Platform | BRF Support |
  |-----|----------|-------------|
- | **BrailleBack** | iOS | ✅ Yes |
- | **Braille Screen Input** | Android | ✅ Yes |
- | **BRLTTY** | Linux | ✅ Yes |
- | **NVDA** | Windows | ✅ Yes (with plugin) |
- | **JAWS** | Windows | ✅ Yes |
- | **VoiceOver** | macOS/iOS | ✅ Yes |
+ | **BrailleBack** | iOS | Yes |
+ | **Braille Screen Input** | Android | Yes |
+ | **BRLTTY** | Linux | Yes |
+ | **NVDA** | Windows | Yes (with plugin) |
+ | **JAWS** | Windows | Yes |
+ | **VoiceOver** | macOS/iOS | Yes |
 
 ---
-## 📊 Quality Checklist
+## Quality Checklist
 
 Before distribution, verify:
 - [ ] All text is properly translated
@@ -113,6 +113,6 @@ Before distribution, verify:
 - [ ] All special characters handled
 
 ---
-## 🔗 Related Workflows
+## Related Workflows
 - [Braille Workflow](braille.md) - For physical braille
 - [EPUB/DAISY Workflow](epub-daisy.md) - For accessible e-books

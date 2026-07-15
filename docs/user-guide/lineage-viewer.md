@@ -7,7 +7,7 @@ Navigate to **Metadata & Files → Lineage Viewer**.
 
 ---
 
-## 📊 Lineage Graph
+## Lineage Graph
 
 The graph renders automatically from `file_object`, `job_file_link`, and all
 job tables.  Each file is a rectangular node; jobs are shown as parallelogram
@@ -23,7 +23,7 @@ to narrow down to specific jobs and their files.
 
 ---
 
-## 📋 File Registry Table
+## File Registry Table
 
 Below the graph is a paginated table of all ingested files (50 per page):
 
@@ -38,14 +38,14 @@ Below the graph is a paginated table of all ingested files (50 per page):
 
 ---
 
-## 🔍 Finding a File by Checksum
+## Finding a File by Checksum
 
 Copy the full SHA-256 hex string and paste it into the **Search** page.
 An exact match is performed against `file_object.checksum_sha256`.
 
 ---
 
-## 🔗 Provenance Events
+## Provenance Events
 
 The lineage viewer also loads provenance events from the in-memory
 `ProvenanceRegistry`.  In development mode (`ACCESSMAN_DEV=1`), three seed

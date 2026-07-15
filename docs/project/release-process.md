@@ -4,7 +4,7 @@ APM uses **calendar versioning**: `YYYY.M.N` (year, month, patch).
 
 ---
 
-## 🔖 Steps
+## Steps
 
 1. **Update `CHANGES.md`** with the new version heading and changes.
 2. **Bump the version** in `pyproject.toml` (or wherever `__version__` is
@@ -23,7 +23,7 @@ APM uses **calendar versioning**: `YYYY.M.N` (year, month, patch).
 
 ---
 
-## 📋 Pre-Release Checklist
+## Pre-Release Checklist
 
 - [ ] All failing pages are resolved or documented as known issues
 - [ ] `CHANGES.md` is up to date
@@ -34,7 +34,7 @@ APM uses **calendar versioning**: `YYYY.M.N` (year, month, patch).
 
 ---
 
-## 🔁 Hotfix Process
+## Hotfix Process
 
 For critical bugs in a released version:
 1. Branch from the release tag: `git checkout -b hotfix/2026.6.9.1 2026.6.9`.

@@ -2,7 +2,7 @@
 
 ---
 
-## 📋 Log Output
+## Log Output
 
 APM uses Python's standard `logging` module.  Enable verbose output by setting
 `ACCESSMAN_LOG_LEVEL=DEBUG` in `.secrets`:
@@ -29,7 +29,7 @@ Key loggers:
 
 ---
 
-## 🚨 Failed Pages
+## Failed Pages
 
 If a UI module fails to import at startup, it appears under **"Failed to load"**
 in the sidebar with a red `error_outline` icon.  Hover over it to see the
@@ -40,7 +40,7 @@ traceback.
 
 ---
 
-## 🗄️ Inspecting the Database
+## Inspecting the Database
 
 ```bash
 sqlite3 ~/.local/share/accessibility_mgr/accessibility_manager.db
@@ -64,7 +64,7 @@ SELECT * FROM schema_migration ORDER BY applied_at;
 
 ---
 
-## 🔍 Page Errors in UI
+## Page Errors in UI
 
 When a page handler raises an unhandled exception, `render_page()` catches it
 and displays a red error card containing:
@@ -75,7 +75,7 @@ This means you can usually diagnose UI bugs without looking at terminal output.
 
 ---
 
-## 🛠️ Development Mode
+## Development Mode
 
 Set `ACCESSMAN_DEV=1` to enable development-only seed data in the Operations
 Dashboard and Workflow Monitor pages:
@@ -86,7 +86,7 @@ ACCESSMAN_DEV=1
 
 ---
 
-## 🔄 Hot Reload
+## Hot Reload
 
 NiceGUI's hot reload is **disabled** (`reload=False`) in production to prevent
 accidental restarts in a studio environment.  For development, temporarily

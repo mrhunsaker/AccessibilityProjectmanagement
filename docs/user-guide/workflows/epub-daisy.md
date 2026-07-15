@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Workflow Overview
+## Workflow Overview
 
 ```mermaid
 graph TD
@@ -20,7 +20,7 @@ graph TD
 
 ---
 
-## 📋 Detailed Steps
+## Detailed Steps
 
 ### 1. Source Acquisition
 - **Purpose**: Gather source materials
@@ -149,7 +149,7 @@ graph TD
   - Online repository
 
 ---
-## 🛠️ Tools & Software
+## Tools & Software
 
 ### Core Tools
 
@@ -173,7 +173,7 @@ graph TD
 | VoiceOver | Screen reader compatibility | Audio feedback |
 
 ---
-## 📊 Accessibility Features
+## Accessibility Features
 
 ### Required Features
 
@@ -203,30 +203,30 @@ graph TD
 | Customizable | User can adjust display | CSS custom properties |
 
 ---
-## 📁 File Structure
+## File Structure
 
 ```
 my-epub/
-├── META-INF/
-│   └── container.xml
-├── OEBPS/
-│   ├── content.opf
-│   ├── toc.ncx
-│   ├── toc.xhtml
-│   ├── chapter1.xhtml
-│   ├── chapter2.xhtml
-│   ├── images/
-│   │   ├── image1.png
-│   │   └── image2.jpg
-│   ├── styles/
-│   │   └── style.css
-│   └── audio/
-│       └── narration.mp3
-└── mimetype
+ META-INF/
+    container.xml
+ OEBPS/
+    content.opf
+    toc.ncx
+    toc.xhtml
+    chapter1.xhtml
+    chapter2.xhtml
+    images/
+       image1.png
+       image2.jpg
+    styles/
+       style.css
+    audio/
+        narration.mp3
+ mimetype
 ```
 
 ---
-## 🔗 Related Workflows
+## Related Workflows
 
 - [Braille Workflow](braille.md) - For braille versions
 - [Large Print Workflow](large-print.md) - For large print versions

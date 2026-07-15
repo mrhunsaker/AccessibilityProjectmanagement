@@ -5,7 +5,7 @@ extension points.
 
 ---
 
-## 📄 Adding a New UI Page
+## Adding a New UI Page
 
 1. Create `accessibility_mgr/ui/my_page.py` with a function `my_page(content_area)`.
 2. Add an entry to `PAGE_DEFINITIONS` in `accessibility_mgr/app.py`:
@@ -25,7 +25,7 @@ The page will appear in the sidebar automatically on the next restart.
 
 ---
 
-## 🔧 Adding a QA Tool
+## Adding a QA Tool
 
 Add a `QATool` entry to `QA_TOOLS` in `services/qa_service.py`:
 
@@ -45,13 +45,13 @@ Also add `"my-validator"` to `ALLOWED_EXECUTABLES` in
 
 ---
 
-## 🔗 Adding a Pipeline
+## Adding a Pipeline
 
 See [Custom Workflows](custom-workflows.md) for full instructions.
 
 ---
 
-## 📊 Adding Analytics Metrics
+## Adding Analytics Metrics
 
 Call `AnalyticsService.record_metric()` from any service or page:
 
@@ -70,7 +70,7 @@ Metrics are visible in the Operations Dashboard summary.
 
 ---
 
-## 🌐 Adding REST Endpoints
+## Adding REST Endpoints
 
 Mount additional FastAPI routes on the `app` object in
 `api/platform_api.py`:

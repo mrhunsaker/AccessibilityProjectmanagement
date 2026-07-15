@@ -14,8 +14,9 @@ python -m PyInstaller \
     accessibility_mgr/app.py \
     --onefile \
     --name=AccessMan \
-    --add-data="accessibility_mgr/resources:accessibility_mgr/resources" \
+    --add-data="resources/icons:resources/icons" \
     --add-data="accessibility_mgr/db:accessibility_mgr/db" \
+    --collect-submodules=accessibility_mgr \
     --hidden-import=nicegui \
     --hidden-import=sqlalchemy \
     --hidden-import=cryptography \
@@ -24,7 +25,6 @@ python -m PyInstaller \
     --clean \
     --distpath=dist/macos \
     --workpath=build/macos \
-    --icon=accessibility_mgr/resources/icons/favicon.icns \
     --windowed
 
 echo "✅ macOS build complete: dist/macos/AccessMan"

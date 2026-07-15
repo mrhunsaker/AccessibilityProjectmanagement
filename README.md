@@ -339,8 +339,7 @@ Access the application at: [http://localhost:8765](http://localhost:8765)
 
 ## License
 
-MIT License – see [LICENSE](LICENSE) for details.
-
+Apache 2.0 License
 ---
 
 ## Contributing

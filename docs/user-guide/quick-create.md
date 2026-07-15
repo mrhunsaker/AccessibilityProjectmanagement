@@ -5,7 +5,7 @@ the minimum required fields, then navigate directly to that job type's page.
 
 ---
 
-## 🖱️ Opening Quick Create
+## Opening Quick Create
 
 - Click the floating **+** (add) button in the bottom-right corner of the
   Dashboard.
@@ -13,7 +13,7 @@ the minimum required fields, then navigate directly to that job type's page.
 
 ---
 
-## 📋 Fields
+## Fields
 
 | Field | Required | Notes |
 |-------|----------|-------|
@@ -23,7 +23,7 @@ the minimum required fields, then navigate directly to that job type's page.
 
 ---
 
-## 🚀 What Happens After Save
+## What Happens After Save
 
 APM creates the job with sensible defaults:
 
@@ -39,14 +39,14 @@ open the new job and fill in full details.
 
 ---
 
-## ⚠️ 3-D Print Requirements
+## 3-D Print Requirements
 
 Quick Create for 3-D Print requires at least one printer to be configured
 (**Admin → Printers**).  If no printers exist, an error notification appears.
 
 ---
 
-## ✏️ Editing After Creation
+## Editing After Creation
 
 All fields set by Quick Create can be changed by opening the job and clicking
 **Edit**.  The quick create form intentionally omits student linking, due

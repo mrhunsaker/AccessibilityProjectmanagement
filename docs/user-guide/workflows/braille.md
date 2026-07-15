@@ -4,7 +4,7 @@
 
 ---
 
-## 📋 Workflow Steps
+## Workflow Steps
 
 ### 1. **Intake & Assessment**
 - **Purpose**: Review source material and requirements
@@ -82,7 +82,7 @@
 - **Status**: Delivered
 
 ---
-## 🛠️ Braille-Specific Features
+## Braille-Specific Features
 
 ### Braille Codes Supported
 | Code | Description | Common Use |
@@ -109,7 +109,7 @@
 | **Incorrect page breaks** | Wrong page size | Adjust configuration |
 
 ---
-## 📊 Metrics & Reporting
+## Metrics & Reporting
 
 ### Job Metrics
 - **Pages produced**: Total braille pages
@@ -124,7 +124,7 @@
 4. **Student Progress**: Braille jobs per student
 
 ---
-## 🔗 Related Workflows
+## Related Workflows
 - [Large Print Workflow](large-print.md) - For visual impairments
 - [eBraille Workflow](ebraille.md) - Digital braille files
 - [Tactile Graphics Workflow](tactile-graphics.md) - For diagrams and images

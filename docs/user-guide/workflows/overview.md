@@ -4,7 +4,7 @@
 
 ---
 
-## 🔄 Workflow Lifecycle
+## Workflow Lifecycle
 
 All jobs follow a similar lifecycle with these stages:
 
@@ -21,7 +21,7 @@ graph LR
     H --> C
 ```
 
-## 📋 Common Workflow Features
+## Common Workflow Features
 ### Status Tracking
 
 | Status | Description | Color | Actions Available |
@@ -55,7 +55,7 @@ Every action generates an audit event:
 - What changed
 - Previous/next states
 
-## 🔗 Cross-Workflow Features
+## Cross-Workflow Features
 
 Student Linking
 
@@ -78,7 +78,7 @@ All jobs support:
 - Custom Fields: Organization-specific metadata
 - Tags: Categorization and filtering
 
-## 📊 Workflow Comparison
+## Workflow Comparison
 
 | Feature | Braille | Large Print | eBraille | EPUB/DAISY | Tactile Graphics | 3-D Print |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -8,7 +8,6 @@ resolution-markers = [
 
 [[package]]
 name = "accessible-materials-project-management"
-version = "2026.6.9"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

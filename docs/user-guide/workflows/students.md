@@ -5,7 +5,7 @@ complete cross-job production history.
 
 ---
 
-## 👤 Student Records
+## Student Records
 
 Each student record contains:
 
@@ -20,7 +20,7 @@ Each student record contains:
 
 ---
 
-## ➕ Adding a Student
+## Adding a Student
 
 1. Click **+ Add Student**.
 2. Fill in at least **First Name** and **Last Name**.
@@ -28,14 +28,14 @@ Each student record contains:
 
 ---
 
-## 🔍 Searching Students
+## Searching Students
 
 The search bar filters by last name, first name, and school simultaneously.
 Toggle **Show Inactive** to include deactivated students.
 
 ---
 
-## 📋 Student Detail View
+## Student Detail View
 
 Click **View** to open a student's detail page showing:
 
@@ -45,14 +45,14 @@ Click **View** to open a student's detail page showing:
 
 ---
 
-## 🔗 Linking Jobs to Students
+## Linking Jobs to Students
 
 When creating or editing any job, use the **Student** dropdown to link it to a
 student record.  The dropdown shows: `Last, First — School`.
 
 ---
 
-## 📊 Job Counts
+## Job Counts
 
 The student list shows the total job count for each student.  APM fetches
 these in a single SQL query (`count_jobs_for_students()`) rather than per-row
@@ -60,7 +60,7 @@ to keep the list fast even with many students.
 
 ---
 
-## 🗑️ Deactivating a Student
+## Deactivating a Student
 
 Click **Deactivate** in the student detail view.  This sets `active = 0` —
 it is a **soft delete**.  All linked jobs and their history are preserved.
@@ -69,7 +69,7 @@ restored directly in the database (`UPDATE student SET active = 1 WHERE id = ?`)
 
 ---
 
-## 📈 Using Students in Reports
+## Using Students in Reports
 
 On the **Reports** page, use the **Student** dropdown to filter all job types
 to a single student.  Combine with school, grade, status, and date range

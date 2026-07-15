@@ -4,17 +4,17 @@
 
 ---
 
-## 📡 Base URL
+## Base URL
 
 <http://localhost:8765/api>
 
-## 🔐 Authentication
+## Authentication
 If `ACCESSMAN_API_AUTH_REQUIRED=1`:
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8765/api/jobs
 ```
 
-## 📋 Endpoints
+## Endpoints
 
 ### Jobs
 
@@ -50,7 +50,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8765/api/jobs
 | POST | /qa/validate | Run validation |
 | GET | /qa/runs | List QA runs |
 
-## 📤 Request Examples
+## Request Examples
 
 ### Create a braille job
 
@@ -73,7 +73,7 @@ curl http://localhost:8765/api/jobs \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-## 📥 Response Examples
+## Response Examples
 
 ### Job Object
 
