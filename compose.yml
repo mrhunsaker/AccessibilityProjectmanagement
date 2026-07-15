@@ -2,20 +2,17 @@ services:
   accessibility-manager:
     build:
       context: .
-      containerfile: Containerfile
+      dockerfile: Containerfile
     container_name: accessibility-manager
     restart: unless-stopped
     ports:
       - "8765:8765"
     volumes:
-      # Persistent data (required)
-      - ./data:/data
-      # Configuration (required)
+      # Persistent data (named volume — container controls ownership)
+      - data:/data
+      # Configuration (read-only bind mounts)
       - ./.secrets:/app/.secrets:ro,z
       - ./tools.ini:/app/tools.ini:ro,z
-      # Optional: Persist artifacts and backups on host
-      - ./artifacts:/data/artifacts
-      - ./backups:/data/backups
     environment:
       - NICEGUI_BROWSER_ONLY=1
       - ACCESSMAN_DB_PATH=/data/accessibility_manager.db
@@ -25,7 +22,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    read_only: true
     tmpfs:
       - /tmp
 

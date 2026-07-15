@@ -31,7 +31,7 @@ RUN pip install uv && \
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-# Create data directories
+# Create data directories owned by appuser
 RUN mkdir -p /data/{artifacts,job_files,prints_files,backups} && \
     chown -R appuser:appuser /data
 
@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/')" || exit 1
 
 # Run the application
-CMD ["uv", "run", "python", "accessibility_mgr/app.py"]
+CMD ["python", "accessibility_mgr/app.py"]
