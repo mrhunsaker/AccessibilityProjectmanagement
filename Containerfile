@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/')" || exit 1
 
 # Run the application
-CMD ["uv", "run", "python", "accessibility_mgr/app.py"]
+CMD ["python", "accessibility_mgr/app.py"]
