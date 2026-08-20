@@ -6,7 +6,9 @@
 
 ## Environment Variables
 
-Load from `.secrets` file in repository root.
+Loaded from `.secrets` file in repository root.  The setup assistant
+(`setup.py`) generates this file with all required values automatically.
+See the [Installation Guide](installation.md) for details.
 
 ### Required Variables
 | Variable | Description | How to Generate |

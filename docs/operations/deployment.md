@@ -11,8 +11,7 @@ below cover production-hardening steps for studio or shared-office use.
 git clone https://github.com/mrhunsaker/AccessibilityProjectManagement.git
 cd AccessibilityProjectManagement
 uv sync
-# create .secrets (see Installation guide)
-uv run AccessMan
+uv run AccessMan    # setup assistant runs automatically on first launch
 ```
 
 APM binds to `localhost:8765` by default.  To expose it on a LAN:

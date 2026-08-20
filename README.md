@@ -104,13 +104,19 @@ cd AccessibilityProjectManagement
 # 2. Install ALL dependencies (app + docs) with ONE command
 uv sync
 
-# 3. Create .secrets file (see Secrets & Authentication below)
-touch .secrets
-chmod 600 .secrets
-
-# 4. Run the application
+# 3. Run the application (setup assistant auto-launches on first run)
 uv run AccessMan
 ```
+
+On first run, if `.secrets` is missing, the app automatically launches an
+interactive setup assistant that generates all required secrets and
+configuration files.  You can also run it manually at any time:
+
+| Platform | Command |
+|----------|---------|
+| **Linux / macOS** | `./setup.sh` |
+| **Windows** | Double-click `setup.bat` |
+| **All platforms** | `python setup.py` |
 
 Open your browser to [http://localhost:8765](http://localhost:8765)
 

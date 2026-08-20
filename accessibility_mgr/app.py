@@ -605,10 +605,24 @@ def load_secrets():
     SEC-002: uses partition('=') so values containing '=' (e.g. base64 Fernet
     keys) are preserved intact.  Blank lines and comment lines are skipped.
     FUN-013: strips whitespace from both key and value independently.
+
+    If the secrets file is missing the interactive setup assistant
+    (setup.py) is launched automatically so first-time users never see a
+    raw traceback.
     """
     secrets_path = '.secrets'
     if not os.path.exists(secrets_path):
-        raise FileNotFoundError(f"Secrets file '{secrets_path}' not found.")
+        import subprocess
+
+        setup_script = _base_path() / 'setup.py'
+        if setup_script.exists():
+            print("\n  .secrets not found.  Launching setup assistant...\n")
+            subprocess.run([sys.executable, str(setup_script)], check=False)
+        if not os.path.exists(secrets_path):
+            raise FileNotFoundError(
+                f"Secrets file '{secrets_path}' not found.  "
+                "Run 'python setup.py' to create it."
+            )
 
     with open(secrets_path) as file:
         for line in file:

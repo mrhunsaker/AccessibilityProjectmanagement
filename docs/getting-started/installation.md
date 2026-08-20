@@ -38,32 +38,31 @@ uv sync
 
 ### 3. Configure Secrets
 
-Create a `.secrets` file in the **repository root** (not inside `accessibility_mgr/`):
+The interactive setup assistant handles this automatically when you first
+launch the application.  You can also run it manually:
+
+**Linux / macOS:**
 
 ```bash
-touch .secrets
-chmod 600 .secrets
+./setup.sh
 ```
 
-#### Generate Required Secrets
+**Windows:**
 
-Storage Secret:
+Double-click `setup.bat` in File Explorer, or run:
+
+```cmd
+setup.bat
+```
+
+**All platforms:**
 
 ```bash
-python -c "import secrets; print('STORAGE_SECRET=' + secrets.token_urlsafe(32))" >> .secrets
+python setup.py
 ```
 
-Password Hash (PBKDF2-HMAC-SHA-256):
-
-```bash
-python -c "
-import hashlib, os, base64
-password = b'your_password_here'
-salt = os.urandom(16)
-dk = hashlib.pbkdf2_hmac('sha256', password, salt, 260000)
-print('ACCESSMAN_PASSWORD_HASH=' + base64.b64encode(salt + dk).decode())
-" >> .secrets
-```
+The assistant will generate `STORAGE_SECRET`, prompt you for an admin
+password, create the `.secrets` file, and set appropriate file permissions.
 
 ### 4. Configure External Tools (Optional)
 
@@ -86,6 +85,6 @@ Open your browser to [http://localhost:8765](http://localhost:8765)
 | Issue | Solution |
 | --- | --- |
 | ModuleNotFoundError | Run `uv sync` |
-| FileNotFoundError: .secrets | Create `.secrets` in repository root |
+| FileNotFoundError: .secrets | Run `python setup.py` to create it |
 | ValueError: Storage secret is missing | Add `STORAGE_SECRET` to `.secrets` |
 | Port 8765 already in use | Change port in `app.py` |

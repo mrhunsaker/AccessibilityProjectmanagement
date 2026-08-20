@@ -5,7 +5,7 @@ create your first job.
 
 | Page | Description |
 |------|-------------|
-| [Installation](installation.md) | Prerequisites, cloning the repo, and generating required secrets |
+| [Installation](installation.md) | Prerequisites, cloning the repo, and running the setup assistant |
 | [Configuration](configuration.md) | Environment variables and external tool paths (`tools.ini`) |
 | [First Steps](first-steps.md) | Logging in, creating your first job, and a dashboard walkthrough |
 

@@ -6,12 +6,21 @@
 
 ### `FileNotFoundError: .secrets`
 
-The `.secrets` file must be in the **repository root**, not inside
-`accessibility_mgr/`.
+The app automatically launches the setup assistant on first run when
+`.secrets` is missing.  If that fails, create it manually:
 
 ```bash
-ls -la .secrets   # should be present
+python setup.py
 ```
+
+Or on macOS/Linux:
+
+```bash
+./setup.sh
+```
+
+The `.secrets` file must be in the **repository root**, not inside
+`accessibility_mgr/`.
 
 ### `ValueError: Storage secret is missing or empty`
 

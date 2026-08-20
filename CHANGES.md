@@ -6,6 +6,26 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.
 
 ---
 
+# 2026-08-20
+
+## Added
+
+### Interactive Setup Assistant
+- Added `setup.py` interactive terminal setup assistant (OS detection, prerequisite checks, `.secrets` creation with auto-generated secrets, `tools.ini` setup from example, validation)
+- Added `setup.sh` launcher for macOS/Linux
+- Added `setup.bat` launcher for Windows
+
+### Auto-Setup Integration
+- App now auto-runs `setup.py` when `.secrets` is missing on first launch
+
+## Changed
+
+- `load_secrets()` in `app.py` no longer crashes on missing `.secrets`; instead launches the setup assistant automatically
+- Updated README.md quick-start to reflect new auto-setup flow
+- Updated MkDocs installation, configuration, troubleshooting, and deployment docs
+
+---
+
 # 2026-07-15
 
 ## Added
