@@ -48,6 +48,19 @@ Translates a text document to Braille.
 
 ---
 
+### Large Print (ACB/GLOW) Pipeline
+
+Audits Word, Excel, PowerPoint or EPUB against the ACB Large Print Guidelines,
+Microsoft Accessibility Checker rules and WCAG 2.2 AA using the GLOW Toolkit.
+
+| Step | Tool | Command |
+|------|------|---------|
+| Audit for Accessibility | GLOW (ACB Large Print) | `acb-large-print audit {input} --format json` |
+
+**Requires**: `acb-large-print` on PATH (GLOW Toolkit).
+
+---
+
 ## Executing a Pipeline
 
 1. Click ** Execute Pipeline** on the pipeline card.

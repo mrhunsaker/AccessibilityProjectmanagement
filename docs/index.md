@@ -46,7 +46,7 @@ APM combines **job management, file ingestion, metadata tracking, QA tooling int
 - **Low-stock warnings** and transaction history
 
 ### Quality Assurance
-- **Integration with industry-standard tools**: DAISY Ace, EPUBCheck, Liblouis, BRLTTY, Pandoc, DAISY Pipeline 2
+- **Integration with industry-standard tools**: DAISY Ace, EPUBCheck, Liblouis, BRLTTY, Pandoc, DAISY Pipeline 2, GLOW (ACB Large Print), and FIDO (DAISY Labs AI)
 - **QA run storage** in database, linked to jobs
 
 ### Provenance & Lineage

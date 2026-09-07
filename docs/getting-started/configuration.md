@@ -37,6 +37,12 @@ epubcheck = /usr/local/bin/epubcheck
 pipeline = /opt/daisy-pipeline/bin/pipeline2
 liblouis = /usr/bin/lou_translate
 
+# GLOW (ACB Large Print Toolkit) - Community-Access, https://github.com/Community-Access/glow
+glow = acb-large-print
+
+# FIDO (DAISY Labs AI) - desktop app; entered via manual review, no CLI yet
+# fido =
+
 [paths]
 extra =
     /opt/daisy-pipeline/bin

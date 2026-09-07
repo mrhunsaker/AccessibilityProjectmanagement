@@ -42,6 +42,7 @@ Each job supports step completion, reversion, delivery capture, event logging, D
 
 ### QA & Automation
 - Integration with DAISY Ace, EPUBCheck, Liblouis, BRLTTY, Pandoc, DAISY Pipeline 2
+- Integration with **GLOW** (Community-Access ACB Large Print Toolkit) and **FIDO** (DAISY Labs AI) accessibility testing
 - QA run storage in database, linked to jobs
 
 ### Provenance & Lineage
@@ -204,6 +205,12 @@ ace = /usr/local/bin/ace
 epubcheck = /usr/local/bin/epubcheck
 pipeline = /opt/daisy-pipeline/bin/pipeline2
 liblouis = /usr/bin/lou_translate
+
+# GLOW (ACB Large Print Toolkit) - Community-Access, https://github.com/Community-Access/glow
+glow = acb-large-print
+
+# FIDO (DAISY Labs AI) - desktop app; results entered via manual review, no CLI yet
+# fido =
 
 [paths]
 extra =
