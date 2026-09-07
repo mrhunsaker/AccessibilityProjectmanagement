@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
+import os
+import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 from typing import Any, Callable
@@ -154,10 +158,8 @@ def file_picker(
     def _cleanup_previous() -> None:
         prev = holder.get("source_path")
         if prev:
-            try:
+            with contextlib.suppress(OSError):
                 Path(prev).unlink(missing_ok=True)
-            except OSError:
-                pass
 
     def _on_upload(event: events.UploadEventArguments) -> None:
         raw_name = Path(event.name).name
@@ -198,3 +200,25 @@ def file_picker(
                 pass
 
     status_label = ui.label(hint).classes("text-xs text-slate-400")
+
+
+def open_folder(path: str | Path) -> bool:
+    """Open a folder in the OS file manager. Returns True if launched.
+
+    Uses ``xdg-open`` on Linux, ``open`` on macOS, and ``explorer`` on Windows.
+    Because APM runs as a local web app this opens the folder on the host
+    machine in the default file browser.
+    """
+    target = str(path)
+    if not Path(target).exists():
+        return False
+    try:
+        if os.name == "nt":
+            subprocess.Popen(["explorer", target])
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", target])
+        else:
+            subprocess.Popen(["xdg-open", target])
+        return True
+    except OSError:
+        return False

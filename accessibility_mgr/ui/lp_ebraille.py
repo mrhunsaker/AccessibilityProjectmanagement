@@ -25,6 +25,7 @@ from .components import (
     file_use_badge,
     notify_error,
     notify_success,
+    open_folder,
     priority_badge,
     progress_bar,
     section_header,
@@ -451,6 +452,19 @@ def _job_detail(job: dict, content_area: ui.element, refresh_cb) -> None:
                 ):
                     with ui.row().classes("items-center mb-3"):
                         ui.label("Files").classes("font-semibold text-slate-700 flex-1")
+
+                        def _open_project_folder(meta: Optional[dict] = cur_meta) -> None:
+                            title = (meta or {}).get("dc:title", "").strip()
+                            folder = Q.ARTIFACTS_DIR / title if title else Q.ARTIFACTS_DIR
+                            if open_folder(folder):
+                                notify_success(f"Opened: {folder}")
+                            else:
+                                notify_error(f"Could not open folder: {folder}")
+
+                        ui.button(
+                            "Open Project Folder",
+                            on_click=_open_project_folder,
+                        ).props("flat dense").classes("text-slate-600 text-sm")
                         ui.button(
                             "+ Attach File",
                             on_click=lambda: _ingest_dialog(jid, _refresh, cur_meta),
