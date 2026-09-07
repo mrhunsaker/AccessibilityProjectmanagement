@@ -12,8 +12,14 @@ from typing import Optional
 from nicegui import ui
 
 from ..db import queries as Q
+from ..services.student_import import (
+    import_students_csv,
+    preview_students_csv,
+    student_import_template_csv,
+)
 from .components import (
     confirm_dialog,
+    file_picker,
     notify_error,
     notify_success,
     priority_badge,
@@ -94,6 +100,134 @@ def _student_dialog(on_save, existing: Optional[dict] = None) -> None:
                 dlg.close()
 
             ui.button("Save", on_click=_save).classes("bg-blue-600 text-white")
+
+    dlg.open()
+
+
+# ── Bulk import dialog ────────────────────────────────────────────────────────
+
+def _bulk_import_dialog(content_area: ui.element) -> None:
+    """Pick a CSV, preview add/skip rows, then import the additions on confirm."""
+    holder: dict = {}
+
+    def _preview_and_confirm() -> None:
+        source = holder.get("source_path")
+        if not source:
+            notify_error("Please select a CSV file first")
+            return
+
+        try:
+            preview = preview_students_csv(source)
+        except Exception as exc:  # noqa: BLE001 - surface parsing failures to the user
+            notify_error(f"Could not read CSV: {exc}")
+            return
+
+        if not preview.to_add and not preview.to_skip and not preview.errors:
+            notify_error("The file contains no student rows")
+            return
+
+        with ui.dialog() as confirm_dlg, ui.card().classes(
+            "p-6 gap-4 w-[560px] max-w-full max-h-[80vh]"
+        ):
+            ui.label("Bulk Import Preview").classes(
+                "text-lg font-semibold text-slate-800"
+            )
+            ui.label(
+                f"{len(preview.to_add)} to add · {len(preview.to_skip)} skipped"
+                f" · {len(preview.errors)} invalid"
+            ).classes("text-sm text-slate-500")
+
+            if preview.to_add:
+                ui.label("Will be added").classes(
+                    "text-xs font-semibold text-slate-500 uppercase tracking-wider mt-2"
+                )
+                with ui.scroll_area().classes("w-full max-h-48"):
+                    for row in preview.to_add:
+                        ui.label(
+                            f"{row['last_name']}, {row['first_name']}"
+                            + (f"  ·  {row['school']}" if row["school"] else "")
+                        ).classes("text-sm text-slate-700 py-0.5")
+
+            if preview.to_skip:
+                ui.label("Skipped (already exists)").classes(
+                    "text-xs font-semibold text-slate-400 uppercase tracking-wider mt-2"
+                )
+                with ui.scroll_area().classes("w-full max-h-40"):
+                    for row in preview.to_skip[:100]:
+                        ui.label(
+                            f"{row['last_name']}, {row['first_name']}"
+                        ).classes("text-sm text-slate-400 py-0.5")
+                    if len(preview.to_skip) > 100:
+                        ui.label(
+                            f"… and {len(preview.to_skip) - 100} more"
+                        ).classes("text-xs text-slate-400")
+
+            if preview.errors:
+                ui.label("Invalid rows").classes(
+                    "text-xs font-semibold text-red-400 uppercase tracking-wider mt-2"
+                )
+                for err in preview.errors:
+                    ui.label(err).classes("text-sm text-red-500 py-0.5")
+
+            with ui.row().classes("justify-end gap-3 w-full mt-3"):
+                ui.button("Cancel", on_click=confirm_dlg.close).props(
+                    "flat"
+                ).classes("text-slate-500")
+
+                def _do_import() -> None:
+                    confirm_dlg.close()
+                    try:
+                        result = import_students_csv(source)
+                    except Exception as exc:  # noqa: BLE001
+                        notify_error(f"Import failed: {exc}")
+                        return
+                    notify_success(
+                        f"Imported {result.added} student(s), "
+                        f"skipped {result.skipped}"
+                    )
+                    students_page(content_area)
+
+                ui.button("Import", on_click=_do_import).classes(
+                    "bg-blue-600 text-white"
+                )
+
+        confirm_dlg.open()
+
+    with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[520px] max-w-full"):
+        ui.label("Bulk Import Students").classes(
+            "text-xl font-bold text-slate-800"
+        )
+        ui.label(
+            "Upload a CSV using the template format. Existing students "
+            "(matched by first + last name) are skipped, never overwritten."
+        ).classes("text-sm text-slate-500")
+
+        def _download_template() -> None:
+            ui.download(
+                student_import_template_csv(),
+                filename="students_template.csv",
+            )
+
+        ui.button(
+            "Download CSV Template",
+            icon="download",
+            on_click=_download_template,
+        ).props("flat dense").classes("text-indigo-600")
+
+        file_picker(
+            holder,
+            accept=".csv",
+            hint="Select the students CSV from this machine",
+            label="Choose CSV",
+        )
+
+        with ui.row().classes("justify-end gap-3 mt-3"):
+            ui.button("Cancel", on_click=dlg.close).props("flat").classes(
+                "text-slate-500"
+            )
+            ui.button("Preview & Import", on_click=_preview_and_confirm).classes(
+                "bg-blue-600 text-white"
+            )
 
     dlg.open()
 
@@ -245,6 +379,13 @@ def students_page(content_area: ui.element) -> None:
             ui.button("+ Add Student", on_click=_new).classes(
                 "bg-blue-600 text-white rounded-lg px-4 py-2"
             )
+
+            def _bulk() -> None:
+                _bulk_import_dialog(content_area)
+
+            ui.button("+ BULK IMPORT", on_click=_bulk).classes(
+                "bg-indigo-600 text-white rounded-lg px-4 py-2"
+            ).props("icon=upload_file")
 
         # Filter bar
         with ui.row().classes("gap-3 mb-4 flex-wrap"):
