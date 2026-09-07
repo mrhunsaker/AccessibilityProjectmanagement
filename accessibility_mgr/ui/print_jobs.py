@@ -20,6 +20,7 @@ from nicegui import ui
 from ..db import queries as Q
 from .components import (
     confirm_dialog,
+    file_picker,
     notify_error,
     notify_success,
     priority_badge,
@@ -108,9 +109,8 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
                 value=existing.get("request_date", "") if is_edit else "",
             ).classes("flex-1")
 
-        file_path = ui.input(
-            "Attach File Path (optional)", placeholder="/path/to/model.3mf"
-        ).classes("w-full")
+        file_holder: dict = {}
+        file_picker(file_holder, label="Attach Model File (optional)")
 
         success_chk = ui.checkbox(
             "Successful", value=bool(existing.get("successful", 1)) if is_edit else True
@@ -149,7 +149,7 @@ def _print_job_dialog(on_save, existing: Optional[dict] = None) -> None:
                     printer_id=pr_id,
                     filament_id=f_id,
                     filament_used_g=float(used_g.value or 0),
-                    file_source_path=file_path.value.strip() or None,
+                    file_source_path=file_holder.get("source_path") or None,
                     successful=1 if success_chk.value else 0,
                     failure_reason=fail_reason.value.strip() or None,
                     object_name=obj_name.value.strip(),
