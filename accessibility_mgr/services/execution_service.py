@@ -14,9 +14,11 @@ from typing import Optional
 # SEC-007: Only these executables may be launched by ExecutionService.
 ALLOWED_EXECUTABLES: frozenset[str] = frozenset({
     "ace",
+    "acb-large-print",
     "brltty",
     "epubcheck",
     "file2brl",
+    "glow",
     "lou_translate",
     "pandoc",
     "pipeline2",

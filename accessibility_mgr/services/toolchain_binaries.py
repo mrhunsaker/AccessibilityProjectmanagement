@@ -4,6 +4,7 @@ Provides executable wrappers for:
 - DAISY Ace CLI
 - EPUBCheck
 - Liblouis braille translation (lou_translate / file2brl)
+- GLOW (ACB Large Print Toolkit)
 
 This layer extends the existing subprocess abstraction with:
 - binary discovery
@@ -95,6 +96,42 @@ class AccessibilityBinaryIntegrationService:
 
         result: ToolExecutionResult = self.toolchain.execute(
             tool_name="EPUBCheck",
+            command=command,
+            artifact_paths=[str(report_path)],
+        )
+
+        return {
+            "execution": asdict(result),
+            "report_path": str(report_path),
+        }
+
+    def run_glow_audit(
+        self,
+        source_path: str,
+    ) -> dict:
+        """Audit a document with the GLOW (ACB Large Print Toolkit) CLI."""
+        binary = self.discover_binary("acb-large-print")
+
+        if not binary:
+            return {
+                "status": "unavailable",
+                "reason": "GLOW (acb-large-print) CLI binary not installed",
+            }
+
+        report_path = Path(tempfile.mktemp(suffix=".txt"))
+
+        command = [
+            binary,
+            "audit",
+            source_path,
+            "--format",
+            "json",
+            "-o",
+            str(report_path),
+        ]
+
+        result: ToolExecutionResult = self.toolchain.execute(
+            tool_name="GLOW (ACB Large Print)",
             command=command,
             artifact_paths=[str(report_path)],
         )

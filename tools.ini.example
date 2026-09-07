@@ -18,6 +18,13 @@ pipeline = pipeline2
 # LibLouis CLI executable
 liblouis = lou_translate
 
+# GLOW (ACB Large Print Toolkit) executable
+# https://github.com/Community-Access/glow  (executable: acb-large-print)
+glow = acb-large-print
+
+# FIDO (DAISY Labs AI) — desktop app; recorded via manual review, no CLI yet
+# fido = 
+
 [paths]
 # Optional: prepend extra directories to PATH (one per line)
 # Example:

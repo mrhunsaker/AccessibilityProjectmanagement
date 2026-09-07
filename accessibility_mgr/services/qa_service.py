@@ -78,6 +78,18 @@ QA_TOOLS: list[QATool] = [
         timeout=10,
     ),
     QATool(
+        name="GLOW (ACB Large Print)",
+        domain="Large Print / Document QA",
+        description=(
+            "Audits Word, Excel, PowerPoint, Markdown, PDF and EPUB against the "
+            "ACB Large Print Guidelines, Microsoft Accessibility Checker rules and "
+            "WCAG 2.2 AA (Community-Access GLOW)."
+        ),
+        executable="acb-large-print",
+        command_template="acb-large-print audit {input} --format json",
+        timeout=180,
+    ),
+    QATool(
         name="ANZAGG Validation",
         domain="3D Accessibility",
         description=(

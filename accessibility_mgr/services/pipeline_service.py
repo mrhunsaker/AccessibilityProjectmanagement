@@ -116,6 +116,23 @@ PIPELINES: list[WorkflowPipeline] = [
             ),
         ],
     ),
+    WorkflowPipeline(
+        name="Large Print (ACB/GLOW) Pipeline",
+        description=(
+            "Audit Word, Excel, PowerPoint or EPUB against the ACB Large Print "
+            "Guidelines, Microsoft Accessibility Checker rules and WCAG 2.2 AA "
+            "using the GLOW Toolkit (Community-Access)."
+        ),
+        steps=[
+            PipelineStep(
+                name="Audit for Accessibility",
+                tool="GLOW (ACB Large Print)",
+                command_template="acb-large-print audit {input} --format json",
+                timeout=180,
+                required_binary="acb-large-print",
+            ),
+        ],
+    ),
 ]
 
 _PIPELINE_MAP: dict[str, WorkflowPipeline] = {p.name: p for p in PIPELINES}

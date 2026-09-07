@@ -15,6 +15,7 @@ Tool names recognised:
   - "epubcheck" → EPUBCheck
   - "pipeline"  → DAISY Pipeline
   - "liblouis"  → LibLouis CLI (lou_translate / file2brl / etc.)
+  - "glow"      → GLOW (ACB Large Print Toolkit, Community-Access)
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ _DEFAULTS: dict[str, str] = {
     "epubcheck": "epubcheck",
     "pipeline": "pipeline2",
     "liblouis": "lou_translate",
+    "glow": "acb-large-print",
 }
 
 # Resolved absolute paths (or None if not found), populated by bootstrap().

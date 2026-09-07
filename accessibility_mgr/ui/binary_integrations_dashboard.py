@@ -25,18 +25,20 @@ def binary_integrations_dashboard(content_area: ui.element) -> None:
         _service.discover_binary("file2brl")
         or _service.discover_binary("lou_translate")
     )
+    glow_binary = _service.discover_binary("acb-large-print")
 
     with content_area:
         section_header(
             "Production Accessibility Toolchain",
-            "Production DAISY Ace, EPUBCheck, and Liblouis binary integrations",
+            "Production DAISY Ace, EPUBCheck, Liblouis, and GLOW (ACB Large Print) binary integrations",
         )
 
-        with ui.grid(columns=3).classes("w-full gap-4"):
+        with ui.grid(columns=4).classes("w-full gap-4"):
             for label, binary in [
                 ("DAISY Ace CLI", ace_binary),
                 ("EPUBCheck", epubcheck_binary),
                 ("Liblouis (file2brl / lou_translate)", liblouis_binary),
+                ("GLOW (ACB Large Print)", glow_binary),
             ]:
                 with ui.card().classes(
                     "p-5 rounded-xl border border-slate-200"
