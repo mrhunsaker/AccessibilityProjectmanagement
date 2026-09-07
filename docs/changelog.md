@@ -6,6 +6,44 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.
 
 ---
 
+# 2026-09-07
+
+## Added
+
+### CSV Bulk Import for Students
+- Added `student_import.py` service with CSV template generation, preview, and single-transaction import
+- Added a downloadable CSV template via the students page (served in memory, `students_template.csv`)
+- Added a **+ BULK IMPORT** button next to **+ Add Student** that opens a native file picker (`.csv`)
+- Added an import preview dialog that buckets rows into **to add** / **to skip** / **errors** before committing
+- Students are de-duplicated on the `(first_name, last_name)` business key (case-insensitive); duplicates in the file and existing database rows are skipped, never overwritten
+- Rows missing a first or last name are reported as row-level errors rather than silently skipped
+- Added `tests/test_student_import.py` covering add, in-file and database de-duplication, invalid-row errors, and template output (4 tests)
+
+### GLOW (ACB Large Print Toolkit) Integration
+- Registered GLOW as a CLI QA tool (`glow = acb-large-print`) in `qa_service.py` and the Execution Service allow-list
+- Added a **Large Print (ACB/GLOW) Pipeline** in `pipeline_service.py`
+- Added `run_glow_audit` and GLOW binary discovery to `toolchain_binaries.py`
+- Added a GLOW card to the binary integrations dashboard
+
+### FIDO (DAISY Labs AI) Integration
+- Registered FIDO as a **manual-review** QA tool (`manual_review=True`) since it has no stable CLI
+- Documented FIDO's desktop-only workflow in `tools.ini` / `tools.ini.example`
+
+### File Picker Dialogs
+- Added a reusable `file_picker` component that stages selected files into `FILES_DIR` (`components.py`)
+- Replaced manual file-path typing in job attach dialogs and the print job model-file dialog
+
+### Open Project Folder
+- Added an **Open Project Folder** affordance to job Files cards via the `open_folder` helper
+
+## Changed
+
+- Configured `tools.ini` and `tools.ini.example` with `glow = acb-large-print` and a commented `# fido =` entry
+- Updated README and MkDocs documentation to cover GLOW/FIDO integration
+- Documented the CSV bulk-import workflow in the Students user guide
+
+---
+
 # 2026-08-20
 
 ## Added

@@ -22,6 +22,11 @@ This project is currently an **alpha-stage operational prototype** with a modula
 
 Each job supports step completion, reversion, delivery capture, event logging, Dublin Core/eBraille/METS/PREMIS metadata, step-level file attachments, and student record linkage.
 
+### Student Management
+- Individual student records (name, school, grade, preferred formats, notes) with soft-delete and cross-job production history
+- **CSV bulk import**: download a template, upload a `.csv` via a native file picker, review an add/skip/error preview, then commit in a single transaction
+- De-duplication on `(first_name, last_name)` — duplicate and existing records are **skipped**, never overwritten
+
 ### File Ingestion & Preservation
 - Drag-and-drop or path-based ingestion
 - Automatic SHA-256 checksums and PREMIS-style event logging
@@ -372,6 +377,6 @@ Contributions welcome! Open an issue or submit a pull request.
 ## Metadata
 
 - **Author**: Michael Ryan Hunsaker, M.Ed., Ph.D.
-- **Version**: 2026.6.9
+- **Version**: 2026.9.7
 - **Python Version**: >= 3.12
 - **Keywords**: `braille`, `3d-printing`, `inventory`, `nicegui`, `project-management`, `accessibility`

@@ -28,6 +28,58 @@ Each student record contains:
 
 ---
 
+## Bulk Importing Students from CSV
+
+Next to **+ Add Student** there is a **+ BULK IMPORT** button for adding
+many students at once from a comma-separated (`.csv`) file.
+
+### 1. Download the Template
+
+Click **+ BULK IMPORT** and then **Download Template** to fetch
+`students_template.csv`. It is generated in memory with the expected columns
+and two example rows you can overwrite.
+
+### 2. Prepare Your File
+
+The template uses these columns (header row required):
+
+| Column | Required | Notes |
+|--------|----------|-------|
+| `last_name` | Yes | Used in the business key |
+| `first_name` | Yes | Used in the business key, together with last name |
+| `school` | No | |
+| `grade` | No | |
+| `preferred_formats` | No | e.g. "Braille UEB Grade 2, Large Print 18pt" |
+| `notes` | No | |
+
+Any row with a **blank `first_name` or `last_name`** is skipped and reported
+as a row-level error. Empty cells, and the tokens `nan`, `none`, `null`, `-`,
+`n/a`, and `na`, are treated as blank.
+
+### 3. Select the File
+
+Click **Choose CSV File** to open a native file picker and select your `.csv`.
+
+### 4. Review the Preview
+
+Before anything is written, APM shows a preview grouped into three buckets:
+
+- **To Add** — rows that qualify for insertion
+- **To Skip** — duplicates, either repeated within the file (first occurrence
+  wins) or already present in the database
+- **Errors** — rows missing a first or last name
+
+Students are de-duplicated on the combined `(first_name, last_name)` business
+key, matched **case-insensitively**. **Duplicates are always skipped and never
+overwrite existing records.**
+
+### 5. Commit
+
+Click **Confirm Import** to insert every **To Add** row in a single
+transaction. The result reports how many were added, skipped, and errored.
+
+---
+
 ## Searching Students
 
 The search bar filters by last name, first name, and school simultaneously.
