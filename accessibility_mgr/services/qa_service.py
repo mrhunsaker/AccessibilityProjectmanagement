@@ -90,6 +90,19 @@ QA_TOOLS: list[QATool] = [
         timeout=180,
     ),
     QATool(
+        name="FIDO (DAISY AI)",
+        domain="AI Remediation / Conversion",
+        description=(
+            "DAISY Labs AI assistant for PDF conversion, image description, language "
+            "detection, heading-structure analysis and metadata generation. Ships as a "
+            "desktop app with no stable CLI, so results are recorded via manual review."
+        ),
+        executable="",
+        command_template="",
+        timeout=0,
+        manual_review=True,
+    ),
+    QATool(
         name="ANZAGG Validation",
         domain="3D Accessibility",
         description=(
