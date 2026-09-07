@@ -21,6 +21,7 @@ from nicegui import ui
 from ..db import queries as Q
 from .components import (
     confirm_dialog,
+    file_picker,
     file_use_badge,
     notify_error,
     notify_success,
@@ -192,7 +193,8 @@ def _ingest_dialog(job_id: int, on_done, existing_meta: Optional[dict] = None) -
     meta = existing_meta or {}
     with ui.dialog() as dlg, ui.card().classes("p-6 gap-4 w-[560px] max-w-full"):
         ui.label("Attach File to Job").classes("text-xl font-bold text-slate-800")
-        path_input = ui.input("File Path*").classes("w-full")
+        file_holder: dict = {}
+        file_picker(file_holder, label="Choose File")
         step_opts = ["(job level)"] + [_STEP_LABELS[s] for s in _STEPS]
         step_select = ui.select(
             step_opts, label="Workflow Step", value="(job level)"
@@ -279,9 +281,11 @@ def _ingest_dialog(job_id: int, on_done, existing_meta: Optional[dict] = None) -
             ui.button("Cancel", on_click=dlg.close).props("flat").classes("text-slate-500")
 
             def _save() -> None:
-                if not path_input.value.strip():
-                    notify_error("File path is required")
+                src = file_holder.get("source_path")
+                if not src:
+                    notify_error("Choose a file to attach")
                     return
+                src_path = Path(src)
                 tools = [r["inp"].value.strip() for r in tool_rows if r["inp"].value.strip()]
                 procs = [r["inp"].value.strip() for r in proc_rows if r["inp"].value.strip()]
                 extra: Optional[dict] = None
@@ -299,7 +303,7 @@ def _ingest_dialog(job_id: int, on_done, existing_meta: Optional[dict] = None) -
                             break
                 try:
                     fid = Q.ingest_file(
-                        path_input.value.strip(),
+                        src_path,
                         file_use=use_select.value,
                         format_name=fmt_select.value,
                         format_version=ver_input.value.strip(),
@@ -316,7 +320,7 @@ def _ingest_dialog(job_id: int, on_done, existing_meta: Optional[dict] = None) -
                         "lp_ebraille", job_id, "INGEST", "SUCCESS",
                         step_key=step_key,
                         file_object_id=fid,
-                        detail=f"Ingested {Path(path_input.value.strip()).name}",
+                        detail=f"Ingested {src_path.name}",
                     )
                     notify_success("File ingested")
                     dlg.close()
